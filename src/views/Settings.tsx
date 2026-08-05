@@ -4,6 +4,8 @@ import { Button, Card, Field, Badge } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useClaudeCode } from "@/hooks/useClaudeCode";
 import { useSettings } from "@/stores/settings";
+import { clearSecrets } from "@/lib/secrets";
+import { collectBackup, applyBackup, BACKUP_MAGIC } from "@/lib/backup";
 import { useGaps } from "@/stores/gaps";
 import { useConversations } from "@/stores/conversations";
 import { useRuns } from "@/stores/runs";
@@ -14,19 +16,18 @@ export function SettingsView() {
   const [showKey, setShowKey] = useState(false);
   const [keyDraft, setKeyDraft] = useState(s.apiKey);
 
-  const resetAll = () => {
+  const resetAll = async () => {
     if (!confirm("This wipes all GAPs, agents, chats and runs on this device. Continue?")) return;
+    // Credentials live in the OS keychain, outside localStorage — clear them
+    // explicitly or a "wipe everything" would quietly leave the API key behind.
+    await clearSecrets();
     localStorage.clear();
     location.reload();
   };
 
   const exportBackup = () => {
-    const data: Record<string, unknown> = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)!;
-      if (key.startsWith("forge.")) data[key] = localStorage.getItem(key);
-    }
-    const blob = new Blob([JSON.stringify({ magic: "forge.backup/v1", exportedAt: Date.now(), data }, null, 2)], {
+    const data = collectBackup();
+    const blob = new Blob([JSON.stringify({ magic: BACKUP_MAGIC, exportedAt: Date.now(), data }, null, 2)], {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
@@ -42,10 +43,9 @@ export function SettingsView() {
     if (!file) return;
     try {
       const parsed = JSON.parse(await file.text());
-      if (parsed.magic !== "forge.backup/v1" || !parsed.data) throw new Error("Not a Forge backup file.");
+      if (parsed.magic !== BACKUP_MAGIC || !parsed.data) throw new Error("Not a Forge backup file.");
       if (!confirm("Restore this backup? It replaces all current Forge data on this device.")) return;
-      for (const key of Object.keys(localStorage)) if (key.startsWith("forge.")) localStorage.removeItem(key);
-      for (const [k, v] of Object.entries(parsed.data)) localStorage.setItem(k, v as string);
+      applyBackup(parsed.data);
       location.reload();
     } catch (err: any) {
       alert(`Import failed: ${err.message ?? err}`);
@@ -64,7 +64,7 @@ export function SettingsView() {
             <h3 className="font-semibold">Claude API</h3>
             <Badge tone={s.apiKey ? "success" : "warn"}>{s.apiKey ? "configured" : "not set"}</Badge>
           </div>
-          <Field label="API key" hint="Stored only in this device's local storage. Never sent anywhere except Anthropic.">
+          <Field label="API key" hint="Kept in this device's OS keychain, never in a backup file. Sent only to Anthropic.">
             <div className="flex gap-2">
               <input
                 className="input font-mono"
@@ -127,7 +127,9 @@ export function SettingsView() {
           </div>
           <DataStats />
           <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
-            <span className="text-sm text-ink-2">Back up everything to a file, or restore from one.</span>
+            <span className="text-sm text-ink-2">
+              Back up everything to a file, or restore from one. Credentials are excluded.
+            </span>
             <div className="flex gap-2">
               <Button icon="download" onClick={exportBackup}>
                 Export backup

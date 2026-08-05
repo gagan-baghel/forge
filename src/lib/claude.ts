@@ -12,6 +12,80 @@ import type { ChatMessage, ModelId } from "@/types/domain";
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 
+/** Transient failures worth another attempt: rate limits and overload. */
+const RETRYABLE = new Set([408, 429, 500, 502, 503, 504, 529]);
+const MAX_ATTEMPTS = 4;
+
+function isAbort(e: unknown): boolean {
+  return e instanceof Error && e.name === "AbortError";
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new DOMException("Aborted", "AbortError"));
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(new DOMException("Aborted", "AbortError"));
+      },
+      { once: true },
+    );
+  });
+}
+
+/**
+ * POST to the Messages API and hand back a live streaming response.
+ *
+ * Retries rate limits and overload (429/529 are routine on busy accounts) with
+ * exponential backoff, honouring `retry-after` when the API sends one. Only
+ * requests that never began streaming are retried, so no output is duplicated.
+ */
+async function postStream(body: unknown, apiKey: string, signal?: AbortSignal): Promise<Response> {
+  let lastError = "";
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": API_VERSION,
+          // Allow calling the API directly from a browser/webview context.
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        signal,
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      if (isAbort(e)) throw e;
+      // Offline or DNS blip — worth one more try.
+      lastError = `Network error reaching Claude: ${(e as Error).message}`;
+      if (attempt === MAX_ATTEMPTS - 1) throw new Error(lastError);
+      await sleep(2 ** attempt * 500 + Math.random() * 250, signal);
+      continue;
+    }
+
+    if (res.ok && res.body) return res;
+
+    const detail = await res.text().catch(() => "");
+    lastError = `Claude API error ${res.status}: ${detail || res.statusText}`;
+    if (!RETRYABLE.has(res.status) || attempt === MAX_ATTEMPTS - 1) throw new Error(lastError);
+
+    const retryAfter = Number(res.headers?.get?.("retry-after"));
+    const waitMs =
+      Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : 2 ** attempt * 500 + Math.random() * 250;
+    await sleep(waitMs, signal);
+  }
+
+  throw new Error(lastError);
+}
+
 export interface StreamCallbacks {
   onText: (delta: string) => void;
   onUsage?: (usage: { inputTokens: number; outputTokens: number }) => void;
@@ -84,16 +158,8 @@ export async function streamMessage(req: MessageRequest, cb: StreamCallbacks): P
     throw new Error("No API key set. Add your Claude API key in Settings → API.");
   }
 
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": req.apiKey,
-      "anthropic-version": API_VERSION,
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    signal: cb.signal,
-    body: JSON.stringify({
+  const res = await postStream(
+    {
       model: req.model,
       system: req.system || undefined,
       max_tokens: req.maxTokens,
@@ -101,15 +167,12 @@ export async function streamMessage(req: MessageRequest, cb: StreamCallbacks): P
       stream: true,
       tools: req.tools && req.tools.length ? req.tools : undefined,
       messages: req.messages,
-    }),
-  });
+    },
+    req.apiKey,
+    cb.signal,
+  );
 
-  if (!res.ok || !res.body) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Claude API error ${res.status}: ${detail || res.statusText}`);
-  }
-
-  const reader = res.body.getReader();
+  const reader = res.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   let text = "";
@@ -224,32 +287,20 @@ export async function streamChat(req: ChatRequest, cb: StreamCallbacks): Promise
     throw new Error("No API key set. Add your Claude API key in Settings → API.");
   }
 
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": req.apiKey,
-      "anthropic-version": API_VERSION,
-      // Allow calling the API directly from a browser/webview context.
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    signal: cb.signal,
-    body: JSON.stringify({
+  const res = await postStream(
+    {
       model: req.model,
       system: req.system || undefined,
       max_tokens: req.maxTokens,
       temperature: req.temperature,
       stream: true,
       messages: toApiMessages(req.messages),
-    }),
-  });
+    },
+    req.apiKey,
+    cb.signal,
+  );
 
-  if (!res.ok || !res.body) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Claude API error ${res.status}: ${detail || res.statusText}`);
-  }
-
-  const reader = res.body.getReader();
+  const reader = res.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   let text = "";

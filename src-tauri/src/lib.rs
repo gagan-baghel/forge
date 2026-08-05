@@ -2,6 +2,7 @@ mod channels;
 mod claude_code;
 mod net;
 mod pty;
+mod secrets;
 
 use channels::ChannelState;
 use claude_code::ClaudeCodeState;
@@ -31,6 +32,9 @@ pub fn run() {
             claude_code::claude_code_run,
             claude_code::claude_code_cancel,
             net::http_fetch,
+            secrets::secret_set,
+            secrets::secret_get,
+            secrets::secret_delete,
             channels::telegram_start,
             channels::telegram_send,
             channels::discord_start,
