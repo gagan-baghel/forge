@@ -1,0 +1,121 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ----------------------------------------------------------------------------
+ * Forge design tokens
+ * Modern, calm, high-contrast workspace UI. Colors are stored as raw RGB
+ * channels so Tailwind's `<alpha-value>` and rgb(var(--x) / a) both work.
+ * Two themes ship by default: "dusk" (dark) and "paper" (light).
+ * ------------------------------------------------------------------------- */
+:root,
+[data-theme="dusk"] {
+  --bg: 15 16 23;
+  --surface: 22 24 33;
+  --surface-2: 30 33 45;
+  --border: 44 48 64;
+  --ink: 233 236 245;
+  --ink-2: 168 175 196;
+  --ink-3: 110 118 140;
+  --brand: 109 91 255;
+  --brand-2: 142 124 255;
+  --accent: 255 209 102;
+  --success: 64 201 142;
+  --warn: 240 180 70;
+  --danger: 244 96 96;
+
+  --f-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+[data-theme="paper"] {
+  --bg: 247 247 250;
+  --surface: 255 255 255;
+  --surface-2: 241 242 246;
+  --border: 222 224 232;
+  --ink: 24 26 34;
+  --ink-2: 82 88 104;
+  --ink-3: 140 146 162;
+  --brand: 90 70 240;
+  --brand-2: 120 102 250;
+  --accent: 224 150 30;
+  --success: 28 160 110;
+  --warn: 200 140 30;
+  --danger: 220 70 70;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: rgb(var(--bg));
+  color: rgb(var(--ink));
+  font-family: var(--f-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgb(var(--brand) / 0.3);
+}
+
+/* Thin, unobtrusive scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--border)) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+/* ---- Reusable component classes -------------------------------------- */
+@layer components {
+  .card {
+    @apply bg-surface border border-border rounded-xl;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium
+           transition-colors disabled:opacity-50 disabled:pointer-events-none select-none;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-white hover:bg-brand-2;
+  }
+  .btn-ghost {
+    @apply btn text-ink-2 hover:bg-surface-2 hover:text-ink;
+  }
+  .btn-outline {
+    @apply btn border border-border text-ink hover:bg-surface-2;
+  }
+  .input {
+    @apply w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink
+           placeholder:text-ink-3 outline-none focus:border-brand;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-border bg-surface-2
+           px-2.5 py-0.5 text-xs font-medium text-ink-2;
+  }
+  .label {
+    @apply text-xs font-medium uppercase tracking-wider text-ink-3;
+  }
+}
+
+/* xterm fills its container */
+.xterm,
+.xterm .xterm-viewport {
+  height: 100%;
+}

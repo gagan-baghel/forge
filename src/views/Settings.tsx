@@ -1,0 +1,230 @@
+import { useState } from "react";
+import { PageHeader } from "@/components/Shell";
+import { Button, Card, Field, Badge } from "@/components/ui";
+import { Icon } from "@/components/Icon";
+import { useClaudeCode } from "@/hooks/useClaudeCode";
+import { useSettings } from "@/stores/settings";
+import { useGaps } from "@/stores/gaps";
+import { useConversations } from "@/stores/conversations";
+import { useRuns } from "@/stores/runs";
+import { MODELS } from "@/types/domain";
+
+export function SettingsView() {
+  const s = useSettings();
+  const [showKey, setShowKey] = useState(false);
+  const [keyDraft, setKeyDraft] = useState(s.apiKey);
+
+  const resetAll = () => {
+    if (!confirm("This wipes all GAPs, agents, chats and runs on this device. Continue?")) return;
+    localStorage.clear();
+    location.reload();
+  };
+
+  const exportBackup = () => {
+    const data: Record<string, unknown> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)!;
+      if (key.startsWith("forge.")) data[key] = localStorage.getItem(key);
+    }
+    const blob = new Blob([JSON.stringify({ magic: "forge.backup/v1", exportedAt: Date.now(), data }, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `forge-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      if (parsed.magic !== "forge.backup/v1" || !parsed.data) throw new Error("Not a Forge backup file.");
+      if (!confirm("Restore this backup? It replaces all current Forge data on this device.")) return;
+      for (const key of Object.keys(localStorage)) if (key.startsWith("forge.")) localStorage.removeItem(key);
+      for (const [k, v] of Object.entries(parsed.data)) localStorage.setItem(k, v as string);
+      location.reload();
+    } catch (err: any) {
+      alert(`Import failed: ${err.message ?? err}`);
+    }
+    e.target.value = "";
+  };
+
+  return (
+    <div>
+      <PageHeader title="Settings" subtitle="Forge is local-first — everything here lives on this device" />
+      <div className="mx-auto max-w-3xl space-y-6 p-7">
+        {/* API */}
+        <Card className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Icon name="bolt" size={18} className="text-brand-2" />
+            <h3 className="font-semibold">Claude API</h3>
+            <Badge tone={s.apiKey ? "success" : "warn"}>{s.apiKey ? "configured" : "not set"}</Badge>
+          </div>
+          <Field label="API key" hint="Stored only in this device's local storage. Never sent anywhere except Anthropic.">
+            <div className="flex gap-2">
+              <input
+                className="input font-mono"
+                type={showKey ? "text" : "password"}
+                value={keyDraft}
+                placeholder="sk-ant-…"
+                onChange={(e) => setKeyDraft(e.target.value)}
+              />
+              <Button onClick={() => setShowKey((v) => !v)}>{showKey ? "Hide" : "Show"}</Button>
+              <Button variant="primary" onClick={() => s.setApiKey(keyDraft.trim())} disabled={keyDraft === s.apiKey}>
+                Save
+              </Button>
+            </div>
+          </Field>
+          <Field label="Default model">
+            <select className="input" value={s.defaultModel} onChange={(e) => s.setDefaultModel(e.target.value as any)}>
+              {MODELS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label} — {m.blurb}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </Card>
+
+        {/* Runtime */}
+        <RuntimeSection />
+
+        {/* Appearance */}
+        <Card className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Icon name="settings" size={18} className="text-brand-2" />
+            <h3 className="font-semibold">Appearance</h3>
+          </div>
+          <Field label="Theme">
+            <div className="flex gap-2">
+              {(["dusk", "paper"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => s.setTheme(t)}
+                  className={`flex-1 rounded-lg border px-4 py-3 text-sm capitalize transition-colors ${
+                    s.theme === t ? "border-brand bg-brand/10" : "border-border hover:bg-surface-2"
+                  }`}
+                >
+                  {t === "dusk" ? "🌙 Dusk (dark)" : "📄 Paper (light)"}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Display name">
+            <input className="input" value={s.userName} placeholder="Your name" onChange={(e) => s.setUserName(e.target.value)} />
+          </Field>
+        </Card>
+
+        {/* Data */}
+        <Card className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Icon name="grid" size={18} className="text-brand-2" />
+            <h3 className="font-semibold">Data &amp; backup</h3>
+          </div>
+          <DataStats />
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+            <span className="text-sm text-ink-2">Back up everything to a file, or restore from one.</span>
+            <div className="flex gap-2">
+              <Button icon="download" onClick={exportBackup}>
+                Export backup
+              </Button>
+              <label className="btn-outline cursor-pointer">
+                <Icon name="upload" size={15} /> Import
+                <input type="file" accept=".json,.forge" hidden onChange={importBackup} />
+              </label>
+            </div>
+          </div>
+          <div className="flex items-center justify-between border-t border-border pt-3">
+            <span className="text-sm text-ink-2">Reset Forge to a clean state.</span>
+            <Button variant="danger" icon="trash" onClick={resetAll}>
+              Wipe all data
+            </Button>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function RuntimeSection() {
+  const runtime = useSettings((s) => s.runtime);
+  const setRuntime = useSettings((s) => s.setRuntime);
+  const apiKey = useSettings((s) => s.apiKey);
+  const { info, available, desktop } = useClaudeCode();
+  const onCC = runtime === "claude-code";
+
+  return (
+    <Card className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Icon name="plug" size={18} className="text-brand-2" />
+        <h3 className="font-semibold">Runtime</h3>
+      </div>
+      <p className="text-sm text-ink-3">How agents run. Each agent can override this in its Config tab.</p>
+
+      {/* Local Claude Code daemon — automatic, no connect step. */}
+      <button
+        onClick={() => setRuntime("claude-code")}
+        className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition-colors ${
+          onCC ? "border-brand bg-brand/10" : "border-border hover:bg-surface-2"
+        }`}
+      >
+        <div>
+          <div className="font-medium">Local Claude Code</div>
+          <p className="text-xs text-ink-3">
+            Runs on your local Claude Code — no API key, nothing metered.
+            {available && info?.version ? ` Using ${info.version.split(" ")[0]}.` : ""}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge tone={desktop && available ? "success" : "warn"}>
+            {!desktop ? "desktop only" : available ? "ready" : "not found"}
+          </Badge>
+          {onCC && <Icon name="check" size={16} className="text-brand-2" />}
+        </div>
+      </button>
+
+      {/* Optional fallback: the metered API. */}
+      <button
+        onClick={() => setRuntime("api")}
+        className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition-colors ${
+          runtime === "api" ? "border-brand bg-brand/10" : "border-border hover:bg-surface-2"
+        }`}
+      >
+        <div>
+          <div className="font-medium">Use Claude API instead</div>
+          <p className="text-xs text-ink-3">Direct BYOK calls, metered per token.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge tone={apiKey ? "success" : "warn"}>{apiKey ? "key set" : "no key"}</Badge>
+          {runtime === "api" && <Icon name="check" size={16} className="text-brand-2" />}
+        </div>
+      </button>
+    </Card>
+  );
+}
+
+function DataStats() {
+  const gaps = useGaps((s) => s.gaps.length);
+  const agents = useGaps((s) => s.gaps.reduce((a, g) => a + g.agents.length, 0));
+  const convs = useConversations((s) => s.conversations.length);
+  const runs = useRuns((s) => s.runs.length);
+  return (
+    <div className="grid grid-cols-4 gap-3 text-center">
+      {[
+        ["GAPs", gaps],
+        ["Agents", agents],
+        ["Chats", convs],
+        ["Runs", runs],
+      ].map(([label, n]) => (
+        <div key={label as string} className="rounded-lg bg-surface-2 py-3">
+          <div className="text-xl font-semibold">{n as number}</div>
+          <div className="text-xs text-ink-3">{label as string}</div>
+        </div>
+      ))}
+    </div>
+  );
+}

@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+*.tsbuildinfo
+
+# Emitted JS must never sit next to source: Vite resolves .js before .ts,
+# so a stray artifact silently shadows the real file and ships stale code.
+src/**/*.js
+.env
+.env.*
+!.env.example
+
+# Rust / Tauri
+src-tauri/target
+src-tauri/gen
