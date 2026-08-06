@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://github.com/OWNER/REPO/releases/latest/download/latest.json"],
+      "pubkey": "PASTE_TAURI_UPDATER_PUBKEY_HERE"
+    }
+  }
+}

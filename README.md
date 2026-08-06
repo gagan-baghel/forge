@@ -12,7 +12,8 @@ round-trips to a single `.gap` file.
 
 - **Local-first.** Your GAPs, chats and keys live on your machine. No account,
   no hosted backend, no cloud. Chat goes straight from the app to Claude —
-  via your API key, or via your local Claude Code subscription.
+  via your API key, or via your local Claude Code subscription. Credentials go
+  in the OS keychain, never in a config file or a backup.
 - **In-built bridge.** The Claude Code runtime is compiled into the app's Rust
   shell — one-tap connect (it can even install the CLI for you), $0 API cost.
 - **GAP-native.** Agents are never loose — they live inside a GAP you can
@@ -80,9 +81,30 @@ src-tauri/       Rust shell: Claude Code bridge (detect / install / run),
 - **Terminal** — a real shell (desktop only)
 - **Settings** — BYOK key, default model, theme, price overrides, data reset
 
+## Test
+
+```bash
+pnpm typecheck   # tsc --noEmit
+pnpm test        # vitest
+```
+
+Note: never emit JavaScript into `src/`. Vite resolves `.js` before `.ts`, so a
+stray artifact silently shadows its own source and the build ships stale code.
+`.gitignore` blocks `src/**/*.js` for that reason.
+
 ## Build for release
 
 ```bash
-pnpm desktop:build                                  # native bundle (.app + .dmg)
+pnpm desktop:build                                  # local, unsigned (.app + .dmg)
 pnpm tauri build --target universal-apple-darwin    # Intel + Apple Silicon
+pnpm desktop:release                                # signed build with auto-update
 ```
+
+`desktop:release` and CI need signing keys. See [RELEASE.md](RELEASE.md) for the
+one-time Apple Developer and updater-keypair setup, and for cutting a tagged
+release through GitHub Actions.
+
+## License
+
+Copyright © 2026. All rights reserved. This source is proprietary and is not
+licensed for redistribution or derivative works.

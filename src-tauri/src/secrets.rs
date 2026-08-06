@@ -42,3 +42,33 @@ pub fn secret_delete(key: String) -> Result<(), String> {
         Err(err) => Err(format!("could not delete secret: {err}")),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Round-trip against the real keychain. Uses a throwaway key so it can
+    /// never clobber a developer's actual stored credentials.
+    #[test]
+    fn stores_reads_and_clears_a_secret() {
+        let key = "forge-test-scratch";
+
+        // Headless CI has no Secret Service; there is nothing to assert there.
+        if secret_set(key.into(), "hunter2".into()).is_err() {
+            eprintln!("no keychain backend available — skipping");
+            return;
+        }
+        assert_eq!(secret_get(key.into()).expect("get"), Some("hunter2".into()));
+
+        // Overwrite, not append.
+        secret_set(key.into(), "hunter3".into()).expect("overwrite");
+        assert_eq!(secret_get(key.into()).expect("get"), Some("hunter3".into()));
+
+        // Empty means "clear", and reading a missing key is None, not an error.
+        secret_set(key.into(), String::new()).expect("clear");
+        assert_eq!(secret_get(key.into()).expect("get missing"), None);
+
+        // Deleting an already-absent entry is a no-op, not a failure.
+        secret_delete(key.into()).expect("idempotent delete");
+    }
+}

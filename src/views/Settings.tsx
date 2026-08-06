@@ -6,6 +6,10 @@ import { useClaudeCode } from "@/hooks/useClaudeCode";
 import { useSettings } from "@/stores/settings";
 import { clearSecrets } from "@/lib/secrets";
 import { collectBackup, applyBackup, BACKUP_MAGIC } from "@/lib/backup";
+import { checkForUpdate, installUpdate, type UpdateInfo } from "@/lib/updater";
+import { isDesktop } from "@/lib/platform";
+
+const APP_VERSION = __APP_VERSION__;
 import { useGaps } from "@/stores/gaps";
 import { useConversations } from "@/stores/conversations";
 import { useRuns } from "@/stores/runs";
@@ -119,6 +123,8 @@ export function SettingsView() {
           </Field>
         </Card>
 
+        <UpdatesSection />
+
         {/* Data */}
         <Card className="space-y-3">
           <div className="flex items-center gap-2">
@@ -149,6 +155,72 @@ export function SettingsView() {
         </Card>
       </div>
     </div>
+  );
+}
+
+/**
+ * Update check. Desktop-only: the web build has no updater, so the whole card
+ * stays hidden rather than offering a button that cannot work.
+ */
+function UpdatesSection() {
+  const [state, setState] = useState<"idle" | "checking" | "none" | "found" | "installing">("idle");
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState("");
+
+  if (!isDesktop()) return null;
+
+  const check = async () => {
+    setState("checking");
+    setError("");
+    const found = await checkForUpdate();
+    setUpdate(found);
+    setState(found ? "found" : "none");
+  };
+
+  const install = async () => {
+    setState("installing");
+    setError("");
+    try {
+      await installUpdate(setProgress);
+    } catch (e) {
+      setError((e as Error).message);
+      setState("found");
+    }
+  };
+
+  return (
+    <Card className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Icon name="download" size={18} className="text-brand-2" />
+        <h3 className="font-semibold">Updates</h3>
+        <Badge tone={state === "found" ? "brand" : "neutral"}>v{APP_VERSION}</Badge>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm text-ink-2">
+          {state === "found" && update
+            ? `Version ${update.version} is available.`
+            : state === "none"
+              ? "Forge is up to date."
+              : state === "installing"
+                ? `Downloading… ${Math.round(progress * 100)}%`
+                : "Check whether a newer version has been released."}
+        </span>
+        {state === "found" ? (
+          <Button variant="primary" onClick={install} disabled={state !== "found"}>
+            Install &amp; restart
+          </Button>
+        ) : (
+          <Button onClick={check} disabled={state === "checking" || state === "installing"}>
+            {state === "checking" ? "Checking…" : "Check for updates"}
+          </Button>
+        )}
+      </div>
+      {update?.notes && state === "found" && (
+        <p className="whitespace-pre-wrap border-t border-border pt-3 text-sm text-ink-3">{update.notes}</p>
+      )}
+      {error && <p className="text-sm text-danger">{error}</p>}
+    </Card>
   );
 }
 

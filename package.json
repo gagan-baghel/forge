@@ -2,6 +2,7 @@
   "name": "forge",
   "version": "0.1.0",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "description": "Forge — a local-first desktop workspace for building, running and sharing AI agents as GAPs (Global Agent Packs).",
   "scripts": {
@@ -11,6 +12,7 @@
     "tauri": "tauri",
     "desktop": "tauri dev",
     "desktop:build": "tauri build",
+    "desktop:release": "tauri build --config src-tauri/tauri.release.conf.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -21,8 +23,10 @@
     "@tauri-apps/plugin-dialog": "^2.7.0",
     "@tauri-apps/plugin-fs": "^2.5.0",
     "@tauri-apps/plugin-os": "^2.3.2",
+    "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-shell": "^2.3.5",
     "@tauri-apps/plugin-store": "^2.4.2",
+    "@tauri-apps/plugin-updater": "^2.10.1",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "clsx": "2.1.1",
