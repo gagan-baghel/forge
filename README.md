@@ -105,6 +105,15 @@ Bundles land in `src-tauri/target/release/bundle/`. Forge is a self-contained
 application: there is no update server, no license check and no telemetry. Build
 it once and hand the installer over.
 
+Two things still need the network at runtime, because they are inherent to what
+the app does rather than to how it ships:
+
+- **Talking to Claude**, via the API or the local Claude Code CLI.
+- **Semantic knowledge search**, which downloads its embedding model
+  (~25 MB, `Xenova/all-MiniLM-L6-v2`) once on first use and caches it. Until
+  then — and on a machine that stays offline — retrieval falls back to the
+  built-in keyword search automatically. Nothing errors.
+
 ### Giving the installer to someone else
 
 The bundle is not code-signed, so macOS Gatekeeper blocks it on a machine that

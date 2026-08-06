@@ -41,42 +41,6 @@ function friendlyCcError(raw: string): string {
   return raw;
 }
 
-/* ------------------------- One-tap sign-in ----------------------------- */
-
-type LoginEvent = { kind: "data"; text: string } | { kind: "exit" };
-
-export interface LoginCallbacks {
-  /** Cleaned (ANSI-stripped) chunk of setup-token output. */
-  onData: (text: string) => void;
-  /** The flow ended without producing a token. */
-  onExit: () => void;
-}
-
-const stripAnsi = (s: string) =>
-  // CSI sequences, OSC sequences, and stray control chars xterm emits.
-  s.replace(/\x1b\][^\x07]*(\x07|\x1b\\)/g, "").replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "");
-
-/** Start the in-app sign-in (drives `claude setup-token` in a hidden PTY).
- *  Returns an unlisten/cancel function. */
-export async function startCcLogin(cb: LoginCallbacks): Promise<() => void> {
-  if (!isDesktop()) throw new Error("Sign-in needs the desktop app.");
-  const { listen } = await import("@tauri-apps/api/event");
-  const unlisten = await listen<LoginEvent>("cc://login", (e) => {
-    if (e.payload.kind === "data") cb.onData(stripAnsi(e.payload.text));
-    else cb.onExit();
-  });
-  await invoke("claude_code_login");
-  return () => {
-    unlisten();
-    void invoke("claude_code_login_cancel").catch(() => {});
-  };
-}
-
-/** Send the pasted OAuth code (or any input) to the sign-in flow. */
-export async function ccLoginInput(text: string): Promise<void> {
-  await invoke("claude_code_login_input", { data: text });
-}
-
 type InstallEvent =
   | { kind: "line"; text: string }
   | { kind: "done"; info: ClaudeCodeInfo; error: string | null };

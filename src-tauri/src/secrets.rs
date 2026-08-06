@@ -35,14 +35,6 @@ pub fn secret_get(key: String) -> Result<Option<String>, String> {
     }
 }
 
-#[tauri::command]
-pub fn secret_delete(key: String) -> Result<(), String> {
-    match entry(&key)?.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(err) => Err(format!("could not delete secret: {err}")),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -68,7 +60,7 @@ mod tests {
         secret_set(key.into(), String::new()).expect("clear");
         assert_eq!(secret_get(key.into()).expect("get missing"), None);
 
-        // Deleting an already-absent entry is a no-op, not a failure.
-        secret_delete(key.into()).expect("idempotent delete");
+        // Clearing an already-absent entry is a no-op, not a failure.
+        secret_set(key.into(), String::new()).expect("idempotent clear");
     }
 }

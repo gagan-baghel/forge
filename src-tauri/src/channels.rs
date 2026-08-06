@@ -254,8 +254,3 @@ pub fn channel_stop(state: State<ChannelState>, channel_id: String) -> Result<()
     }
     Ok(())
 }
-
-#[tauri::command]
-pub fn channel_running(state: State<ChannelState>, channel_id: String) -> bool {
-    state.running.lock().unwrap().contains_key(&channel_id)
-}

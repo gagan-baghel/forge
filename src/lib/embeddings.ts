@@ -32,11 +32,6 @@ export function embeddingsAvailable(): boolean {
   return available;
 }
 
-/** Warm the model in the background (called when an agent has knowledge). */
-export function warmEmbeddings(): void {
-  void getExtractor();
-}
-
 const cache = new Map<string, Float32Array>();
 
 function key(text: string): string {

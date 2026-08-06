@@ -5,7 +5,6 @@ vi.mock("@/lib/embeddings", () => ({
   embeddingsAvailable: () => false,
   embed: async () => null,
   cosine: () => 0,
-  warmEmbeddings: () => {},
 }));
 
 import { retrieve, retrieveAsync } from "@/lib/knowledge";

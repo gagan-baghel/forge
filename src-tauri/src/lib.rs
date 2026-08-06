@@ -28,14 +28,12 @@ pub fn run() {
             net::http_fetch,
             secrets::secret_set,
             secrets::secret_get,
-            secrets::secret_delete,
             channels::telegram_start,
             channels::telegram_send,
             channels::discord_start,
             channels::discord_send,
             channels::discord_send_bot,
             channels::channel_stop,
-            channels::channel_running,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Forge");
