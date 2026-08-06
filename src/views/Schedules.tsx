@@ -8,6 +8,7 @@ import { runRoutineNow } from "@/lib/scheduler";
 import { nextRun } from "@/lib/cron";
 import { relativeTime } from "@/lib/format";
 import type { Routine } from "@/types/domain";
+import { useDialog } from "@/components/Confirm";
 
 const PRESETS = [
   { label: "Every hour", cron: "0 * * * *" },
@@ -17,6 +18,7 @@ const PRESETS = [
 ];
 
 export function SchedulesView() {
+  const { confirm } = useDialog();
   const routines = useRoutines((s) => s.routines);
   const add = useRoutines((s) => s.add);
   const update = useRoutines((s) => s.update);
@@ -134,7 +136,9 @@ export function SchedulesView() {
                   </button>
                   <button
                     className="btn-ghost p-1.5 text-ink-3 hover:text-danger"
-                    onClick={() => confirm(`Delete routine "${r.name}"?`) && remove(r.id)}
+                    onClick={async () => {
+                      if (await confirm({ title: `Delete routine "${r.name}"?`, body: "The schedule stops running immediately." })) remove(r.id);
+                    }}
                     aria-label="Delete routine"
                   >
                     <Icon name="trash" size={15} />

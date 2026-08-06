@@ -7,6 +7,7 @@ import { useMemory, type MemoryNote } from "@/stores/memory";
 import { useGaps } from "@/stores/gaps";
 import { useBrains } from "@/stores/brains";
 import { relativeTime } from "@/lib/format";
+import { useDialog } from "@/components/Confirm";
 
 interface Pool {
   key: string;
@@ -25,6 +26,7 @@ interface Pool {
  * approved or rejected inline.
  */
 export function MemoryView() {
+  const { confirm } = useDialog();
   const notes = useMemory((s) => s.notes);
   const removeNote = useMemory((s) => s.remove);
   const approve = useMemory((s) => s.approve);
@@ -137,10 +139,9 @@ export function MemoryView() {
                     <Button
                       variant="danger"
                       icon="trash"
-                      onClick={() =>
-                        confirm(`Clear all ${pool.notes.length} memories for "${pool.title}"?`) &&
-                        clearAgent(pool.key)
-                      }
+                      onClick={async () => {
+                        if (await confirm({ title: `Clear ${pool.notes.length} memories?`, body: `Every memory stored for "${pool.title}" is deleted.`, confirmLabel: "Clear" })) clearAgent(pool.key);
+                      }}
                     >
                       Clear
                     </Button>

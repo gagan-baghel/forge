@@ -15,11 +15,13 @@ round-trips to a single `.gap` file.
   via your API key, or via your local Claude Code subscription. Credentials go
   in the OS keychain, never in a config file or a backup.
 - **In-built bridge.** The Claude Code runtime is compiled into the app's Rust
-  shell — one-tap connect (it can even install the CLI for you), $0 API cost.
+  shell — it detects the local CLI automatically and installs it for you from
+  Settings if it's missing. $0 API cost.
 - **GAP-native.** Agents are never loose — they live inside a GAP you can
   export, version and share.
 - **Real desktop app.** Built on Tauri 2 (Rust + a web UI), so it's small, fast
   and native, with a true terminal PTY built in.
+- **Self-contained.** One installer, no update server, no account, no telemetry.
 
 ## Stack
 
@@ -70,8 +72,8 @@ src-tauri/       Rust shell: Claude Code bridge (detect / install / run),
 - **Brains** — detachable minds: persona, model overrides, knowledge and
   shared memory, attachable to any agent and movable between them; an
   optional learning queue holds new facts until you approve them
-- **Claude Code runtime** — in-built bridge to the local CLI: one-tap connect
-  or in-app install, $0 API cost, pack MCP servers + env mounted per turn
+- **Claude Code runtime** — in-built bridge to the local CLI: auto-detect or
+  in-app install, $0 API cost, pack MCP servers + env mounted per turn
 - **Memory** — workspace-wide browser over every agent's memory and every
   shared brain pool, with search and inline review
 - **Architect** — describe a goal, Claude designs a GAP you can install
@@ -92,17 +94,33 @@ Note: never emit JavaScript into `src/`. Vite resolves `.js` before `.ts`, so a
 stray artifact silently shadows its own source and the build ships stale code.
 `.gitignore` blocks `src/**/*.js` for that reason.
 
-## Build for release
+## Build the installer
 
 ```bash
-pnpm desktop:build                                  # local, unsigned (.app + .dmg)
-pnpm tauri build --target universal-apple-darwin    # Intel + Apple Silicon
-pnpm desktop:release                                # signed build with auto-update
+pnpm desktop:build                                  # .app + .dmg for this architecture
+pnpm tauri build --target universal-apple-darwin    # Intel + Apple Silicon in one bundle
 ```
 
-`desktop:release` and CI need signing keys. See [RELEASE.md](RELEASE.md) for the
-one-time Apple Developer and updater-keypair setup, and for cutting a tagged
-release through GitHub Actions.
+Bundles land in `src-tauri/target/release/bundle/`. Forge is a self-contained
+application: there is no update server, no license check and no telemetry. Build
+it once and hand the installer over.
+
+### Giving the installer to someone else
+
+The bundle is not code-signed, so macOS Gatekeeper blocks it on a machine that
+did not build it. The recipient opens it once with **right-click → Open →
+Open**, or you clear the quarantine flag before sending:
+
+```bash
+xattr -cr /path/to/Forge.app
+```
+
+To remove that step entirely, sign with a Developer ID before distributing —
+Tauri picks the identity up from the environment, no project config needed:
+
+```bash
+APPLE_SIGNING_IDENTITY="Developer ID Application: You (TEAMID)" pnpm desktop:build
+```
 
 ## License
 

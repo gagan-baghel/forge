@@ -2,17 +2,14 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capabilities for the Forge main window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "core:event:default",
     "core:window:allow-start-dragging",
-    "shell:allow-open",
     "dialog:default",
-    "fs:default",
-    "os:default",
-    "store:default",
-    "updater:default",
-    "process:allow-restart"
+    "fs:default"
   ]
 }

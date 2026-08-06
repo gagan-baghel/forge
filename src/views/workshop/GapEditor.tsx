@@ -9,6 +9,7 @@ import { useBrains } from "@/stores/brains";
 import { downloadGap, encodeShareCode } from "@/lib/gapfile";
 import { splitArgs } from "@/lib/mcp";
 import { MODELS, type Agent, type AgentStatus, type Gap, type McpServer, type ModelId } from "@/types/domain";
+import { useDialog } from "@/components/Confirm";
 
 type Section = "identity" | "agents" | "mcp" | "environment" | "advanced";
 const SECTIONS: { id: Section; label: string; icon: string }[] = [
@@ -27,6 +28,7 @@ const COLORS = ["#6D5BFF", "#40C98E", "#F0B446", "#F46060", "#4FA8FF", "#C46DFF"
  * JSON escape hatch for anything the form doesn't surface.
  */
 export function GapEditorView() {
+  const { notify } = useDialog();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const gap = useGaps((s) => s.findGap(id));
@@ -62,7 +64,13 @@ export function GapEditorView() {
             Pack editor · v{gap.version} · {gap.agents.length} agent{gap.agents.length === 1 ? "" : "s"}
           </div>
         </div>
-        <Button icon="download" onClick={() => downloadGap(gap)}>
+        <Button icon="download" onClick={async () => {
+              try {
+                await downloadGap(gap);
+              } catch (e) {
+                notify("Export failed", (e as Error).message);
+              }
+            }}>
           Export .gap
         </Button>
         <Button icon="grid" onClick={() => navigate(`/gaps/${gap.id}`)}>
@@ -209,6 +217,7 @@ function AgentsSection({ gap }: { gap: Gap }) {
 }
 
 function AgentRow({ agent, open, onToggle }: { agent: Agent; open: boolean; onToggle: () => void }) {
+  const { confirm } = useDialog();
   const updateAgent = useGaps((s) => s.updateAgent);
   const deleteAgent = useGaps((s) => s.deleteAgent);
   const brains = useBrains((s) => s.brains);
@@ -308,7 +317,9 @@ function AgentRow({ agent, open, onToggle }: { agent: Agent; open: boolean; onTo
             <Button
               variant="danger"
               icon="trash"
-              onClick={() => confirm(`Remove "${agent.name}" from this pack?`) && deleteAgent(agent.id)}
+              onClick={async () => {
+                if (await confirm({ title: `Remove "${agent.name}"?`, body: "The agent and its configuration are removed from this pack.", confirmLabel: "Remove" })) deleteAgent(agent.id);
+              }}
             >
               Remove
             </Button>
@@ -343,6 +354,7 @@ function SystemPromptField({ agent }: { agent: Agent }) {
 
 /* ----------------------------- MCP servers ----------------------------- */
 function McpSection({ gap }: { gap: Gap }) {
+  const { confirm } = useDialog();
   const updateGap = useGaps((s) => s.updateGap);
   const servers = gap.mcpServers ?? [];
   const [openId, setOpenId] = useState<string | null>(null);
@@ -434,7 +446,9 @@ function McpSection({ gap }: { gap: Gap }) {
                         <Button
                           variant="danger"
                           icon="trash"
-                          onClick={() => confirm(`Remove MCP server "${s.name || "unnamed"}"?`) && update(servers.filter((x) => x.id !== s.id))}
+                          onClick={async () => {
+                            if (await confirm({ title: `Remove MCP server "${s.name || "unnamed"}"?`, confirmLabel: "Remove" })) update(servers.filter((x) => x.id !== s.id));
+                          }}
                         >
                           Remove
                         </Button>
@@ -534,6 +548,7 @@ function EnvRows({
 
 /* ------------------------------ Advanced ------------------------------- */
 function AdvancedSection({ gap }: { gap: Gap }) {
+  const { confirm, notify } = useDialog();
   const updateGap = useGaps((s) => s.updateGap);
   const deleteGap = useGaps((s) => s.deleteGap);
   const navigate = useNavigate();
@@ -596,7 +611,13 @@ function AdvancedSection({ gap }: { gap: Gap }) {
       <Card className="space-y-3">
         <h3 className="font-semibold">Share</h3>
         <div className="flex gap-2">
-          <Button className="flex-1" icon="download" onClick={() => downloadGap(gap)}>
+          <Button className="flex-1" icon="download" onClick={async () => {
+              try {
+                await downloadGap(gap);
+              } catch (e) {
+                notify("Export failed", (e as Error).message);
+              }
+            }}>
             Export .gap file
           </Button>
           <Button
@@ -604,7 +625,7 @@ function AdvancedSection({ gap }: { gap: Gap }) {
             icon="copy"
             onClick={() => {
               void navigator.clipboard.writeText(encodeShareCode(gap));
-              alert("Share code copied to clipboard.");
+              notify("Share code copied", "Paste it into another Forge install to import this pack.");
             }}
           >
             Copy share code
@@ -619,8 +640,8 @@ function AdvancedSection({ gap }: { gap: Gap }) {
           <Button
             variant="danger"
             icon="trash"
-            onClick={() => {
-              if (confirm(`Delete "${gap.name}" and its ${gap.agents.length} agent(s)?`)) {
+            onClick={async () => {
+              if (await confirm({ title: `Delete "${gap.name}"?`, body: `This GAP and its ${gap.agents.length} agent(s), with their chats and knowledge, are deleted.` })) {
                 deleteGap(gap.id);
                 navigate("/workshop");
               }

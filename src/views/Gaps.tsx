@@ -6,11 +6,13 @@ import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 import { parseGapFile, decodeShareCode } from "@/lib/gapfile";
 import { relativeTime } from "@/lib/format";
+import { useDialog } from "@/components/Confirm";
 
 const COLORS = ["#6D5BFF", "#40C98E", "#F0B446", "#F46060", "#4FA8FF", "#C46DFF"];
 const EMOJIS = ["📦", "🔬", "⚒️", "🎧", "✍️", "📈", "🤖", "🚀", "🧠", "💡"];
 
 export function GapsView() {
+  const { notify } = useDialog();
   const gaps = useGaps((s) => s.gaps);
   const createGap = useGaps((s) => s.createGap);
   const importGap = useGaps((s) => s.importGap);
@@ -39,7 +41,7 @@ export function GapsView() {
       const gap = importGap(parseGapFile(await file.text()));
       navigate(`/gaps/${gap.id}`);
     } catch (err: any) {
-      alert(`Import failed: ${err.message}`);
+      notify("Import failed", err.message);
     }
     e.target.value = "";
   };
@@ -61,7 +63,7 @@ export function GapsView() {
                   const gap = importGap(decodeShareCode(code));
                   navigate(`/gaps/${gap.id}`);
                 } catch (e: any) {
-                  alert(`Invalid share code: ${e.message}`);
+                  notify("Invalid share code", e.message);
                 }
               }}
             >

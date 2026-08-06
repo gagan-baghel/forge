@@ -12,7 +12,7 @@
 
 import type { Agent } from "@/types/domain";
 import type { AnyTool, ToolDef } from "./claude";
-import { httpFetch, jsonOrText } from "./http";
+import { httpFetch } from "./http";
 import { isDesktop } from "./platform";
 import { useMemory } from "@/stores/memory";
 import { brainFor, memoryKeyFor } from "@/stores/brains";
@@ -302,5 +302,3 @@ function runInWorker(code: string, timeoutMs = 4000): Promise<string> {
   });
 }
 
-// Keep jsonOrText referenced for connector callers that may want parsing.
-export { jsonOrText };

@@ -5,8 +5,10 @@ import { Button, Card, Badge, EmptyState, Modal, Field, StatusDot } from "@/comp
 import { useGaps } from "@/stores/gaps";
 import { usePublished } from "@/stores/published";
 import { downloadGap, encodeShareCode } from "@/lib/gapfile";
+import { useDialog } from "@/components/Confirm";
 
 export function GapDetailView() {
+  const { confirm, notify } = useDialog();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const gap = useGaps((s) => s.findGap(id));
@@ -121,8 +123,8 @@ export function GapDetailView() {
             <Button
               variant="danger"
               icon="trash"
-              onClick={() => {
-                if (confirm(`Delete "${gap.name}" and its ${gap.agents.length} agent(s)?`)) {
+              onClick={async () => {
+                if (await confirm({ title: `Delete "${gap.name}"?`, body: `This GAP and its ${gap.agents.length} agent(s), with their chats and knowledge, are deleted.` })) {
                   deleteGap(gap.id);
                   navigate("/gaps");
                 }
@@ -157,7 +159,13 @@ export function GapDetailView() {
             Hand this GAP to anyone — they import it from the GAPs tab. Export a file, or copy a share code.
           </p>
           <div className="flex gap-2">
-            <Button className="flex-1" icon="download" onClick={() => downloadGap(gap)}>
+            <Button className="flex-1" icon="download" onClick={async () => {
+              try {
+                await downloadGap(gap);
+              } catch (e) {
+                notify("Export failed", (e as Error).message);
+              }
+            }}>
               Export .gap file
             </Button>
             <Button
@@ -165,7 +173,7 @@ export function GapDetailView() {
               icon="copy"
               onClick={() => {
                 void navigator.clipboard.writeText(encodeShareCode(gap));
-                alert("Share code copied to clipboard.");
+                notify("Share code copied", "Paste it into another Forge install to import this pack.");
               }}
             >
               Copy share code

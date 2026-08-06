@@ -5,6 +5,7 @@
  */
 
 import type { Gap } from "@/types/domain";
+import { saveTextFile } from "./saveFile";
 
 const MAGIC = "forge.gap/v1";
 
@@ -59,12 +60,11 @@ export function decodeShareCode(code: string): Gap {
   return parseGapFile(new TextDecoder().decode(bytes));
 }
 
-export function downloadGap(gap: Gap) {
-  const blob = new Blob([exportGap(gap)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${gap.slug}.gap`;
-  a.click();
-  URL.revokeObjectURL(url);
+/** Write a GAP to a file the user picks. Resolves false if they cancelled. */
+export async function downloadGap(gap: Gap): Promise<boolean> {
+  const { saved } = await saveTextFile(`${gap.slug}.gap`, exportGap(gap), {
+    name: "GAP pack",
+    extensions: ["gap"],
+  });
+  return saved;
 }

@@ -2,8 +2,10 @@ import { PageHeader } from "@/components/Shell";
 import { Button, Card, Badge, EmptyState, StatusDot } from "@/components/ui";
 import { useRuns } from "@/stores/runs";
 import { fmtTokens, relativeTime, fmtDuration } from "@/lib/format";
+import { useDialog } from "@/components/Confirm";
 
 export function RunsView() {
+  const { confirm } = useDialog();
   const runs = useRuns((s) => s.runs);
   const clear = useRuns((s) => s.clear);
 
@@ -12,7 +14,9 @@ export function RunsView() {
       <PageHeader
         title="Runs"
         subtitle="Every agent execution with token accounting"
-        actions={runs.length > 0 && <Button icon="trash" onClick={() => confirm("Clear run history?") && clear()}>Clear</Button>}
+        actions={runs.length > 0 && <Button icon="trash" onClick={async () => {
+              if (await confirm({ title: "Clear run history?", body: "Token and cost accounting for past runs is deleted.", confirmLabel: "Clear" })) clear();
+            }}>Clear</Button>}
       />
       <div className="p-7">
         {runs.length === 0 ? (

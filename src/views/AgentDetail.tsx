@@ -13,6 +13,7 @@ import { PromptPlayground } from "./agent/PromptPlayground";
 import { httpFetch } from "@/lib/http";
 import { useMemory } from "@/stores/memory";
 import { fmtTokens, relativeTime, fmtDuration } from "@/lib/format";
+import { useDialog } from "@/components/Confirm";
 
 type Tab = "chat" | "playground" | "config" | "skills" | "knowledge" | "memory" | "connections" | "channels" | "logs";
 const TABS: { id: Tab; label: string; icon: string }[] = [
@@ -541,6 +542,7 @@ function ConnectionsTab({ agent }: { agent: Agent }) {
 
 /* ------------------------------- Memory -------------------------------- */
 function MemoryTab({ agent }: { agent: Agent }) {
+  const { confirm } = useDialog();
   const notes = useMemory((s) => s.notes);
   const remember = useMemory((s) => s.remember);
   const removeNote = useMemory((s) => s.remove);
@@ -578,7 +580,9 @@ function MemoryTab({ agent }: { agent: Agent }) {
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-semibold">Long-term memory ({mine.length})</h3>
           {mine.length > 0 && (
-            <Button variant="danger" icon="trash" onClick={() => confirm("Clear this agent's memory?") && clearAgent(agent.id)}>
+            <Button variant="danger" icon="trash" onClick={async () => {
+                if (await confirm({ title: "Clear this agent's memory?", body: `All ${mine.length} saved fact(s) are deleted.`, confirmLabel: "Clear" })) clearAgent(agent.id);
+              }}>
               Clear
             </Button>
           )}

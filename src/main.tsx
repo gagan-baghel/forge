@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { DialogProvider } from "./components/Confirm";
 import { hydrateSecrets } from "./stores/settings";
 import "./styles/globals.css";
 
@@ -15,7 +16,9 @@ function mount() {
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         <ErrorBoundary title="Forge hit an unexpected error" fatal>
-          <App />
+          <DialogProvider>
+            <App />
+          </DialogProvider>
         </ErrorBoundary>
       </QueryClientProvider>
     </React.StrictMode>,

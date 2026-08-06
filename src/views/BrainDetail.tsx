@@ -8,6 +8,7 @@ import { useGaps } from "@/stores/gaps";
 import { useMemory } from "@/stores/memory";
 import { MODELS, type Brain, type ModelId } from "@/types/domain";
 import { relativeTime } from "@/lib/format";
+import { useDialog } from "@/components/Confirm";
 
 /**
  * Brain editor. Everything about one brain is editable here — identity,
@@ -468,6 +469,7 @@ function AttachmentsCard({ brain }: { brain: Brain }) {
 
 /* ------------------------------- Danger -------------------------------- */
 function DangerCard({ brain }: { brain: Brain }) {
+  const { confirm } = useDialog();
   const deleteBrain = useBrains((s) => s.deleteBrain);
   const navigate = useNavigate();
   return (
@@ -480,8 +482,8 @@ function DangerCard({ brain }: { brain: Brain }) {
         <Button
           variant="danger"
           icon="trash"
-          onClick={() => {
-            if (confirm(`Delete brain "${brain.name}"?`)) {
+          onClick={async () => {
+            if (await confirm({ title: `Delete brain "${brain.name}"?`, body: "Its persona, knowledge and shared memory are deleted. Agents wearing it revert to their own settings." })) {
               deleteBrain(brain.id);
               navigate("/brains");
             }

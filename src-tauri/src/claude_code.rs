@@ -10,7 +10,7 @@
 //! — just the `claude` binary already on the machine.
 
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, Read};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Mutex, OnceLock};
@@ -21,13 +21,6 @@ use tauri::{Emitter, Manager, State};
 #[derive(Default)]
 pub struct ClaudeCodeState {
     children: Mutex<HashMap<String, Child>>,
-    /// In-flight `claude setup-token` sign-in session (PTY), if any.
-    login: Mutex<Option<LoginHandle>>,
-}
-
-struct LoginHandle {
-    writer: Box<dyn std::io::Write + Send>,
-    child: Box<dyn portable_pty::Child + Send + Sync>,
 }
 
 #[derive(Serialize, Clone)]
@@ -126,88 +119,6 @@ pub fn claude_code_detect() -> ClaudeCodeInfo {
         version,
         path: bin.to_string_lossy().to_string(),
     }
-}
-
-/// Events for the in-app sign-in flow (`cc://login`).
-#[derive(Serialize, Clone)]
-#[serde(tag = "kind")]
-enum LoginEvent {
-    #[serde(rename = "data")]
-    Data { text: String },
-    #[serde(rename = "exit")]
-    Exit,
-}
-
-/// One-tap sign-in: drive `claude setup-token` in a hidden PTY. The frontend
-/// watches the `cc://login` stream, auto-opens the OAuth URL in the browser,
-/// forwards the pasted confirmation code via `claude_code_login_input`, and
-/// captures the resulting long-lived token — no terminal involved.
-#[tauri::command]
-pub fn claude_code_login(app: tauri::AppHandle, state: State<ClaudeCodeState>) -> Result<(), String> {
-    let bin = find_claude().ok_or_else(|| "Claude Code CLI not found on this machine.".to_string())?;
-
-    // Tear down any previous attempt first.
-    if let Some(mut old) = state.login.lock().unwrap().take() {
-        let _ = old.child.kill();
-    }
-
-    let pty_system = portable_pty::native_pty_system();
-    // Very wide PTY: the setup-token is ~100+ chars and Claude Code prints it
-    // inside a boxed UI. At 80 cols the CLI wraps the token across lines and the
-    // capture regex can't reassemble it, so sign-in silently fails. A wide
-    // terminal keeps the token on a single line.
-    let pair = pty_system
-        .openpty(portable_pty::PtySize { rows: 100, cols: 1000, pixel_width: 0, pixel_height: 0 })
-        .map_err(|e| e.to_string())?;
-
-    let mut cmd = portable_pty::CommandBuilder::new(bin);
-    cmd.arg("setup-token");
-    cmd.env("TERM", "xterm-256color");
-    if let Some(home) = std::env::var_os("HOME") {
-        cmd.cwd(home);
-    }
-
-    let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
-    let mut reader = pair.master.try_clone_reader().map_err(|e| e.to_string())?;
-    let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
-
-    std::thread::spawn(move || {
-        let mut buf = [0u8; 4096];
-        loop {
-            match reader.read(&mut buf) {
-                Ok(0) | Err(_) => break,
-                Ok(n) => {
-                    let text = String::from_utf8_lossy(&buf[..n]).to_string();
-                    let _ = app.emit("cc://login", LoginEvent::Data { text });
-                }
-            }
-        }
-        let _ = app.emit("cc://login", LoginEvent::Exit);
-    });
-
-    *state.login.lock().unwrap() = Some(LoginHandle { writer, child });
-    Ok(())
-}
-
-/// Forward user input (the pasted OAuth code) to the sign-in PTY.
-#[tauri::command]
-pub fn claude_code_login_input(state: State<ClaudeCodeState>, data: String) -> Result<(), String> {
-    if let Some(handle) = state.login.lock().unwrap().as_mut() {
-        handle.writer.write_all(data.as_bytes()).map_err(|e| e.to_string())?;
-        handle.writer.flush().map_err(|e| e.to_string())?;
-        Ok(())
-    } else {
-        Err("No sign-in in progress.".into())
-    }
-}
-
-/// Cancel/close the sign-in session.
-#[tauri::command]
-pub fn claude_code_login_cancel(state: State<ClaudeCodeState>) -> Result<(), String> {
-    if let Some(mut handle) = state.login.lock().unwrap().take() {
-        let _ = handle.child.kill();
-    }
-    Ok(())
 }
 
 /// Progress events for the in-app CLI installer (`cc://install`).

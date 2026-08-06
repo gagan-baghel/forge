@@ -4,17 +4,15 @@ import { isDesktop } from "@/lib/platform";
 import { useSettings } from "@/stores/settings";
 
 /**
- * One place for the Claude Code connection state + the single-tap actions.
- * `connect()` detects the local CLI and, if present, flips the global runtime
- * to Claude Code. `install()` goes one step further: when the CLI is missing
- * it installs it from inside the app (the bridge is in-built — nothing to
- * download by hand), then connects.
+ * Claude Code connection state. Detection runs on mount and flips the runtime
+ * to Claude Code automatically when the CLI is present. `install()` covers the
+ * case where it is missing: it installs the CLI from inside the app, then
+ * connects, so a fresh machine is never a dead end.
  */
 export function useClaudeCode() {
   const runtime = useSettings((s) => s.runtime);
   const setRuntime = useSettings((s) => s.setRuntime);
   const [info, setInfo] = useState<ClaudeCodeInfo | null>(null);
-  const [checking, setChecking] = useState(false);
   const [installing, setInstalling] = useState(false);
   const [installLog, setInstallLog] = useState<string[]>([]);
   const [installError, setInstallError] = useState("");
@@ -33,12 +31,8 @@ export function useClaudeCode() {
       setInfo({ available: false, version: "", path: "" });
       return null;
     }
-    setChecking(true);
     const i = await detectClaudeCode();
-    if (mounted.current) {
-      setInfo(i);
-      setChecking(false);
-    }
+    if (mounted.current) setInfo(i);
     return i;
   }, [desktop]);
 
@@ -55,16 +49,6 @@ export function useClaudeCode() {
       setRuntime("claude-code");
     }
   }, [desktop, info?.available, runtime, apiKey, setRuntime]);
-
-  /** One-tap: detect, then switch the workspace to the Claude Code runtime. */
-  const connect = useCallback(async (): Promise<boolean> => {
-    const i = info?.available ? info : await recheck();
-    if (i?.available) {
-      setRuntime("claude-code");
-      return true;
-    }
-    return false;
-  }, [info, recheck, setRuntime]);
 
   /** One-tap when the CLI is missing: install it in-app, then connect. */
   const install = useCallback(async (): Promise<boolean> => {
@@ -90,20 +74,14 @@ export function useClaudeCode() {
     }
   }, [installing, setRuntime]);
 
-  const disconnect = useCallback(() => setRuntime("api"), [setRuntime]);
-
   const available = info?.available ?? false;
   const connected = runtime === "claude-code" && available;
 
   return {
     info,
-    checking,
     available,
     connected,
     desktop,
-    recheck,
-    connect,
-    disconnect,
     install,
     installing,
     installLog,

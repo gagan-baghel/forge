@@ -30,11 +30,3 @@ export async function httpFetch(opts: {
   const text = await res.text();
   return { status: res.status, ok: res.ok, body: text };
 }
-
-export function jsonOrText(body: string): unknown {
-  try {
-    return JSON.parse(body);
-  } catch {
-    return body;
-  }
-}

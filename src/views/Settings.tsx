@@ -6,22 +6,29 @@ import { useClaudeCode } from "@/hooks/useClaudeCode";
 import { useSettings } from "@/stores/settings";
 import { clearSecrets } from "@/lib/secrets";
 import { collectBackup, applyBackup, BACKUP_MAGIC } from "@/lib/backup";
-import { checkForUpdate, installUpdate, type UpdateInfo } from "@/lib/updater";
-import { isDesktop } from "@/lib/platform";
-
-const APP_VERSION = __APP_VERSION__;
+import { saveTextFile } from "@/lib/saveFile";
+import { useDialog } from "@/components/Confirm";
 import { useGaps } from "@/stores/gaps";
 import { useConversations } from "@/stores/conversations";
 import { useRuns } from "@/stores/runs";
 import { MODELS } from "@/types/domain";
 
+const APP_VERSION = __APP_VERSION__;
+
 export function SettingsView() {
+  const { confirm } = useDialog();
   const s = useSettings();
   const [showKey, setShowKey] = useState(false);
   const [keyDraft, setKeyDraft] = useState(s.apiKey);
+  const [notice, setNotice] = useState("");
 
   const resetAll = async () => {
-    if (!confirm("This wipes all GAPs, agents, chats and runs on this device. Continue?")) return;
+    const ok = await confirm({
+      title: "Wipe all data?",
+      body: "Every GAP, agent, chat and run on this device is deleted, and your stored credentials are cleared. This cannot be undone.",
+      confirmLabel: "Wipe everything",
+    });
+    if (!ok) return;
     // Credentials live in the OS keychain, outside localStorage — clear them
     // explicitly or a "wipe everything" would quietly leave the API key behind.
     await clearSecrets();
@@ -29,17 +36,15 @@ export function SettingsView() {
     location.reload();
   };
 
-  const exportBackup = () => {
-    const data = collectBackup();
-    const blob = new Blob([JSON.stringify({ magic: BACKUP_MAGIC, exportedAt: Date.now(), data }, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `forge-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportBackup = async () => {
+    const payload = JSON.stringify({ magic: BACKUP_MAGIC, exportedAt: Date.now(), data: collectBackup() }, null, 2);
+    const name = `forge-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    try {
+      const { saved, path } = await saveTextFile(name, payload, { name: "Forge backup", extensions: ["json"] });
+      if (saved) setNotice(path ? `Backup saved to ${path}` : "Backup saved.");
+    } catch (e) {
+      setNotice(`Backup failed: ${(e as Error).message}`);
+    }
   };
 
   const importBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,18 +53,26 @@ export function SettingsView() {
     try {
       const parsed = JSON.parse(await file.text());
       if (parsed.magic !== BACKUP_MAGIC || !parsed.data) throw new Error("Not a Forge backup file.");
-      if (!confirm("Restore this backup? It replaces all current Forge data on this device.")) return;
+      const ok = await confirm({
+        title: "Restore this backup?",
+        body: "This replaces all current Forge data on this device. Your stored credentials are kept.",
+        confirmLabel: "Restore",
+      });
+      if (!ok) return;
       applyBackup(parsed.data);
       location.reload();
     } catch (err: any) {
-      alert(`Import failed: ${err.message ?? err}`);
+      setNotice(`Import failed: ${err.message ?? err}`);
     }
     e.target.value = "";
   };
 
   return (
     <div>
-      <PageHeader title="Settings" subtitle="Forge is local-first — everything here lives on this device" />
+      <PageHeader
+        title="Settings"
+        subtitle={`Forge ${APP_VERSION} — local-first, everything here lives on this device`}
+      />
       <div className="mx-auto max-w-3xl space-y-6 p-7">
         {/* API */}
         <Card className="space-y-4">
@@ -123,8 +136,6 @@ export function SettingsView() {
           </Field>
         </Card>
 
-        <UpdatesSection />
-
         {/* Data */}
         <Card className="space-y-3">
           <div className="flex items-center gap-2">
@@ -146,6 +157,11 @@ export function SettingsView() {
               </label>
             </div>
           </div>
+          {notice && (
+            <p className="rounded-lg bg-surface-2 px-3 py-2 text-sm text-ink-2" role="status">
+              {notice}
+            </p>
+          )}
           <div className="flex items-center justify-between border-t border-border pt-3">
             <span className="text-sm text-ink-2">Reset Forge to a clean state.</span>
             <Button variant="danger" icon="trash" onClick={resetAll}>
@@ -158,77 +174,11 @@ export function SettingsView() {
   );
 }
 
-/**
- * Update check. Desktop-only: the web build has no updater, so the whole card
- * stays hidden rather than offering a button that cannot work.
- */
-function UpdatesSection() {
-  const [state, setState] = useState<"idle" | "checking" | "none" | "found" | "installing">("idle");
-  const [update, setUpdate] = useState<UpdateInfo | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [error, setError] = useState("");
-
-  if (!isDesktop()) return null;
-
-  const check = async () => {
-    setState("checking");
-    setError("");
-    const found = await checkForUpdate();
-    setUpdate(found);
-    setState(found ? "found" : "none");
-  };
-
-  const install = async () => {
-    setState("installing");
-    setError("");
-    try {
-      await installUpdate(setProgress);
-    } catch (e) {
-      setError((e as Error).message);
-      setState("found");
-    }
-  };
-
-  return (
-    <Card className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Icon name="download" size={18} className="text-brand-2" />
-        <h3 className="font-semibold">Updates</h3>
-        <Badge tone={state === "found" ? "brand" : "neutral"}>v{APP_VERSION}</Badge>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm text-ink-2">
-          {state === "found" && update
-            ? `Version ${update.version} is available.`
-            : state === "none"
-              ? "Forge is up to date."
-              : state === "installing"
-                ? `Downloading… ${Math.round(progress * 100)}%`
-                : "Check whether a newer version has been released."}
-        </span>
-        {state === "found" ? (
-          <Button variant="primary" onClick={install} disabled={state !== "found"}>
-            Install &amp; restart
-          </Button>
-        ) : (
-          <Button onClick={check} disabled={state === "checking" || state === "installing"}>
-            {state === "checking" ? "Checking…" : "Check for updates"}
-          </Button>
-        )}
-      </div>
-      {update?.notes && state === "found" && (
-        <p className="whitespace-pre-wrap border-t border-border pt-3 text-sm text-ink-3">{update.notes}</p>
-      )}
-      {error && <p className="text-sm text-danger">{error}</p>}
-    </Card>
-  );
-}
-
 function RuntimeSection() {
   const runtime = useSettings((s) => s.runtime);
   const setRuntime = useSettings((s) => s.setRuntime);
   const apiKey = useSettings((s) => s.apiKey);
-  const { info, available, desktop } = useClaudeCode();
+  const { info, available, desktop, install, installing, installLog, installError } = useClaudeCode();
   const onCC = runtime === "claude-code";
 
   return (
@@ -260,6 +210,28 @@ function RuntimeSection() {
           {onCC && <Icon name="check" size={16} className="text-brand-2" />}
         </div>
       </button>
+
+      {/* Without the CLI the Claude Code runtime cannot run at all, so offer
+          the in-app install rather than leaving the user at a dead end. */}
+      {desktop && !available && (
+        <div className="space-y-2 rounded-xl border border-border p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-sm text-ink-2">
+              The Claude Code CLI isn&apos;t on this machine. Forge can install it for you.
+            </span>
+            <Button variant="primary" onClick={() => void install()} disabled={installing}>
+              {installing ? "Installing…" : "Install Claude Code"}
+            </Button>
+          </div>
+          {installing && <p className="text-xs text-ink-3">This needs an internet connection and may take a minute.</p>}
+          {installLog.length > 0 && (
+            <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-surface-2 p-3 font-mono text-xs text-ink-3">
+              {installLog.join("\n")}
+            </pre>
+          )}
+          {installError && <p className="text-sm text-danger">{installError}</p>}
+        </div>
+      )}
 
       {/* Optional fallback: the metered API. */}
       <button
