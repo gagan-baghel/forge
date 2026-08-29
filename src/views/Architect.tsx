@@ -8,22 +8,47 @@ import { useSettings } from "@/stores/settings";
 import { useGaps } from "@/stores/gaps";
 import { buildGap } from "@/lib/seed";
 import type { Gap } from "@/types/domain";
+import { asAgentSeeds, asRecord, asString, asStringArray, extractJsonObject } from "@/lib/validate";
 
 const SYSTEM = `You are the Forge Architect. You design "GAPs" (Global Agent Packs) — bundles of AI agents.
-Given a user's goal, respond with ONLY a JSON object (no prose, no markdown fences) of this exact shape:
-{
-  "name": "string",
-  "slug": "kebab-case",
-  "description": "one sentence",
-  "emoji": "single emoji",
-  "color": "#hex",
-  "tags": ["string"],
-  "agents": [
-    { "name": "string", "role": "short role", "emoji": "single emoji",
-      "systemPrompt": "a strong, specific system prompt written in second person" }
-  ]
-}
-Design 1-3 focused agents. Make system prompts concrete and high quality.`;
+Given a user's goal, design 1-3 focused agents. Make each system prompt concrete, specific and
+high quality, written in second person. The response shape is enforced by the API, so spend your
+effort on the content, not the formatting.`;
+
+/**
+ * Enforced response shape. Previously the shape lived in the prompt and the
+ * reply was scraped for braces — which failed whenever the model added prose,
+ * a code fence, or ran out of tokens mid-object. `parseDraft` stays as the
+ * runtime guard: a schema constrains generation, it does not survive a
+ * truncated transport.
+ */
+const DRAFT_SCHEMA = {
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    slug: { type: "string" },
+    description: { type: "string" },
+    emoji: { type: "string" },
+    color: { type: "string" },
+    tags: { type: "array", items: { type: "string" } },
+    agents: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          role: { type: "string" },
+          emoji: { type: "string" },
+          systemPrompt: { type: "string" },
+        },
+        required: ["name", "role", "emoji", "systemPrompt"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["name", "slug", "description", "emoji", "color", "tags", "agents"],
+  additionalProperties: false,
+} as const;
 
 interface Draft {
   name: string;
@@ -33,6 +58,30 @@ interface Draft {
   color: string;
   tags: string[];
   agents: { name: string; role: string; emoji: string; systemPrompt: string }[];
+}
+
+/**
+ * Validate the Architect's own output before it can reach `create()`. A model
+ * that returns JSON without `agents` used to crash on `draft.agents.map`.
+ */
+function parseDraft(raw: string): Draft {
+  const o = asRecord(extractJsonObject(raw, "design"), "design");
+  const name = asString(o.name, "name", { max: 200 });
+  return {
+    name,
+    slug: asString(o.slug, "slug", { max: 120, fallback: "" }) ||
+      name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+    description: asString(o.description, "description", { max: 2000, fallback: "" }),
+    emoji: asString(o.emoji, "emoji", { max: 16, fallback: "📦" }),
+    color: /^#[0-9a-fA-F]{3,8}$/.test(String(o.color ?? "")) ? String(o.color) : "#6D5BFF",
+    tags: asStringArray(o.tags, "tags"),
+    agents: asAgentSeeds(o.agents, "agents").map((a) => ({
+      name: a.name,
+      role: a.role,
+      emoji: a.emoji ?? "",
+      systemPrompt: a.systemPrompt ?? "",
+    })),
+  };
 }
 
 export function ArchitectView() {
@@ -59,16 +108,16 @@ export function ArchitectView() {
       await streamChat(
         {
           apiKey,
-          model: "claude-opus-4-8",
+          model: "claude-opus-5",
           system: SYSTEM,
           messages: [{ id: nanoid(6), role: "user", content: goal, createdAt: Date.now() }],
           temperature: 0.7,
           maxTokens: 1500,
+          outputConfig: { format: { type: "json_schema", schema: DRAFT_SCHEMA } },
         },
         { onText: (d) => (raw += d) },
       );
-      const json = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
-      setDraft(JSON.parse(json) as Draft);
+      setDraft(parseDraft(raw));
     } catch (e: any) {
       setError(`Design failed: ${e.message ?? e}`);
     } finally {

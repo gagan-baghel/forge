@@ -17,7 +17,7 @@ export function resetStores() {
   useSettings.setState({
     apiKey: "",
     ccToken: "",
-    defaultModel: "claude-opus-4-8",
+    defaultModel: "claude-opus-5",
     runtime: "api",
     theme: "dusk",
     userName: "",

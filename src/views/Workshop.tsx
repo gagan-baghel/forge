@@ -23,7 +23,7 @@ const blankAgent = (): DraftAgent => ({
   name: "",
   role: "",
   emoji: "🤖",
-  model: "claude-opus-4-8",
+  model: "claude-opus-5",
   systemPrompt: "You are a helpful assistant.",
 });
 

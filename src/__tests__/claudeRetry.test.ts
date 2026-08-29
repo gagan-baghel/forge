@@ -48,7 +48,7 @@ function mockSequence(responses: unknown[]) {
 
 const req = {
   apiKey: "k",
-  model: "claude-opus-4-8" as const,
+  model: "claude-opus-5" as const,
   system: "",
   messages: [{ role: "user" as const, content: "hi" }],
   temperature: 0.7,

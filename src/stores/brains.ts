@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { currentModel } from "@/types/domain";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import type { Agent, Brain, KnowledgeDoc } from "@/types/domain";
@@ -76,7 +77,15 @@ export const useBrains = create<BrainStore>()(
 
       findBrain: (id) => get().brains.find((b) => b.id === id),
     }),
-    { name: "forge.brains" },
+    {
+      name: "forge.brains",
+      version: 1,
+      // Brains can pin their own model; migrate those too.
+      migrate: (state: any) => ({
+        ...state,
+        brains: (state?.brains ?? []).map((b: any) => ({ ...b, model: currentModel(b.model) })),
+      }),
+    },
   ),
 );
 

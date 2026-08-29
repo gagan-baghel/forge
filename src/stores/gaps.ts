@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
+import { currentModel } from "@/types/domain";
 import type {
   Agent,
   Connector,
@@ -122,7 +123,7 @@ export const useGaps = create<GapStore>()(
           role: input.role,
           emoji: input.emoji ?? "🤖",
           systemPrompt: input.systemPrompt ?? "You are a helpful assistant.",
-          model: input.model ?? "claude-opus-4-8",
+          model: input.model ?? "claude-opus-5",
           temperature: input.temperature ?? 0.7,
           maxTokens: input.maxTokens ?? 2048,
           status: input.status ?? "draft",
@@ -223,6 +224,15 @@ export const useGaps = create<GapStore>()(
     }),
     {
       name: "forge.gaps",
+      version: 1,
+      // Agents saved before the Claude 5 rename still point at retired ids.
+      migrate: (state: any) => ({
+        ...state,
+        gaps: (state?.gaps ?? []).map((g: any) => ({
+          ...g,
+          agents: (g.agents ?? []).map((a: any) => ({ ...a, model: currentModel(a.model) })),
+        })),
+      }),
       onRehydrateStorage: () => (state) => {
         // First run: install starter GAPs once.
         if (state && !state.seeded && state.gaps.length === 0) {

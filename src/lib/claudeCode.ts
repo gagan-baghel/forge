@@ -30,13 +30,13 @@ export async function detectClaudeCode(): Promise<ClaudeCodeInfo> {
 /** Map raw CLI failures to actionable messages. */
 function friendlyCcError(raw: string): string {
   if (/not logged in|please run \/login/i.test(raw)) {
-    return "Claude Code isn't signed in on this machine. Open Settings → Connect Claude Code → Sign in (one browser approval), then try again.";
+    return "Claude Code isn't signed in on this machine. Run `claude` in a terminal and sign in, then add a background-run token in Settings → Runtime.";
   }
-  if (/401|invalid authentication|failed to authenticate/i.test(raw)) {
-    // The CLI may be logged in interactively, but its keychain token is
-    // short-lived and headless runs can't refresh it. The in-app Sign in
-    // mints a long-lived token that works for agent runs.
-    return "Claude Code's session has expired for background runs. Open Settings → Connect Claude Code → Sign in (one browser approval) to refresh it, then try again.";
+  if (/401|invalid authentication|failed to authenticate|token has expired/i.test(raw)) {
+    // Being signed in interactively is NOT enough: that token is short-lived and
+    // a headless `claude -p` run cannot refresh it, so it 401s while the
+    // terminal still works. `claude setup-token` mints a long-lived one.
+    return "Claude Code is signed in, but its terminal session token is short-lived and background runs can't refresh it. Either sign in again with `claude auth login` (works until it next expires), or run `claude setup-token` for a permanent fix and paste it into Settings → Runtime. Both use your subscription — no API key, nothing metered.";
   }
   return raw;
 }

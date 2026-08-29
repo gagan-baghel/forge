@@ -13,7 +13,9 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::{Mutex, OnceLock};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use tauri::{Emitter, Manager, State};
@@ -63,7 +65,7 @@ fn login_shell_env() -> &'static HashMap<String, String> {
 /// Apply the terminal-equivalent environment (and a sane working directory) to
 /// a command before we spawn it. Callers that layer their own env vars on top
 /// should call this first so those still take precedence.
-fn apply_shell_env(cmd: &mut Command) {
+pub fn apply_shell_env(cmd: &mut Command) {
     let env = login_shell_env();
     // Preserve the app process environment. Some Claude Code auth helpers are
     // process-env driven, and clearing the environment can make `claude -p`
@@ -302,6 +304,42 @@ pub fn claude_code_run(
 
     state.children.lock().unwrap().insert(run_id.clone(), child);
 
+    // Watchdog. A CLI that wedges — no output, never exits — would otherwise
+    // pin the run forever: the UI keeps its spinner and the agent is stuck with
+    // no error and no way back. Kill it once it has been silent too long.
+    // Silence, not duration, is the signal; a long think still streams events.
+    const IDLE_TIMEOUT: Duration = Duration::from_secs(180);
+    let last_activity = Arc::new(Mutex::new(Instant::now()));
+    let finished = Arc::new(AtomicBool::new(false));
+    let timed_out = Arc::new(AtomicBool::new(false));
+    {
+        let app_wd = app.clone();
+        let run_wd = run_id.clone();
+        let last = last_activity.clone();
+        let fin = finished.clone();
+        let timed = timed_out.clone();
+        std::thread::spawn(move || loop {
+            std::thread::sleep(Duration::from_secs(5));
+            if fin.load(Ordering::Relaxed) {
+                return;
+            }
+            let idle = last.lock().map(|t| t.elapsed()).unwrap_or_default();
+            if idle > IDLE_TIMEOUT {
+                timed.store(true, Ordering::Relaxed);
+                if let Some(mut c) = app_wd
+                    .state::<ClaudeCodeState>()
+                    .children
+                    .lock()
+                    .unwrap()
+                    .remove(&run_wd)
+                {
+                    let _ = c.kill();
+                }
+                return;
+            }
+        });
+    }
+
     let app2 = app.clone();
     let run_id2 = run_id.clone();
     std::thread::spawn(move || {
@@ -314,6 +352,9 @@ pub fn claude_code_run(
 
         for line in reader.lines() {
             let Ok(line) = line else { break };
+            if let Ok(mut t) = last_activity.lock() {
+                *t = Instant::now();
+            }
             let line = line.trim();
             if line.is_empty() {
                 continue;
@@ -398,6 +439,14 @@ pub fn claude_code_run(
             }
         }
 
+        finished.store(true, Ordering::Relaxed);
+        if timed_out.load(Ordering::Relaxed) && error.is_none() {
+            error = Some(format!(
+                "Claude Code sent nothing for {}s and was stopped.",
+                IDLE_TIMEOUT.as_secs()
+            ));
+        }
+
         // The CLI has read the per-run MCP config by now; don't litter the temp dir.
         if let Some(path) = mcp_config_path {
             let _ = std::fs::remove_file(path);
@@ -425,4 +474,50 @@ pub fn claude_code_cancel(state: State<ClaudeCodeState>, run_id: String) -> Resu
         let _ = child.kill();
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod smoke_tests {
+    use super::*;
+    use std::process::Stdio;
+
+    /// Live smoke test for the exact spawn path `claude_code_run` uses: the
+    /// login-shell environment, the home working directory, and Forge's real
+    /// argument list. Proves an agent turn can authenticate off the CLI's own
+    /// session — no token, no API key.
+    ///
+    /// Hits the network and spends subscription usage, so it is opt-in:
+    ///     cargo test -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn a_real_agent_turn_authenticates() {
+        let bin = find_claude().expect("claude CLI not found on PATH");
+
+        let mut cmd = Command::new(&bin);
+        apply_shell_env(&mut cmd);
+        cmd.arg("-p")
+            .arg("reply with exactly: PONG")
+            .arg("--system-prompt")
+            .arg("You are a smoke test. Reply with exactly what is asked.")
+            .arg("--model")
+            .arg("claude-opus-5")
+            .arg("--output-format")
+            .arg("stream-json")
+            .arg("--include-partial-messages")
+            .arg("--verbose")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        let out = cmd.output().expect("failed to spawn claude");
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        let stderr = String::from_utf8_lossy(&out.stderr);
+
+        assert!(
+            !stdout.contains("\"is_error\":true") && !stderr.contains("Failed to authenticate"),
+            "agent turn failed to authenticate.\nstdout tail: {}\nstderr: {}",
+            stdout.chars().rev().take(400).collect::<String>().chars().rev().collect::<String>(),
+            stderr
+        );
+        assert!(stdout.contains("PONG"), "no model output in stream; stderr: {stderr}");
+    }
 }

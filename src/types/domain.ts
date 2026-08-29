@@ -11,19 +11,111 @@
  * a `.gap` file (a JSON document) for sharing.
  */
 
+import type { ErrorKind } from "@/lib/runError";
+
 export type ID = string;
 
 /** Supported Claude models. Defaults to the latest, most capable Opus. */
 export type ModelId =
-  | "claude-opus-4-8"
-  | "claude-sonnet-4-6"
-  | "claude-haiku-4-5-20251001";
+  | "claude-fable-5"
+  | "claude-opus-5"
+  | "claude-sonnet-5"
+  | "claude-haiku-4-5";
 
-export const MODELS: { id: ModelId; label: string; blurb: string }[] = [
-  { id: "claude-opus-4-8", label: "Opus 4.8", blurb: "Most capable — deep reasoning & agentic work" },
-  { id: "claude-sonnet-4-6", label: "Sonnet 4.6", blurb: "Balanced speed and quality" },
-  { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5", blurb: "Fastest, lightest, cheapest" },
+/**
+ * Everything the app needs to know about a model, in one place.
+ *
+ * These facts used to live in four separate collections — a catalogue here, a
+ * price table in `claude.ts`, and capability sets in `aiConfig.ts` — all keyed
+ * by the same ids. Adding a model meant remembering all four, and forgetting
+ * one is how `temperature` kept being sent to models that reject it with a
+ * 400. One row per model, and the type system makes an incomplete row a
+ * compile error.
+ *
+ * Prices are USD per million tokens, per Anthropic list pricing.
+ */
+export interface ModelSpec {
+  id: ModelId;
+  label: string;
+  blurb: string;
+  price: { in: number; out: number };
+  /** Claude 4.7+ reject temperature/top_p/top_k with a 400. */
+  sampling: boolean;
+  /** Adaptive thinking + output_config.effort. Replaces the removed budget_tokens. */
+  adaptiveThinking: boolean;
+  /** Server-side web search tool version this model accepts. */
+  webSearch: "web_search_20260209" | "web_search_20250305";
+}
+
+export const MODEL_SPECS: Record<ModelId, ModelSpec> = {
+  "claude-opus-5": {
+    id: "claude-opus-5",
+    label: "Opus 5",
+    blurb: "Most capable — deep reasoning & agentic work",
+    price: { in: 5, out: 25 },
+    sampling: false,
+    adaptiveThinking: true,
+    webSearch: "web_search_20260209",
+  },
+  "claude-sonnet-5": {
+    id: "claude-sonnet-5",
+    label: "Sonnet 5",
+    blurb: "Balanced speed and quality",
+    price: { in: 2, out: 10 },
+    sampling: false,
+    adaptiveThinking: true,
+    webSearch: "web_search_20260209",
+  },
+  "claude-haiku-4-5": {
+    id: "claude-haiku-4-5",
+    label: "Haiku 4.5",
+    blurb: "Fastest, lightest, cheapest",
+    price: { in: 1, out: 5 },
+    // Predates the 4.7 sampling removal, so it still honours temperature.
+    sampling: true,
+    adaptiveThinking: false,
+    webSearch: "web_search_20250305",
+  },
+  "claude-fable-5": {
+    id: "claude-fable-5",
+    label: "Fable 5",
+    blurb: "Hardest, long-horizon work — needs usage credits",
+    price: { in: 10, out: 50 },
+    sampling: false,
+    adaptiveThinking: true,
+    webSearch: "web_search_20260209",
+  },
+};
+
+/** Display order for pickers. Derived, so it can never drift from the specs. */
+export const MODELS: ModelSpec[] = [
+  MODEL_SPECS["claude-opus-5"],
+  MODEL_SPECS["claude-sonnet-5"],
+  MODEL_SPECS["claude-haiku-4-5"],
+  MODEL_SPECS["claude-fable-5"],
 ];
+
+/** Spec for a possibly-unknown id (a stale persisted model, say). */
+export function modelSpec(id: string): ModelSpec | undefined {
+  return MODEL_SPECS[id as ModelId];
+}
+
+/**
+ * Model ids that shipped in earlier builds, mapped to their replacement.
+ * Persisted agents, brains and settings still carry the old strings, and a
+ * stale id silently prices every run at $0 and leaves the model picker blank —
+ * so each store migrates through this on rehydrate.
+ */
+export const MODEL_RENAMES: Record<string, ModelId> = {
+  "claude-opus-4-8": "claude-opus-5",
+  "claude-sonnet-4-6": "claude-sonnet-5",
+  "claude-haiku-4-5-20251001": "claude-haiku-4-5",
+};
+
+/** Current id for a possibly-stale stored model id. */
+export function currentModel<T extends string | undefined>(id: T): T | ModelId {
+  return id && MODEL_RENAMES[id] ? MODEL_RENAMES[id] : id;
+}
 
 export type AgentStatus = "draft" | "ready" | "live" | "paused";
 
@@ -40,7 +132,7 @@ export interface Skill {
   name: string;
   description: string;
   /** Built-in handler key, or "custom" for prompt-only skills. */
-  kind: "web_search" | "code" | "files" | "http" | "memory" | "custom";
+  kind: "web_search" | "code" | "files" | "http" | "memory" | "computer" | "custom";
   enabled: boolean;
 }
 
@@ -204,8 +296,8 @@ export interface ChatMessage {
   role: Role;
   content: string;
   createdAt: number;
-  /** Token usage, populated for assistant turns. */
-  usage?: { inputTokens: number; outputTokens: number };
+  /** Token + cost accounting, populated for assistant turns. */
+  usage?: { inputTokens: number; outputTokens: number; costUsd: number };
   /** Tool invocations made while producing an assistant turn. */
   toolCalls?: ToolCall[];
   /** Streaming flag for the in-flight assistant message. */
@@ -239,6 +331,12 @@ export interface Run {
   endedAt?: number;
   tokensIn: number;
   tokensOut: number;
+  costUsd: number;
+  /** Which model and runtime actually served this run. */
+  model?: ModelId;
+  runtime?: RuntimeKind;
+  /** Set on failures, so the error mix is countable rather than free text. */
+  errorKind?: ErrorKind;
   summary?: string;
 }
 
@@ -276,4 +374,6 @@ export interface Settings {
   theme: ThemeName;
   userName: string;
   onboarded: boolean;
+  /** Price overrides per model, USD per million tokens [in, out]. */
+  priceOverrides: Record<string, { in: number; out: number }>;
 }

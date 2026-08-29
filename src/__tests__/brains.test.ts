@@ -110,7 +110,7 @@ describe("brain-aware agent runs", () => {
   it("applies the brain's model override and appends its mind to the system prompt", async () => {
     const brain = useBrains.getState().createBrain({
       name: "Fast mind",
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-haiku-4-5",
       temperature: 0.2,
       systemAppend: "Answer in haiku form.",
     });
@@ -122,10 +122,13 @@ describe("brain-aware agent runs", () => {
     await runAgentHeadless(agent, "hello");
 
     const body = JSON.parse(spy.mock.calls[0][1].body);
-    expect(body.model).toBe("claude-haiku-4-5-20251001");
+    expect(body.model).toBe("claude-haiku-4-5");
+    // Haiku 4.5 predates the 4.7 sampling removal, so temperature still applies.
     expect(body.temperature).toBe(0.2);
-    expect(body.system).toContain(agent.systemPrompt);
-    expect(body.system).toContain("Answer in haiku form.");
+    // System is a cacheable block array, not a bare string.
+    const system = body.system.map((b: any) => b.text).join("\n");
+    expect(system).toContain(agent.systemPrompt);
+    expect(system).toContain("Answer in haiku form.");
   });
 
   it("leaves the agent's own config untouched when no brain is attached", async () => {
@@ -135,6 +138,17 @@ describe("brain-aware agent runs", () => {
 
     const body = JSON.parse(spy.mock.calls[0][1].body);
     expect(body.model).toBe(agent.model);
-    expect(body.temperature).toBe(agent.temperature);
+    // Claude 4.7+ reject an explicit temperature with a 400, so it is dropped
+    // for those models even though the agent still carries the setting.
+    expect(body.temperature).toBeUndefined();
+  });
+
+  it("caches the system prompt so it is not re-billed every turn", async () => {
+    const agent = makeAgent();
+    const spy = mockStreamingFetch([textTurn("ok")]);
+    await runAgentHeadless(agent, "hello");
+
+    const body = JSON.parse(spy.mock.calls[0][1].body);
+    expect(body.system[0].cache_control).toEqual({ type: "ephemeral" });
   });
 });

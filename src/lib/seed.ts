@@ -28,7 +28,7 @@ function agent(
     role: partial.role,
     emoji: partial.emoji,
     systemPrompt: partial.systemPrompt,
-    model: partial.model ?? "claude-opus-4-8",
+    model: partial.model ?? "claude-opus-5",
     temperature: 0.7,
     maxTokens: 2048,
     status: partial.status ?? "ready",

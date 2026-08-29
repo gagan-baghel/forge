@@ -7,10 +7,130 @@
  * incrementally and surface text deltas plus a final usage record.
  */
 
+import { modelSpec } from "@/types/domain";
 import type { ChatMessage, ModelId } from "@/types/domain";
+import { DEFAULT_EFFORT, supportsAdaptiveThinking, supportsSampling } from "./aiConfig";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
+
+/**
+ * Cost of a call, USD. Prices come from the model registry; an override lets
+ * the user correct a rate we have stale. An unknown model prices at zero
+ * rather than guessing — a wrong number is worse than an obvious blank.
+ */
+export function costFor(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  overrides?: Record<string, { in: number; out: number }>,
+): number {
+  const price = overrides?.[model] ?? modelSpec(model)?.price ?? { in: 0, out: 0 };
+  return (inputTokens * price.in + outputTokens * price.out) / 1_000_000;
+}
+
+/**
+ * Timeouts. Without these a hung connection or a stalled stream pins an agent
+ * forever with no error and no way back — the run just never finishes.
+ *
+ * `CONNECT_MS` bounds time-to-response-headers only; generation itself may take
+ * far longer and is bounded instead by `IDLE_MS`, the gap between two stream
+ * chunks. A long think is normal, total silence is not.
+ */
+const CONNECT_MS = 60_000;
+const IDLE_MS = 120_000;
+
+/** Distinguishable from a user cancel, which must not read as a failure. */
+export class TimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TimeoutError";
+  }
+}
+
+/**
+ * A signal that aborts on the caller's cancel *or* after `ms`, reporting which
+ * happened — an abort attributed to the wrong cause shows "Cancelled" on what
+ * was really a timeout.
+ */
+function withDeadline(ms: number, signal?: AbortSignal) {
+  const ctrl = new AbortController();
+  const state = { timedOut: false };
+  const onAbort = () => ctrl.abort();
+  if (signal?.aborted) ctrl.abort();
+  signal?.addEventListener("abort", onAbort, { once: true });
+  const timer = setTimeout(() => {
+    state.timedOut = true;
+    ctrl.abort();
+  }, ms);
+  return {
+    signal: ctrl.signal,
+    get timedOut() {
+      return state.timedOut;
+    },
+    dispose() {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+    },
+  };
+}
+
+/**
+ * `reader.read()` bounded by an idle timeout. Cancels the reader on stall so
+ * the socket closes instead of leaking.
+ */
+async function readOrStall<T>(
+  reader: ReadableStreamDefaultReader<T>,
+  ms = IDLE_MS,
+): Promise<ReadableStreamReadResult<T>> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const stalled = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      void reader.cancel().catch(() => {});
+      reject(new TimeoutError(`Claude stopped sending data for ${Math.round(ms / 1000)}s.`));
+    }, ms);
+  });
+  try {
+    return await Promise.race([reader.read(), stalled]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Iterate the decoded JSON payloads of an SSE response.
+ *
+ * Both stream functions parsed frames identically — read, decode, split on the
+ * blank line, strip `data:`, JSON.parse — so the mechanics live here once and
+ * each caller keeps only its own event handling. Carries the idle-stall guard,
+ * so every consumer inherits it.
+ */
+async function* sseEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<any> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await readOrStall(reader);
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const frames = buffer.split("\n\n");
+    // The tail is whatever arrived mid-frame; hold it for the next chunk.
+    buffer = frames.pop() ?? "";
+
+    for (const frame of frames) {
+      const dataLine = frame.split("\n").find((l) => l.startsWith("data:"));
+      if (!dataLine) continue;
+      const payload = dataLine.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+      try {
+        yield JSON.parse(payload);
+      } catch {
+        // Keep-alive or truncated frame — skip it rather than kill the stream.
+      }
+    }
+  }
+}
 
 /** Transient failures worth another attempt: rate limits and overload. */
 const RETRYABLE = new Set([408, 429, 500, 502, 503, 504, 529]);
@@ -47,6 +167,7 @@ async function postStream(body: unknown, apiKey: string, signal?: AbortSignal): 
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     let res: Response;
+    const deadline = withDeadline(CONNECT_MS, signal);
     try {
       res = await fetch(API_URL, {
         method: "POST",
@@ -57,16 +178,26 @@ async function postStream(body: unknown, apiKey: string, signal?: AbortSignal): 
           // Allow calling the API directly from a browser/webview context.
           "anthropic-dangerous-direct-browser-access": "true",
         },
-        signal,
+        signal: deadline.signal,
         body: JSON.stringify(body),
       });
     } catch (e) {
+      // A timeout aborts the same way a cancel does; only the deadline knows
+      // which it was, so check before treating it as the user's doing.
+      if (deadline.timedOut) {
+        lastError = `Claude did not respond within ${CONNECT_MS / 1000}s.`;
+        if (attempt === MAX_ATTEMPTS - 1) throw new TimeoutError(lastError);
+        await sleep(2 ** attempt * 500 + Math.random() * 250, signal);
+        continue;
+      }
       if (isAbort(e)) throw e;
       // Offline or DNS blip — worth one more try.
       lastError = `Network error reaching Claude: ${(e as Error).message}`;
       if (attempt === MAX_ATTEMPTS - 1) throw new Error(lastError);
       await sleep(2 ** attempt * 500 + Math.random() * 250, signal);
       continue;
+    } finally {
+      deadline.dispose();
     }
 
     if (res.ok && res.body) return res;
@@ -99,6 +230,8 @@ export interface ChatRequest {
   messages: ChatMessage[];
   temperature: number;
   maxTokens: number;
+  /** Response-shape constraint (structured outputs), merged into output_config. */
+  outputConfig?: Record<string, unknown>;
 }
 
 /* ----------------------------- Tool use ------------------------------- */
@@ -161,10 +294,19 @@ export async function streamMessage(req: MessageRequest, cb: StreamCallbacks): P
   const res = await postStream(
     {
       model: req.model,
-      system: req.system || undefined,
+      // Cache the system prompt: it is identical on every turn of a
+      // conversation, so without a breakpoint the full prompt is re-billed
+      // each time. Prefixes under ~1024 tokens simply don't cache — no error,
+      // no cost, so this is safe to always send.
+      system: req.system ? [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }] : undefined,
       max_tokens: req.maxTokens,
-      temperature: req.temperature,
+      // 4.7+ models 400 on any explicit temperature; omit rather than send it.
+      temperature: supportsSampling(req.model) ? req.temperature : undefined,
+      // Adaptive thinking replaces the removed budget_tokens; effort is the
+      // cost/quality dial. Both are 4.7+ only, so older models send neither.
+      thinking: supportsAdaptiveThinking(req.model) ? { type: "adaptive" } : undefined,
       stream: true,
+      output_config: supportsAdaptiveThinking(req.model) ? { effort: DEFAULT_EFFORT } : undefined,
       tools: req.tools && req.tools.length ? req.tools : undefined,
       messages: req.messages,
     },
@@ -172,9 +314,6 @@ export async function streamMessage(req: MessageRequest, cb: StreamCallbacks): P
     cb.signal,
   );
 
-  const reader = res.body!.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
   let text = "";
   let inputTokens = 0;
   let outputTokens = 0;
@@ -183,70 +322,52 @@ export async function streamMessage(req: MessageRequest, cb: StreamCallbacks): P
   // Track content blocks by index so we can assemble text + tool_use in order.
   const blocks: Record<number, ApiContent & { _partialJson?: string }> = {};
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split("\n\n");
-    buffer = events.pop() ?? "";
-
-    for (const evt of events) {
-      const dataLine = evt.split("\n").find((l) => l.startsWith("data:"));
-      if (!dataLine) continue;
-      const payload = dataLine.slice(5).trim();
-      if (!payload || payload === "[DONE]") continue;
-      let json: any;
-      try {
-        json = JSON.parse(payload);
-      } catch {
-        continue;
+  for await (const json of sseEvents(res.body!)) {
+    switch (json.type) {
+      case "message_start":
+        inputTokens = json.message?.usage?.input_tokens ?? inputTokens;
+        break;
+      case "content_block_start": {
+        const idx = json.index as number;
+        const b = json.content_block;
+        if (b?.type === "tool_use") {
+          blocks[idx] = { type: "tool_use", id: b.id, name: b.name, input: {}, _partialJson: "" };
+        } else if (b?.type === "text") {
+          blocks[idx] = { type: "text", text: "" };
+        }
+        break;
       }
-      switch (json.type) {
-        case "message_start":
-          inputTokens = json.message?.usage?.input_tokens ?? inputTokens;
-          break;
-        case "content_block_start": {
-          const idx = json.index as number;
-          const b = json.content_block;
-          if (b?.type === "tool_use") {
-            blocks[idx] = { type: "tool_use", id: b.id, name: b.name, input: {}, _partialJson: "" };
-          } else if (b?.type === "text") {
-            blocks[idx] = { type: "text", text: "" };
-          }
-          break;
-        }
-        case "content_block_delta": {
-          const idx = json.index as number;
-          const d = json.delta;
-          if (d?.type === "text_delta") {
-            text += d.text;
-            const blk = blocks[idx];
-            if (blk && blk.type === "text") blk.text += d.text;
-            cb.onText(d.text);
-          } else if (d?.type === "input_json_delta") {
-            const blk = blocks[idx];
-            if (blk && blk.type === "tool_use") blk._partialJson = (blk._partialJson ?? "") + d.partial_json;
-          }
-          break;
-        }
-        case "content_block_stop": {
-          const idx = json.index as number;
+      case "content_block_delta": {
+        const idx = json.index as number;
+        const d = json.delta;
+        if (d?.type === "text_delta") {
+          text += d.text;
           const blk = blocks[idx];
-          if (blk && blk.type === "tool_use") {
-            try {
-              blk.input = blk._partialJson ? JSON.parse(blk._partialJson) : {};
-            } catch {
-              blk.input = {};
-            }
-            delete blk._partialJson;
-          }
-          break;
+          if (blk && blk.type === "text") blk.text += d.text;
+          cb.onText(d.text);
+        } else if (d?.type === "input_json_delta") {
+          const blk = blocks[idx];
+          if (blk && blk.type === "tool_use") blk._partialJson = (blk._partialJson ?? "") + d.partial_json;
         }
-        case "message_delta":
-          outputTokens = json.usage?.output_tokens ?? outputTokens;
-          stopReason = json.delta?.stop_reason ?? stopReason;
-          break;
+        break;
       }
+      case "content_block_stop": {
+        const idx = json.index as number;
+        const blk = blocks[idx];
+        if (blk && blk.type === "tool_use") {
+          try {
+            blk.input = blk._partialJson ? JSON.parse(blk._partialJson) : {};
+          } catch {
+            blk.input = {};
+          }
+          delete blk._partialJson;
+        }
+        break;
+      }
+      case "message_delta":
+        outputTokens = json.usage?.output_tokens ?? outputTokens;
+        stopReason = json.delta?.stop_reason ?? stopReason;
+        break;
     }
   }
 
@@ -290,56 +411,51 @@ export async function streamChat(req: ChatRequest, cb: StreamCallbacks): Promise
   const res = await postStream(
     {
       model: req.model,
-      system: req.system || undefined,
+      // Cache the system prompt: it is identical on every turn of a
+      // conversation, so without a breakpoint the full prompt is re-billed
+      // each time. Prefixes under ~1024 tokens simply don't cache — no error,
+      // no cost, so this is safe to always send.
+      system: req.system ? [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }] : undefined,
       max_tokens: req.maxTokens,
-      temperature: req.temperature,
+      // 4.7+ models 400 on any explicit temperature; omit rather than send it.
+      temperature: supportsSampling(req.model) ? req.temperature : undefined,
+      // Adaptive thinking replaces the removed budget_tokens; effort is the
+      // cost/quality dial. Both are 4.7+ only, so older models send neither.
+      thinking: supportsAdaptiveThinking(req.model) ? { type: "adaptive" } : undefined,
       stream: true,
+      // effort and format share one object; sending two output_config keys
+      // would drop one silently.
+      output_config:
+        supportsAdaptiveThinking(req.model) || req.outputConfig
+          ? {
+              ...(supportsAdaptiveThinking(req.model) ? { effort: DEFAULT_EFFORT } : {}),
+              ...(req.outputConfig ?? {}),
+            }
+          : undefined,
       messages: toApiMessages(req.messages),
     },
     req.apiKey,
     cb.signal,
   );
 
-  const reader = res.body!.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
   let text = "";
   let inputTokens = 0;
   let outputTokens = 0;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    const events = buffer.split("\n\n");
-    buffer = events.pop() ?? "";
-
-    for (const evt of events) {
-      const dataLine = evt.split("\n").find((l) => l.startsWith("data:"));
-      if (!dataLine) continue;
-      const payload = dataLine.slice(5).trim();
-      if (!payload || payload === "[DONE]") continue;
-      let json: any;
-      try {
-        json = JSON.parse(payload);
-      } catch {
-        continue;
-      }
-      switch (json.type) {
-        case "message_start":
-          inputTokens = json.message?.usage?.input_tokens ?? inputTokens;
-          break;
-        case "content_block_delta":
-          if (json.delta?.type === "text_delta") {
-            text += json.delta.text;
-            cb.onText(json.delta.text);
-          }
-          break;
-        case "message_delta":
-          outputTokens = json.usage?.output_tokens ?? outputTokens;
-          break;
-      }
+  for await (const json of sseEvents(res.body!)) {
+    switch (json.type) {
+      case "message_start":
+        inputTokens = json.message?.usage?.input_tokens ?? inputTokens;
+        break;
+      case "content_block_delta":
+        if (json.delta?.type === "text_delta") {
+          text += json.delta.text;
+          cb.onText(json.delta.text);
+        }
+        break;
+      case "message_delta":
+        outputTokens = json.usage?.output_tokens ?? outputTokens;
+        break;
     }
   }
 

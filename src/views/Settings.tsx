@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/Shell";
 import { Button, Card, Field, Badge } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useClaudeCode } from "@/hooks/useClaudeCode";
 import { useSettings } from "@/stores/settings";
-import { clearSecrets } from "@/lib/secrets";
 import { collectBackup, applyBackup, BACKUP_MAGIC } from "@/lib/backup";
 import { saveTextFile } from "@/lib/saveFile";
 import { useDialog } from "@/components/Confirm";
@@ -29,9 +28,7 @@ export function SettingsView() {
       confirmLabel: "Wipe everything",
     });
     if (!ok) return;
-    // Credentials live in the OS keychain, outside localStorage — clear them
     // explicitly or a "wipe everything" would quietly leave the API key behind.
-    await clearSecrets();
     localStorage.clear();
     location.reload();
   };
@@ -81,7 +78,7 @@ export function SettingsView() {
             <h3 className="font-semibold">Claude API</h3>
             <Badge tone={s.apiKey ? "success" : "warn"}>{s.apiKey ? "configured" : "not set"}</Badge>
           </div>
-          <Field label="API key" hint="Kept in this device's OS keychain, never in a backup file. Sent only to Anthropic.">
+          <Field label="API key" hint="Stored on this device only, and stripped out of exported backups. Sent only to Anthropic.">
             <div className="flex gap-2">
               <input
                 className="input font-mono"
@@ -136,6 +133,45 @@ export function SettingsView() {
           </Field>
         </Card>
 
+        {/* Pricing */}
+        <Card className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Icon name="chart" size={18} className="text-brand-2" />
+            <h3 className="font-semibold">Price overrides</h3>
+          </div>
+          <p className="text-sm text-ink-3">USD per million tokens. Used for cost estimates in runs and chats.</p>
+          <div className="space-y-2">
+            {MODELS.map((m) => {
+              const price = s.priceOverrides[m.id] ?? m.price;
+              return (
+                <div key={m.id} className="flex items-center gap-3">
+                  <span className="w-28 text-sm">{m.label}</span>
+                  <label className="flex items-center gap-1 text-xs text-ink-3">
+                    in
+                    <input
+                      type="number"
+                      step={0.1}
+                      className="input w-20"
+                      value={price.in}
+                      onChange={(e) => s.setPriceOverride(m.id, { ...price, in: Number(e.target.value) })}
+                    />
+                  </label>
+                  <label className="flex items-center gap-1 text-xs text-ink-3">
+                    out
+                    <input
+                      type="number"
+                      step={0.1}
+                      className="input w-20"
+                      value={price.out}
+                      onChange={(e) => s.setPriceOverride(m.id, { ...price, out: Number(e.target.value) })}
+                    />
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
         {/* Data */}
         <Card className="space-y-3">
           <div className="flex items-center gap-2">
@@ -178,8 +214,14 @@ function RuntimeSection() {
   const runtime = useSettings((s) => s.runtime);
   const setRuntime = useSettings((s) => s.setRuntime);
   const apiKey = useSettings((s) => s.apiKey);
+  const ccToken = useSettings((s) => s.ccToken);
+  const setCcToken = useSettings((s) => s.setCcToken);
+  const [ccDraft, setCcDraft] = useState(ccToken);
   const { info, available, desktop, install, installing, installLog, installError } = useClaudeCode();
   const onCC = runtime === "claude-code";
+
+  // Keep the draft in step if the stored token changes underneath us.
+  useEffect(() => setCcDraft(ccToken), [ccToken]);
 
   return (
     <Card className="space-y-4">
@@ -230,6 +272,53 @@ function RuntimeSection() {
             </pre>
           )}
           {installError && <p className="text-sm text-danger">{installError}</p>}
+        </div>
+      )}
+
+      {/* Headless runs can't refresh the CLI's own short-lived session token,
+          so they 401 even while `claude` works fine in a terminal. A long-lived
+          token from `claude setup-token` is the supported fix; it is passed to
+          every run as CLAUDE_CODE_OAUTH_TOKEN. */}
+      {desktop && available && (
+        <div className="space-y-3 rounded-xl border border-border p-4">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-medium">Background-run token</span>
+            <Badge tone={ccToken ? "success" : "warn"}>{ccToken ? "connected" : "not set"}</Badge>
+          </div>
+          <p className="text-xs text-ink-3">
+            Not an API key — this is your existing Claude Code subscription, still $0 and nothing metered.
+            Being signed in to <code>claude</code> in a terminal is normally enough, but that session&apos;s
+            token is short-lived and background runs can&apos;t refresh it, so they start failing while your
+            terminal keeps working. A long-lived token off the same subscription fixes it for good:
+          </p>
+          <pre className="overflow-x-auto rounded-lg bg-surface-2 p-3 font-mono text-xs text-ink-2">claude setup-token</pre>
+          <div className="flex gap-2">
+            <input
+              className="input flex-1 font-mono"
+              type="password"
+              placeholder="sk-ant-oat…"
+              value={ccDraft}
+              onChange={(e) => setCcDraft(e.target.value)}
+            />
+            <Button
+              variant="primary"
+              onClick={() => setCcToken(ccDraft.trim())}
+              disabled={ccDraft.trim() === ccToken}
+            >
+              Save
+            </Button>
+            {ccToken && (
+              <Button
+                onClick={() => {
+                  setCcToken("");
+                  setCcDraft("");
+                }}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-ink-3">Stored on this device only, and stripped out of exported backups.</p>
         </div>
       )}
 
