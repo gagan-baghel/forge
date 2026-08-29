@@ -12,8 +12,8 @@ round-trips to a single `.gap` file.
 
 - **Local-first.** Your GAPs, chats and keys live on your machine. No account,
   no hosted backend, no cloud. Chat goes straight from the app to Claude —
-  via your API key, or via your local Claude Code subscription. Credentials go
-  in the OS keychain, never in a config file or a backup.
+  via your API key, or via your local Claude Code subscription. Credentials stay
+  on the device and are stripped out of exported backups.
 - **In-built bridge.** The Claude Code runtime is compiled into the app's Rust
   shell — it detects the local CLI automatically and installs it for you from
   Settings if it's missing. $0 API cost.
@@ -74,6 +74,12 @@ src-tauri/       Rust shell: Claude Code bridge (detect / install / run),
   optional learning queue holds new facts until you approve them
 - **Claude Code runtime** — in-built bridge to the local CLI: auto-detect or
   in-app install, $0 API cost, pack MCP servers + env mounted per turn
+- **Computer** — an opt-in per-agent skill giving it `run_shell` and
+  `write_file` on the client's machine. Every single call opens an approval
+  dialog showing the exact command or path; denial is the default, and headless
+  paths (schedules, channels) always deny because nobody is at the keyboard.
+  File access is scoped to `$HOME` with credential folders (`.ssh`, `.aws`,
+  `.gnupg`, gcloud) blocked outright
 - **Memory** — workspace-wide browser over every agent's memory and every
   shared brain pool, with search and inline review
 - **Architect** — describe a goal, Claude designs a GAP you can install
@@ -97,9 +103,18 @@ stray artifact silently shadows its own source and the build ships stale code.
 ## Build the installer
 
 ```bash
-pnpm desktop:build                                  # .app + .dmg for this architecture
-pnpm tauri build --target universal-apple-darwin    # Intel + Apple Silicon in one bundle
+CI=true pnpm desktop:build                                  # .app + .dmg for this architecture
+CI=true pnpm tauri build --target universal-apple-darwin    # Intel + Apple Silicon in one bundle
 ```
+
+`CI=true` is not optional on macOS unless you have granted your terminal
+Automation access to Finder. The DMG bundler otherwise runs AppleScript to
+position icons in the mounted volume, and a terminal without that permission
+fails the whole build with `Not authorised to send Apple events to Finder
+(-1743)` — after the `.app` has already been built, which makes it look like a
+compile failure when it is a privacy prompt that never appeared. `CI=true`
+passes `--skip-jenkins` to the bundler, which skips the cosmetic step; the
+resulting DMG is functionally identical, just without custom icon positions.
 
 Bundles land in `src-tauri/target/release/bundle/`. Forge is a self-contained
 application: there is no update server, no license check and no telemetry. Build

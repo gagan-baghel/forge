@@ -4,7 +4,7 @@
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
-  "description": "Forge — a local-first desktop workspace for building, running and sharing AI agents as GAPs (Global Agent Packs).",
+  "description": "Forge \u2014 a local-first desktop workspace for building, running and sharing AI agents as GAPs (Global Agent Packs).",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
-    "@tanstack/react-query": "^5.74.4",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-dialog": "^2.7.0",
     "@tauri-apps/plugin-fs": "^2.5.0",

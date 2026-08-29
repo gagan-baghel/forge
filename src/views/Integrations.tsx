@@ -3,13 +3,12 @@ import { Card, Badge, Button } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 
+// Only providers an agent can actually attach in its Connections tab, and that
+// ship a real tool in lib/tools.ts. Listing more advertises a dead end.
 const PROVIDERS = [
-  { id: "slack", name: "Slack", blurb: "Post and read messages in channels" },
-  { id: "github", name: "GitHub", blurb: "Read repos, issues and PRs" },
-  { id: "gmail", name: "Gmail", blurb: "Read and draft email" },
-  { id: "notion", name: "Notion", blurb: "Search and update pages" },
-  { id: "linear", name: "Linear", blurb: "Create and triage issues" },
-  { id: "google_drive", name: "Google Drive", blurb: "Read documents and files" },
+  { id: "slack", name: "Slack", blurb: "Post messages to a channel" },
+  { id: "github", name: "GitHub", blurb: "Call the GitHub REST API" },
+  { id: "notion", name: "Notion", blurb: "Search pages and databases" },
 ];
 
 export function IntegrationsView() {

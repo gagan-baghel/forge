@@ -6,7 +6,7 @@ import { useSettings } from "@/stores/settings";
 import { Markdown } from "@/components/Markdown";
 import { Icon } from "@/components/Icon";
 import { Button, Spinner } from "@/components/ui";
-import { fmtTokens } from "@/lib/format";
+import { fmtUsd, fmtTokens } from "@/lib/format";
 
 export function Chat({ agent }: { agent: Agent }) {
   const ensureConversation = useConversations((s) => s.ensureConversation);
@@ -45,6 +45,7 @@ export function Chat({ agent }: { agent: Agent }) {
     (a, m) => a + (m.usage ? m.usage.inputTokens + m.usage.outputTokens : 0),
     0,
   );
+  const totalCost = messages.reduce((a, m) => a + (m.usage?.costUsd ?? 0), 0);
 
   return (
     <div className="flex h-full">
@@ -77,7 +78,15 @@ export function Chat({ agent }: { agent: Agent }) {
 
       {/* Thread */}
       <div className="flex flex-1 flex-col">
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
+        {/* Announce streamed replies to screen readers. "polite" so it waits
+            for a pause rather than interrupting on every token. */}
+        <div
+          ref={scrollRef}
+          role="log"
+          aria-live="polite"
+          aria-label={`Conversation with ${agent.name}`}
+          className="flex-1 overflow-y-auto px-6 py-6"
+        >
           {messages.length === 0 ? (
             <div className="mx-auto mt-10 max-w-md text-center">
               <div className="mb-3 text-4xl">{agent.emoji}</div>
@@ -132,6 +141,7 @@ export function Chat({ agent }: { agent: Agent }) {
                         {m.usage && (
                           <div className="mt-2 flex gap-3 text-[0.68rem] text-ink-3">
                             <span>{fmtTokens(m.usage.inputTokens + m.usage.outputTokens)} tok</span>
+                            {m.usage.costUsd > 0 && <span>{fmtUsd(m.usage.costUsd)}</span>}
                           </div>
                         )}
                       </>
@@ -184,7 +194,11 @@ export function Chat({ agent }: { agent: Agent }) {
             </div>
             <div className="mt-1.5 flex justify-between px-1 text-[0.68rem] text-ink-3">
               <span>Enter to send · Shift+Enter for newline</span>
-              {totalTokens > 0 && <span>Session: {fmtTokens(totalTokens)} tok</span>}
+              {totalTokens > 0 && (
+                <span>
+                  Session: {fmtTokens(totalTokens)} tok{totalCost > 0 && ` · ${fmtUsd(totalCost)}`}
+                </span>
+              )}
             </div>
           </div>
         </div>

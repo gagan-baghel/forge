@@ -62,9 +62,16 @@ export function StatusDot({ status }: { status: string }) {
 }
 
 /* -------------------------------- Spinner ------------------------------- */
-export function Spinner({ size = 16 }: { size?: number }) {
+export function Spinner({ size = 16, label = "Working" }: { size?: number; label?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className="animate-spin">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      className="animate-spin"
+      role="status"
+      aria-label={label}
+    >
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" fill="none" opacity="0.2" />
       <path d="M21 12a9 9 0 00-9-9" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" />
     </svg>
@@ -132,7 +139,14 @@ export function Modal({
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+
+    // Return focus where it was. Without this, dismissing a dialog drops
+    // keyboard focus to the top of the page and the user has to tab back.
+    const opener = document.activeElement as HTMLElement | null;
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      opener?.focus?.();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -142,6 +156,9 @@ export function Modal({
       onMouseDown={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="card w-full p-6 shadow-soft"
         style={{ maxWidth: width }}
         onMouseDown={(e) => e.stopPropagation()}
