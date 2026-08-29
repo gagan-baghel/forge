@@ -6,7 +6,7 @@ import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 import { useRuns } from "@/stores/runs";
 import { useSettings } from "@/stores/settings";
-import { fmtTokens, relativeTime } from "@/lib/format";
+import { fmtUsd, fmtTokens, relativeTime } from "@/lib/format";
 
 function Stat({ label, value, icon }: { label: string; value: string; icon: string }) {
   return (
@@ -31,7 +31,8 @@ export function HomeView() {
   const agents = useMemo(() => gaps.flatMap((g) => g.agents), [gaps]);
   const totals = useMemo(() => {
     const tokens = runs.reduce((a, r) => a + r.tokensIn + r.tokensOut, 0);
-    return { tokens, runs: runs.length };
+    const cost = runs.reduce((a, r) => a + r.costUsd, 0);
+    return { tokens, cost, runs: runs.length };
   }, [runs]);
 
   return (
@@ -56,7 +57,7 @@ export function HomeView() {
           <Stat label="GAPs installed" value={String(gaps.length)} icon="grid" />
           <Stat label="Agents" value={String(agents.length)} icon="agents" />
           <Stat label="Total runs" value={String(totals.runs)} icon="bolt" />
-          <Stat label="Tokens used" value={fmtTokens(totals.tokens)} icon="chart" />
+          <Stat label="Spend (all-time)" value={fmtUsd(totals.cost)} icon="chart" />
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -119,11 +120,11 @@ export function HomeView() {
                     <StatusDot status={r.status === "success" ? "live" : r.status === "error" ? "paused" : "ready"} />
                     <div className="flex-1 truncate">
                       <div className="truncate text-sm">{r.agentName}</div>
-                      <div className="text-[0.7rem] text-ink-3">{relativeTime(r.startedAt)}</div>
+                      <div className="text-[0.7rem] text-ink-3">
+                        {relativeTime(r.startedAt)} · {fmtTokens(r.tokensIn + r.tokensOut)} tok
+                      </div>
                     </div>
-                    <Badge tone={r.status === "error" ? "danger" : "neutral"}>
-                      {r.status === "error" ? "error" : `${fmtTokens(r.tokensIn + r.tokensOut)} tok`}
-                    </Badge>
+                    <Badge tone={r.status === "error" ? "danger" : "neutral"}>{fmtUsd(r.costUsd)}</Badge>
                   </div>
                 ))}
               </div>

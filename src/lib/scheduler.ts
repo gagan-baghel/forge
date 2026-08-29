@@ -6,12 +6,12 @@
 
 import { cronMatches, nextRun } from "./cron";
 import { runAgentHeadless } from "./agentRun";
+import { recordRun } from "./runner";
 import { discordSend } from "./channelRuntime";
 import { isDesktop } from "./platform";
 import type { Agent } from "@/types/domain";
 import { useRoutines } from "@/stores/routines";
 import { useGaps } from "@/stores/gaps";
-import { useRuns } from "@/stores/runs";
 
 /** Deliver routine output to a Discord webhook if the agent has one. */
 async function deliverToDiscord(agent: Agent, text: string) {
@@ -38,20 +38,18 @@ async function fireRoutine(routineId: string): Promise<void> {
   const { agent } = found;
 
   useRoutines.getState().update(r.id, { lastRunAt: Date.now(), nextRunAt: nextRun(r.cron, new Date()) });
-  const runStore = useRuns.getState();
-  const runId = runStore.startRun({ gapId: agent.gapId, agentId: agent.id, agentName: agent.name, trigger: "schedule" });
   try {
-    const result = await runAgentHeadless(agent, r.prompt || `Run routine: ${r.name}`);
-    runStore.finishRun(runId, {
-      status: "success",
-      tokensIn: result.inputTokens,
-      tokensOut: result.outputTokens,
-      summary: `⏰ ${r.name}: ${result.text.slice(0, 60)}`,
-    });
+    const result = await recordRun(
+      agent,
+      "schedule",
+      () => runAgentHeadless(agent, r.prompt || `Run routine: ${r.name}`),
+      { summary: (res) => `⏰ ${r.name}: ${res.text.slice(0, 60)}` },
+    );
     // If the agent has a Discord webhook, deliver the result there.
     await deliverToDiscord(agent, `⏰ ${r.name}\n\n${result.text}`);
-  } catch (e: any) {
-    runStore.finishRun(runId, { status: "error", tokensIn: 0, tokensOut: 0, summary: String(e?.message ?? e).slice(0, 80) });
+  } catch {
+    // recordRun already logged the failure; a routine must not take the
+    // scheduler down with it.
   }
 }
 

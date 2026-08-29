@@ -9,8 +9,8 @@
 import type { Agent, Channel } from "@/types/domain";
 import { invoke, isDesktop } from "./platform";
 import { runAgentHeadless } from "./agentRun";
+import { recordRun } from "./runner";
 import { useGaps } from "@/stores/gaps";
-import { useRuns } from "@/stores/runs";
 import { useChannelRuntime, channelKey } from "@/stores/channelRuntime";
 
 interface InboundMessage {
@@ -36,30 +36,18 @@ export async function initChannelListener(): Promise<void> {
     const channel = agent.channels.find((c) => channelKey(agent.id, c.id) === channel_id);
     if (!channel?.token) return;
 
-    const runStore = useRuns.getState();
-    const runId = runStore.startRun({
-      gapId: agent.gapId,
-      agentId: agent.id,
-      agentName: agent.name,
-      trigger: "channel",
-    });
-
     try {
-      const result = await runAgentHeadless(agent, text);
+      const result = await recordRun(agent, "channel", () => runAgentHeadless(agent, text), {
+        summary: () => `${channel.kind}: ${text.slice(0, 50)}`,
+      });
       // Reply through whichever provider the message arrived on.
       if (channel.kind === "discord") {
         await invoke("discord_send_bot", { token: channel.token, channelId: chat_id, text: result.text || "…" });
       } else {
         await invoke("telegram_send", { token: channel.token, chatId: chat_id, text: result.text || "…" });
       }
-      runStore.finishRun(runId, {
-        status: "success",
-        tokensIn: result.inputTokens,
-        tokensOut: result.outputTokens,
-        summary: `${channel.kind}: ${text.slice(0, 50)}`,
-      });
-    } catch (err: any) {
-      runStore.finishRun(runId, { status: "error", tokensIn: 0, tokensOut: 0, summary: String(err?.message ?? err).slice(0, 80) });
+    } catch {
+      // recordRun logged it; an inbound message must not kill the listener.
     }
   });
 }

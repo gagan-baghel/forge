@@ -3,7 +3,7 @@ import type { Agent } from "@/types/domain";
 import { Button, Card, Field, Spinner, Badge } from "@/components/ui";
 import { Markdown } from "@/components/Markdown";
 import { runAgentHeadless } from "@/lib/agentRun";
-import { fmtTokens } from "@/lib/format";
+import { fmtUsd, fmtTokens } from "@/lib/format";
 
 /**
  * Prompt playground — fire a one-off message at the agent without touching its
@@ -12,7 +12,7 @@ import { fmtTokens } from "@/lib/format";
 export function PromptPlayground({ agent }: { agent: Agent }) {
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
-  const [meta, setMeta] = useState<{ tokens: number } | null>(null);
+  const [meta, setMeta] = useState<{ tokens: number; cost: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -25,7 +25,7 @@ export function PromptPlayground({ agent }: { agent: Agent }) {
     try {
       const result = await runAgentHeadless(agent, input.trim(), { onText: (d) => setOutput((o) => o + d) });
       if (!output && result.text) setOutput(result.text);
-      setMeta({ tokens: result.inputTokens + result.outputTokens });
+      setMeta({ tokens: result.inputTokens + result.outputTokens, cost: result.costUsd });
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
@@ -68,6 +68,7 @@ export function PromptPlayground({ agent }: { agent: Agent }) {
               {meta && (
                 <div className="flex gap-2">
                   <Badge>{fmtTokens(meta.tokens)} tok</Badge>
+                  <Badge>{fmtUsd(meta.cost)}</Badge>
                 </div>
               )}
             </div>
