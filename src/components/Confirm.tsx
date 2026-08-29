@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button, Modal } from "./ui";
+import { setApprover } from "@/lib/approval";
 
 /**
  * In-app confirm / notify dialogs.
@@ -57,6 +58,12 @@ export function DialogProvider({ children }: { children: ReactNode }) {
     }),
     [],
   );
+
+  // Let the agent tool layer reach this dialog; it lives outside React.
+  useEffect(() => {
+    setApprover(api.confirm);
+    return () => setApprover(null);
+  }, [api]);
 
   return (
     <DialogContext.Provider value={api}>

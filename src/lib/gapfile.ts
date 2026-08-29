@@ -5,6 +5,7 @@
  */
 
 import type { Gap } from "@/types/domain";
+import { asAgentSeeds, asRecord, asString } from "@/lib/validate";
 import { saveTextFile } from "./saveFile";
 
 const MAGIC = "forge.gap/v1";
@@ -36,10 +37,20 @@ function stripSecrets(gap: Gap): Gap {
 }
 
 export function parseGapFile(text: string): Gap {
-  const data = JSON.parse(text) as GapFile;
-  if (data.magic !== MAGIC || !data.gap) {
+  let data: GapFile;
+  try {
+    data = JSON.parse(text) as GapFile;
+  } catch {
     throw new Error("Not a valid .gap file.");
   }
+  if (data?.magic !== MAGIC || !data.gap) {
+    throw new Error("Not a valid .gap file.");
+  }
+  // The magic string only proves intent, not shape — a hand-edited or
+  // truncated pack still has to satisfy the fields the app dereferences.
+  const gap = asRecord(data.gap, "gap");
+  asString(gap.name, "gap.name", { max: 200 });
+  asAgentSeeds(gap.agents, "gap.agents");
   return data.gap;
 }
 

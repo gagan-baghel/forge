@@ -12,8 +12,9 @@ import { ChannelsTab } from "./agent/ChannelsTab";
 import { PromptPlayground } from "./agent/PromptPlayground";
 import { httpFetch } from "@/lib/http";
 import { useMemory } from "@/stores/memory";
-import { fmtTokens, relativeTime, fmtDuration } from "@/lib/format";
+import { fmtUsd, fmtTokens, relativeTime, fmtDuration } from "@/lib/format";
 import { useDialog } from "@/components/Confirm";
+import { supportsSampling } from "@/lib/aiConfig";
 
 type Tab = "chat" | "playground" | "config" | "skills" | "knowledge" | "memory" | "connections" | "channels" | "logs";
 const TABS: { id: Tab; label: string; icon: string }[] = [
@@ -172,15 +173,21 @@ function ConfigTab({ agent }: { agent: Agent }) {
         </div>
         <BrainField agent={agent} />
         <div className="grid grid-cols-2 gap-4">
-          <Field label={`Temperature · ${agent.temperature.toFixed(1)}`}>
+          {/* Claude 4.7+ reject an explicit temperature, so the control would
+              be a lie on most models — say so rather than leave a dead slider. */}
+          <Field
+            label={`Temperature · ${supportsSampling(agent.model) ? agent.temperature.toFixed(1) : "n/a"}`}
+            hint={supportsSampling(agent.model) ? undefined : "This model doesn't accept a temperature setting."}
+          >
             <input
               type="range"
               min={0}
               max={1}
               step={0.1}
+              disabled={!supportsSampling(agent.model)}
               value={agent.temperature}
               onChange={(e) => updateAgent(agent.id, { temperature: Number(e.target.value) })}
-              className="w-full accent-brand"
+              className="w-full accent-brand disabled:opacity-40"
             />
           </Field>
           <Field label="Max tokens">
@@ -266,6 +273,7 @@ const SKILL_KINDS: { kind: Skill["kind"]; label: string; description: string }[]
   { kind: "files", label: "Files", description: "Read local files" },
   { kind: "http", label: "HTTP", description: "Call external APIs" },
   { kind: "memory", label: "Memory", description: "Remember across conversations" },
+  { kind: "computer", label: "Computer", description: "Run commands and write files — asks you first, every time" },
   { kind: "custom", label: "Custom", description: "A prompt-defined capability" },
 ];
 
@@ -649,6 +657,7 @@ function LogsTab({ agent }: { agent: Agent }) {
                 </div>
               </div>
               <span className="text-xs text-ink-3">{fmtTokens(r.tokensIn + r.tokensOut)} tok</span>
+              <span className="text-xs text-ink-3">{fmtUsd(r.costUsd)}</span>
               <Badge tone={r.status === "error" ? "danger" : r.status === "success" ? "success" : "neutral"}>{r.status}</Badge>
             </div>
           ))}
