@@ -1,19 +1,31 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { collectBackup, applyBackup } from "@/lib/backup";
 
+const settings = (extra: Record<string, unknown>) =>
+  JSON.stringify({ state: { theme: "dusk", ...extra }, version: 0 });
+
 beforeEach(() => localStorage.clear());
 
 describe("backup export/restore", () => {
   it("never puts credentials in an exported backup", () => {
     localStorage.setItem("forge.gaps", '{"state":{"gaps":[]}}');
-    localStorage.setItem("forge.secret.apiKey", "sk-ant-should-not-leak");
-    localStorage.setItem("forge.secret.ccToken", "cc-should-not-leak");
+    localStorage.setItem(
+      "forge.settings",
+      settings({ apiKey: "sk-ant-should-not-leak", ccToken: "cc-should-not-leak" }),
+    );
 
     const data = collectBackup();
 
     expect(data).toHaveProperty("forge.gaps");
     expect(JSON.stringify(data)).not.toContain("sk-ant-should-not-leak");
     expect(JSON.stringify(data)).not.toContain("cc-should-not-leak");
+    // Everything else in settings still travels.
+    expect(JSON.parse(data["forge.settings"]).state.theme).toBe("dusk");
+  });
+
+  it("drops a settings blob it cannot parse rather than risk exporting a key", () => {
+    localStorage.setItem("forge.settings", "{not json");
+    expect(collectBackup()).not.toHaveProperty("forge.settings");
   });
 
   it("ignores keys that aren't Forge's", () => {
@@ -23,20 +35,22 @@ describe("backup export/restore", () => {
     expect(Object.keys(collectBackup())).toEqual(["forge.runs"]);
   });
 
-  it("keeps the stored API key when restoring a backup", () => {
-    localStorage.setItem("forge.secret.apiKey", "sk-ant-keep-me");
+  it("keeps this device's credentials when restoring a backup", () => {
+    localStorage.setItem("forge.settings", settings({ apiKey: "sk-ant-keep-me" }));
     localStorage.setItem("forge.gaps", "old");
 
-    applyBackup({ "forge.gaps": "new" });
+    applyBackup({ "forge.gaps": "new", "forge.settings": settings({ theme: "paper" }) });
 
     expect(localStorage.getItem("forge.gaps")).toBe("new");
-    expect(localStorage.getItem("forge.secret.apiKey")).toBe("sk-ant-keep-me");
+    const after = JSON.parse(localStorage.getItem("forge.settings")!).state;
+    expect(after.apiKey).toBe("sk-ant-keep-me");
+    expect(after.theme).toBe("paper");
   });
 
   it("refuses to restore a credential smuggled into a backup file", () => {
-    applyBackup({ "forge.secret.apiKey": "sk-ant-injected", "forge.gaps": "x" });
+    applyBackup({ "forge.settings": settings({ apiKey: "sk-ant-injected" }), "forge.gaps": "x" });
 
-    expect(localStorage.getItem("forge.secret.apiKey")).toBeNull();
+    expect(JSON.parse(localStorage.getItem("forge.settings")!).state.apiKey).toBeUndefined();
     expect(localStorage.getItem("forge.gaps")).toBe("x");
   });
 
