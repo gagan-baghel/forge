@@ -335,6 +335,7 @@ function LearningCard({ brain }: { brain: Brain }) {
 
 /* ------------------------------ Knowledge ------------------------------ */
 function KnowledgeCard({ brain }: { brain: Brain }) {
+  const { confirm } = useDialog();
   const addKnowledge = useBrains((s) => s.addKnowledge);
   const removeKnowledge = useBrains((s) => s.removeKnowledge);
   const [title, setTitle] = useState("");
@@ -381,7 +382,11 @@ function KnowledgeCard({ brain }: { brain: Brain }) {
               </div>
               <button
                 className="btn-ghost p-1.5 text-ink-3 hover:text-danger"
-                onClick={() => removeKnowledge(brain.id, d.id)}
+                aria-label={`Delete document ${d.title}`}
+                onClick={async () => {
+                  if (await confirm({ title: `Delete "${d.title}"?`, body: "Every agent wearing this brain loses the document. This cannot be undone." }))
+                    removeKnowledge(brain.id, d.id);
+                }}
               >
                 <Icon name="trash" size={15} />
               </button>

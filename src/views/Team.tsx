@@ -2,12 +2,14 @@ import { useState } from "react";
 import { PageHeader } from "@/components/Shell";
 import { Button, Card, Badge, EmptyState, Modal, Field } from "@/components/ui";
 import { Icon } from "@/components/Icon";
+import { useDialog } from "@/components/Confirm";
 import { useTeam, type Role } from "@/stores/team";
 import { relativeTime } from "@/lib/format";
 
 const ROLES: Role[] = ["owner", "admin", "member", "viewer"];
 
 export function TeamView() {
+  const { confirm } = useDialog();
   const members = useTeam((s) => s.members);
   const add = useTeam((s) => s.add);
   const remove = useTeam((s) => s.remove);
@@ -78,7 +80,14 @@ export function TeamView() {
                     ))}
                   </select>
                   <Badge tone={m.role === "owner" ? "brand" : "neutral"}>{m.role}</Badge>
-                  <button className="btn-ghost p-1.5 text-ink-3 hover:text-danger" onClick={() => remove(m.id)}>
+                  <button
+                    className="btn-ghost p-1.5 text-ink-3 hover:text-danger"
+                    aria-label={`Remove ${m.name}`}
+                    onClick={async () => {
+                      if (await confirm({ title: `Remove ${m.name}?`, body: "They are removed from this workspace.", confirmLabel: "Remove" }))
+                        remove(m.id);
+                    }}
+                  >
                     <Icon name="trash" size={15} />
                   </button>
                 </div>

@@ -278,6 +278,7 @@ const SKILL_KINDS: { kind: Skill["kind"]; label: string; description: string }[]
 ];
 
 function SkillsTab({ agent }: { agent: Agent }) {
+  const { confirm } = useDialog();
   const addSkill = useGaps((s) => s.addSkill);
   const toggleSkill = useGaps((s) => s.toggleSkill);
   const removeSkill = useGaps((s) => s.removeSkill);
@@ -303,7 +304,14 @@ function SkillsTab({ agent }: { agent: Agent }) {
                 >
                   <span className={clsx("block h-5 w-5 rounded-full bg-white transition-transform", s.enabled && "translate-x-4")} />
                 </button>
-                <button className="btn-ghost p-1.5 text-ink-3 hover:text-danger" onClick={() => removeSkill(agent.id, s.id)}>
+                <button
+                  className="btn-ghost p-1.5 text-ink-3 hover:text-danger"
+                  aria-label={`Remove skill ${s.name}`}
+                  onClick={async () => {
+                    if (await confirm({ title: `Remove "${s.name}"?`, body: "The agent loses this ability on its next turn.", confirmLabel: "Remove" }))
+                      removeSkill(agent.id, s.id);
+                  }}
+                >
                   <Icon name="trash" size={15} />
                 </button>
               </div>
@@ -334,6 +342,7 @@ function SkillsTab({ agent }: { agent: Agent }) {
 
 /* ----------------------------- Knowledge ------------------------------- */
 function KnowledgeTab({ agent }: { agent: Agent }) {
+  const { confirm } = useDialog();
   const addKnowledge = useGaps((s) => s.addKnowledge);
   const removeKnowledge = useGaps((s) => s.removeKnowledge);
   const [title, setTitle] = useState("");
@@ -369,7 +378,14 @@ function KnowledgeTab({ agent }: { agent: Agent }) {
                   <div className="text-sm font-medium">{d.title}</div>
                   <div className="text-xs text-ink-3">{(d.bytes / 1024).toFixed(1)} KB · {relativeTime(d.addedAt)}</div>
                 </div>
-                <button className="btn-ghost p-1.5 text-ink-3 hover:text-danger" onClick={() => removeKnowledge(agent.id, d.id)}>
+                <button
+                  className="btn-ghost p-1.5 text-ink-3 hover:text-danger"
+                  aria-label={`Delete document ${d.title}`}
+                  onClick={async () => {
+                    if (await confirm({ title: `Delete "${d.title}"?`, body: "The document is removed from this agent's knowledge. This cannot be undone." }))
+                      removeKnowledge(agent.id, d.id);
+                  }}
+                >
                   <Icon name="trash" size={15} />
                 </button>
               </div>
@@ -449,6 +465,7 @@ async function validateConnector(provider: Connector["provider"], token: string)
 }
 
 function ConnectionsTab({ agent }: { agent: Agent }) {
+  const { confirm } = useDialog();
   const addConnector = useGaps((s) => s.addConnector);
   const removeConnector = useGaps((s) => s.removeConnector);
   const owned = new Set(agent.connectors.map((c) => c.provider));
@@ -490,7 +507,14 @@ function ConnectionsTab({ agent }: { agent: Agent }) {
                   <div className="text-xs text-ink-3">token stored locally · exposes a tool</div>
                 </div>
                 <Badge tone={c.status === "connected" ? "success" : "neutral"}>{c.status}</Badge>
-                <button className="btn-ghost p-1.5 text-ink-3 hover:text-danger" onClick={() => removeConnector(agent.id, c.id)}>
+                <button
+                  className="btn-ghost p-1.5 text-ink-3 hover:text-danger"
+                  aria-label={`Disconnect ${c.label}`}
+                  onClick={async () => {
+                    if (await confirm({ title: `Disconnect ${c.label}?`, body: "Its stored token is deleted and the agent loses the tool.", confirmLabel: "Disconnect" }))
+                      removeConnector(agent.id, c.id);
+                  }}
+                >
                   <Icon name="trash" size={15} />
                 </button>
               </div>

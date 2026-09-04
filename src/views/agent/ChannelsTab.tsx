@@ -2,12 +2,14 @@ import { useState, type ReactNode } from "react";
 import type { Agent, Channel } from "@/types/domain";
 import { Card, Badge, Button, Field, Modal } from "@/components/ui";
 import { Icon } from "@/components/Icon";
+import { useDialog } from "@/components/Confirm";
 import { useGaps } from "@/stores/gaps";
 import { useChannelRuntime, channelKey } from "@/stores/channelRuntime";
 import { startTelegram, startDiscord, stopChannel, discordSend } from "@/lib/channelRuntime";
 import { isDesktop } from "@/lib/platform";
 
 export function ChannelsTab({ agent }: { agent: Agent }) {
+  const { confirm } = useDialog();
   const upsertChannel = useGaps((s) => s.upsertChannel);
   const removeChannel = useGaps((s) => s.removeChannel);
   const running = useChannelRuntime((s) => s.running);
@@ -16,6 +18,16 @@ export function ChannelsTab({ agent }: { agent: Agent }) {
 
   const telegram = agent.channels.find((c) => c.kind === "telegram");
   const discord = agent.channels.find((c) => c.kind === "discord");
+
+  const confirmRemove = async (channel: Channel | undefined, label: string) => {
+    if (!channel) return;
+    const ok = await confirm({
+      title: `Disconnect ${label}?`,
+      body: "The bot stops responding and its stored token is deleted.",
+      confirmLabel: "Disconnect",
+    });
+    if (ok) removeChannel(agent.id, channel.id);
+  };
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -33,7 +45,7 @@ export function ChannelsTab({ agent }: { agent: Agent }) {
         running={!!telegram && running[channelKey(agent.id, telegram.id)]}
         error={telegram ? errors[channelKey(agent.id, telegram.id)] : ""}
         onSave={(token) => upsertChannel(agent.id, { id: "telegram", kind: "telegram", label: "Telegram", status: "inactive", token })}
-        onRemove={() => telegram && removeChannel(agent.id, telegram.id)}
+        onRemove={() => void confirmRemove(telegram, "Telegram")}
       />
 
       {/* Discord (two-way bot + outbound webhook) */}
@@ -53,7 +65,7 @@ export function ChannelsTab({ agent }: { agent: Agent }) {
             config: { ...discord?.config, ...patch.config },
           })
         }
-        onRemove={() => discord && removeChannel(agent.id, discord.id)}
+        onRemove={() => void confirmRemove(discord, "Discord")}
       />
     </div>
   );
