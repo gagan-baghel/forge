@@ -1,0 +1,57 @@
+# Tag a version, get a downloadable DMG.
+#
+#   pnpm version patch && git push --follow-tags
+#
+# Builds a universal (Intel + Apple Silicon) bundle and attaches it to a
+# GitHub Release, so installing Forge is "download, drag, open" for someone
+# who does not have Node, pnpm or Rust and never will.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  dmg:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Unset until there is an Apple Developer account: the build still
+          # succeeds, it just ships unsigned. Fill these secrets in and the
+          # same workflow starts signing and notarising with no edit here.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # The DMG bundler's cosmetic icon-positioning step drives Finder over
+          # AppleScript and fails on a headless runner. Same DMG without it.
+          CI: true
+        with:
+          args: --target universal-apple-darwin
+          tagName: ${{ github.ref_name }}
+          releaseName: Forge ${{ github.ref_name }}
+          releaseDraft: false

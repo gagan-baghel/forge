@@ -23,6 +23,36 @@ round-trips to a single `.gap` file.
   and native, with a true terminal PTY built in.
 - **Self-contained.** One installer, no update server, no account, no telemetry.
 
+## Install
+
+**For anyone who just wants to use Forge.** No Node, no Rust, no terminal.
+
+1. Open [Releases](https://github.com/gagan-baghel/forge/releases) and download
+   `Forge_x.y.z_universal.dmg`.
+2. Open the DMG, drag **Forge** into Applications.
+3. Launch it.
+
+Every tagged version is built by CI and attached to a release automatically
+(`.github/workflows/release.yml`), so there is nothing to build by hand.
+
+### The first-launch warning
+
+Until Forge is signed with an Apple Developer ID, macOS will refuse the first
+launch: *"Forge is damaged and can't be opened"* or *"cannot be opened because
+Apple cannot check it for malicious software."* The app is fine — macOS says
+this about every app from a developer who has not paid Apple's $99/year fee.
+
+To open it anyway on macOS 13–15: launch Forge once and let it be blocked, then
+go to **System Settings → Privacy & Security**, scroll to the bottom, and click
+**Open Anyway** next to the message about Forge. Confirm. This is needed once,
+not on every launch.
+
+That step is the one thing standing between this and a genuinely
+non-technical install, and it cannot be removed from the app's side — it needs
+an Apple Developer Program membership. Once there is one, add the six `APPLE_*`
+secrets to the repository and the existing release workflow signs and notarises
+every build with no code change; the warning then disappears entirely.
+
 ## Stack
 
 - **Shell:** Tauri 2 (Rust)
