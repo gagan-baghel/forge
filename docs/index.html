@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forge — a local-first workspace for AI agents</title>
+<meta name="description" content="Build, run and share AI agents on your own Mac. No account, no cloud, no telemetry. Free download.">
+<meta property="og:title" content="Forge">
+<meta property="og:description" content="Build, run and share AI agents. Entirely on your own machine.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0f1017">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%236d5bff'/><text x='16' y='23' font-size='18' font-family='system-ui' font-weight='700' fill='white' text-anchor='middle'>F</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:15 16 23; --surface:22 24 33; --surface-2:30 33 45; --border:44 48 64;
+  --ink:233 236 245; --ink-2:168 175 196; --ink-3:110 118 140;
+  --brand:109 91 255; --brand-2:142 124 255; --accent:255 209 102;
+  --success:64 201 142; --warn:240 180 70;
+  --sans:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --maxw:1120px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:rgb(var(--bg));color:rgb(var(--ink));
+  font:16px/1.65 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+.eyebrow{
+  font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:rgb(var(--ink-3));margin:0 0 14px;
+}
+h2{font-size:clamp(28px,4vw,40px);line-height:1.12;letter-spacing:-.03em;margin:0 0 12px;font-weight:600}
+.lede{margin:0;color:rgb(var(--ink-2));font-size:17px;max-width:56ch}
+section{padding:clamp(64px,9vw,110px) 0}
+.rule{height:1px;background:linear-gradient(90deg,transparent,rgb(var(--border)),transparent)}
+
+nav{
+  position:sticky;top:0;z-index:50;
+  background:rgb(var(--bg)/.72);backdrop-filter:blur(14px);
+  border-bottom:1px solid transparent;transition:border-color .2s,background .2s;
+}
+nav.stuck{border-bottom-color:rgb(var(--border));background:rgb(var(--bg)/.9)}
+.nav-in{display:flex;align-items:center;gap:26px;height:62px;max-width:var(--maxw);margin:0 auto;padding:0 24px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.01em}
+.logo i{
+  display:grid;place-items:center;width:27px;height:27px;border-radius:9px;font-style:normal;
+  background:linear-gradient(150deg,rgb(var(--brand)),rgb(var(--brand-2)));color:#fff;font-size:14px;font-weight:700;
+}
+.nav-links{display:flex;gap:22px;margin-left:14px}
+.nav-links a{font-size:14.5px;color:rgb(var(--ink-2));transition:color .15s}
+.nav-links a:hover{color:rgb(var(--ink))}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+.ghost{font-size:14.5px;color:rgb(var(--ink-2))}
+.ghost:hover{color:rgb(var(--ink))}
+@media(max-width:760px){.nav-links{display:none}}
+
+.btn{
+  display:inline-flex;align-items:center;gap:9px;padding:13px 24px;border-radius:12px;
+  background:rgb(var(--brand));color:#fff;font-size:15.5px;font-weight:600;letter-spacing:-.01em;
+  transition:background .15s,transform .15s,box-shadow .15s;
+  box-shadow:0 1px 0 rgb(255 255 255/.14) inset,0 10px 30px rgb(var(--brand)/.28);
+}
+.btn:hover{background:rgb(var(--brand-2));transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn:focus-visible{outline:2px solid rgb(var(--brand-2));outline-offset:3px}
+.btn.sm{padding:9px 17px;font-size:14px;box-shadow:0 1px 0 rgb(255 255 255/.14) inset}
+.btn.lg{padding:16px 30px;font-size:17px}
+.btn-2{
+  display:inline-flex;align-items:center;gap:8px;padding:16px 24px;border-radius:12px;
+  border:1px solid rgb(var(--border));color:rgb(var(--ink-2));font-size:16px;font-weight:500;
+  transition:border-color .15s,color .15s,background .15s;
+}
+.btn-2:hover{border-color:rgb(var(--ink-3));color:rgb(var(--ink));background:rgb(var(--surface))}
+
+header{position:relative;padding:clamp(56px,8vw,92px) 0 0;text-align:center;overflow:hidden}
+header::before{
+  content:"";position:absolute;inset:-320px 0 auto 0;height:760px;pointer-events:none;
+  background:radial-gradient(ellipse 60% 52% at 50% 42%,rgb(var(--brand)/.26),transparent 68%);
+}
+header::after{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(rgb(var(--border)/.5) 1px,transparent 1px),linear-gradient(90deg,rgb(var(--border)/.5) 1px,transparent 1px);
+  background-size:58px 58px;
+  mask-image:radial-gradient(ellipse 62% 46% at 50% 26%,#000,transparent 72%);
+  -webkit-mask-image:radial-gradient(ellipse 62% 46% at 50% 26%,#000,transparent 72%);
+}
+header .wrap{position:relative;z-index:1}
+.badge{
+  display:inline-flex;align-items:center;gap:9px;margin-bottom:26px;padding:6px 14px 6px 8px;
+  border:1px solid rgb(var(--border));border-radius:999px;background:rgb(var(--surface)/.7);
+  font-size:13px;color:rgb(var(--ink-2));
+}
+.badge b{
+  padding:2px 8px;border-radius:999px;background:rgb(var(--brand)/.18);color:rgb(var(--brand-2));
+  font-size:11px;font-weight:600;letter-spacing:.04em;
+}
+h1{
+  margin:0 auto 20px;max-width:17ch;font-weight:600;
+  font-size:clamp(42px,7vw,72px);line-height:1.04;letter-spacing:-.04em;
+}
+/* Each sentence wraps as a unit, so the line never breaks after "No". */
+h1 span{display:inline-block}
+h1 em{
+  font-style:normal;
+  background:linear-gradient(100deg,rgb(var(--brand-2)),rgb(var(--accent)));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.sub{margin:0 auto 36px;max-width:50ch;font-size:clamp(17px,2.2vw,20px);line-height:1.55;color:rgb(var(--ink-2))}
+.actions{display:flex;flex-wrap:wrap;gap:13px;justify-content:center;align-items:center}
+.fine{margin:16px 0 0;font-size:13.5px;color:rgb(var(--ink-3))}
+.fine b{color:rgb(var(--ink-2));font-weight:500}
+
+.shot-wrap{position:relative;margin-top:clamp(48px,7vw,80px)}
+.shot-wrap::before{
+  content:"";position:absolute;left:50%;top:-6%;translate:-50% 0;width:78%;height:56%;
+  background:radial-gradient(ellipse at center,rgb(var(--brand)/.34),transparent 70%);
+  filter:blur(52px);pointer-events:none;
+}
+.shot{
+  position:relative;max-width:1060px;margin:0 auto;text-align:left;
+  border:1px solid rgb(var(--border));border-radius:15px 15px 0 0;overflow:hidden;
+  background:rgb(var(--bg));
+  box-shadow:0 1px 0 rgb(255 255 255/.06) inset,0 50px 110px -20px rgb(0 0 0/.75);
+}
+.bar{display:flex;align-items:center;gap:8px;padding:11px 15px;background:rgb(var(--surface));border-bottom:1px solid rgb(var(--border))}
+.bar i{width:11px;height:11px;border-radius:50%;background:#3a3f52}
+.bar i:nth-child(1){background:#ff5f57}.bar i:nth-child(2){background:#febc2e}.bar i:nth-child(3){background:#28c840}
+.bar span{margin-left:auto;font-size:10.5px;color:rgb(var(--ink-3));letter-spacing:.02em}
+.app{display:grid;grid-template-columns:180px 1fr;font-size:11.5px}
+.side{border-right:1px solid rgb(var(--border));background:rgb(var(--surface));padding:14px 11px}
+.brandrow{display:flex;align-items:center;gap:8px;margin-bottom:15px}
+.brandrow i{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;font-style:normal;background:linear-gradient(150deg,rgb(var(--brand)),rgb(var(--brand-2)));color:#fff;font-size:12px;font-weight:700}
+.brandrow b{font-size:12.5px;display:block;line-height:1.3}
+.brandrow small{color:rgb(var(--ink-3));font-size:7.5px;letter-spacing:.15em}
+.grp{color:rgb(var(--ink-3));font-size:8.5px;letter-spacing:.14em;margin:14px 0 6px 7px}
+.itm{display:flex;align-items:center;gap:9px;padding:5px 8px;border-radius:7px;color:rgb(var(--ink-2))}
+.itm.on{background:rgb(var(--brand)/.14);color:rgb(var(--ink))}
+.itm i{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.5;flex:none}
+.main{padding:17px 19px}
+.mhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}
+.mhead b{font-size:14.5px;display:block;letter-spacing:-.01em}
+.mhead small{color:rgb(var(--ink-3))}
+.chip{padding:5px 11px;border-radius:8px;border:1px solid rgb(var(--border));color:rgb(var(--ink-2));font-size:10px;white-space:nowrap}
+.chip.p{background:rgb(var(--brand));border-color:transparent;color:#fff}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:11px}
+.stat{border:1px solid rgb(var(--border));border-radius:11px;background:rgb(var(--surface));padding:12px 13px}
+.stat b{font-size:18px;display:block;letter-spacing:-.025em;line-height:1.3}
+.stat small{color:rgb(var(--ink-3));font-size:9.5px}
+.panes{display:grid;grid-template-columns:1.55fr 1fr;gap:10px}
+.pane{border:1px solid rgb(var(--border));border-radius:11px;background:rgb(var(--surface));padding:13px 14px;min-height:120px}
+.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.ph b{font-size:11.5px}.ph span{color:rgb(var(--brand-2));font-size:9.5px}
+.arow{display:flex;align-items:center;gap:10px;padding:6px 0}
+.av{width:21px;height:21px;border-radius:50%;background:rgb(var(--surface-2));border:1px solid rgb(var(--border));flex:none}
+.arow b{font-size:11px;display:block;line-height:1.35}
+.arow small{color:rgb(var(--ink-3));font-size:9.5px}
+.tag{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:9.5px;color:rgb(var(--ink-2))}
+.tag i{width:5px;height:5px;border-radius:50%;background:rgb(var(--success))}
+.tag.b i{background:rgb(var(--brand-2))}
+.spark{display:flex;align-items:flex-end;gap:3px;height:52px;margin-top:6px}
+.spark span{flex:1;border-radius:2px 2px 0 0;background:linear-gradient(180deg,rgb(var(--brand)/.85),rgb(var(--brand)/.25))}
+.pane.tall{margin-top:10px;min-height:0}
+.lrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgb(var(--border))}
+.lrow:first-of-type{border-top:0}
+.lrow b{font-size:10.5px;font-weight:500}
+.lrow small{color:rgb(var(--ink-3));font-size:9.5px}
+.lrow .when{margin-left:auto;color:rgb(var(--ink-3));font-size:9.5px}
+.badge-ok{padding:2px 7px;border-radius:5px;font-size:9px;background:rgb(var(--success)/.14);color:rgb(var(--success))}
+.badge-run{padding:2px 7px;border-radius:5px;font-size:9px;background:rgb(var(--brand)/.16);color:rgb(var(--brand-2))}
+@media(max-width:820px){.side{display:none}.app{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.panes{grid-template-columns:1fr}}
+
+.pillars{display:grid;gap:26px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.pillar h3{margin:14px 0 7px;font-size:17px;font-weight:600;letter-spacing:-.01em}
+.pillar p{margin:0;color:rgb(var(--ink-2));font-size:15px}
+.ico{
+  display:grid;place-items:center;width:38px;height:38px;border-radius:11px;
+  background:rgb(var(--brand)/.13);border:1px solid rgb(var(--brand)/.22);color:rgb(var(--brand-2));
+}
+
+.bento{display:grid;gap:14px;grid-template-columns:repeat(6,1fr);margin-top:44px}
+.tile{
+  position:relative;grid-column:span 2;padding:24px;border-radius:17px;overflow:hidden;
+  border:1px solid rgb(var(--border));background:rgb(var(--surface));
+  transition:border-color .2s,transform .2s;
+}
+.tile::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,rgb(255 255 255/.09),transparent)}
+.tile:hover{border-color:rgb(var(--ink-3)/.55);transform:translateY(-2px)}
+.tile.wide{grid-column:span 3}
+.tile.hero-tile{grid-column:span 6}
+.tile h3{margin:0 0 8px;font-size:16.5px;font-weight:600;letter-spacing:-.01em}
+.tile p{margin:0;color:rgb(var(--ink-2));font-size:14.5px}
+.tile .kicker{font-size:11.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:rgb(var(--brand-2));display:block;margin-bottom:11px}
+.demo{margin-top:18px;border:1px solid rgb(var(--border));border-radius:11px;background:rgb(var(--bg));padding:13px;font-size:12px}
+.demo .line{display:flex;align-items:center;gap:9px;padding:5px 0;color:rgb(var(--ink-2))}
+.demo .line i{width:15px;height:15px;border-radius:5px;background:rgb(var(--surface-2));flex:none}
+.demo code{font-family:var(--mono);font-size:11.5px;color:rgb(var(--accent))}
+.approve{display:flex;gap:7px;margin-top:11px}
+.approve span{padding:5px 12px;border-radius:8px;font-size:11px;border:1px solid rgb(var(--border));color:rgb(var(--ink-2))}
+.approve span.no{background:rgb(var(--surface-2));color:rgb(var(--ink))}
+@media(max-width:900px){.bento{grid-template-columns:repeat(2,1fr)}.tile,.tile.wide{grid-column:span 1}.tile.hero-tile{grid-column:span 2}}
+@media(max-width:560px){.bento{grid-template-columns:1fr}.tile.hero-tile{grid-column:span 1}}
+
+.steps{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));margin-top:44px;counter-reset:s}
+.step{counter-increment:s;position:relative;padding-top:20px;border-top:1px solid rgb(var(--border))}
+.step::before{
+  content:"0" counter(s);font-family:var(--mono);font-size:12px;letter-spacing:.06em;
+  color:rgb(var(--brand-2));display:block;margin-bottom:11px;
+}
+.step h3{margin:0 0 6px;font-size:16px;font-weight:600}
+.step p{margin:0;color:rgb(var(--ink-2));font-size:14.5px}
+
+.faq{margin-top:40px;border-top:1px solid rgb(var(--border))}
+details{border-bottom:1px solid rgb(var(--border))}
+summary{
+  display:flex;align-items:center;gap:16px;padding:20px 0;cursor:pointer;list-style:none;
+  font-size:16.5px;font-weight:500;letter-spacing:-.01em;
+}
+summary::-webkit-details-marker{display:none}
+summary::after{
+  content:"";margin-left:auto;width:9px;height:9px;flex:none;
+  border-right:1.6px solid rgb(var(--ink-3));border-bottom:1.6px solid rgb(var(--ink-3));
+  rotate:45deg;transition:rotate .2s;
+}
+details[open] summary::after{rotate:-135deg}
+summary:hover{color:rgb(var(--brand-2))}
+details p{margin:0 0 20px;color:rgb(var(--ink-2));font-size:15px;max-width:72ch}
+details p:last-child{margin-bottom:22px}
+kbd{padding:2px 7px;border-radius:6px;font:500 13px/1.5 var(--sans);background:rgb(var(--surface-2));border:1px solid rgb(var(--border));color:rgb(var(--ink))}
+
+.close-cta{
+  position:relative;overflow:hidden;text-align:center;padding:clamp(52px,7vw,76px) 24px;
+  border:1px solid rgb(var(--border));border-radius:22px;background:rgb(var(--surface));
+}
+.close-cta::before{
+  content:"";position:absolute;inset:auto 0 -60% 0;height:340px;pointer-events:none;
+  background:radial-gradient(ellipse 50% 60% at 50% 100%,rgb(var(--brand)/.3),transparent 70%);
+}
+.close-cta > *{position:relative}
+.close-cta h2{margin-bottom:14px}
+.close-cta p{margin:0 auto 30px;max-width:44ch;color:rgb(var(--ink-2))}
+
+footer{border-top:1px solid rgb(var(--border));padding:44px 0 60px;margin-top:clamp(64px,9vw,110px)}
+.f-in{display:flex;flex-wrap:wrap;gap:26px;justify-content:space-between;align-items:center}
+.f-in p{margin:6px 0 0;color:rgb(var(--ink-3));font-size:13.5px}
+.f-links{display:flex;flex-wrap:wrap;gap:22px;font-size:14px;color:rgb(var(--ink-2))}
+.f-links a:hover{color:rgb(var(--ink))}
+
+/* Only hide sections once JS has confirmed it can un-hide them again. A script
+   error or an observer that never fires would otherwise leave a blank page. */
+.js .reveal{opacity:0;transform:translateY(14px);transition:opacity .6s cubic-bezier(.2,.7,.3,1),transform .6s cubic-bezier(.2,.7,.3,1)}
+.js .reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .js .reveal{opacity:1;transform:none;transition:none}
+  .btn:hover,.tile:hover{transform:none}
+}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-in">
+    <a class="logo" href="#top"><i>F</i>Forge</a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="nav-right">
+      <a class="ghost" href="https://github.com/gagan-baghel/forge">GitHub</a>
+      <a class="btn sm" href="https://github.com/gagan-baghel/forge/releases/latest">Download</a>
+    </div>
+  </div>
+</nav>
+
+<header id="top">
+  <div class="wrap">
+    <span class="badge"><b>NEW</b> Runs on your Claude Code subscription — $0 metered</span>
+    <h1><span>Your agents.</span> <span>Your machine.</span> <span><em>No middleman.</em></span></h1>
+    <p class="sub">
+      Forge is a desktop workspace for building, running and sharing AI agents.
+      Everything — chats, keys, memory — stays on your Mac.
+    </p>
+    <div class="actions">
+      <a class="btn lg" href="https://github.com/gagan-baghel/forge/releases/latest">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></svg>
+        Download for macOS
+      </a>
+      <a class="btn-2" href="https://github.com/gagan-baghel/forge">View the source</a>
+    </div>
+    <p class="fine"><b>Free and open source.</b> macOS 10.15+ · Intel &amp; Apple Silicon · no account needed</p>
+
+    <div class="shot-wrap">
+      <div class="shot" role="img" aria-label="The Forge workspace: a sidebar listing GAPs, agents, brains, schedules and a terminal, beside a dashboard showing installed packs, agent count, total runs, all-time spend and an agent roster.">
+        <div class="bar" aria-hidden="true"><i></i><i></i><i></i><span>Forge — Home</span></div>
+        <div class="app" aria-hidden="true">
+          <div class="side">
+            <div class="brandrow"><i>F</i><span><b>Forge</b><small>AGENT WORKSPACE</small></span></div>
+            <div class="grp">WORKSPACE</div>
+            <div class="itm on"><i></i>Home</div>
+            <div class="itm"><i></i>GAPs</div>
+            <div class="itm"><i></i>Agents</div>
+            <div class="itm"><i></i>Brains</div>
+            <div class="itm"><i></i>Channels</div>
+            <div class="itm"><i></i>Architect</div>
+            <div class="grp">BUILD</div>
+            <div class="itm"><i></i>Workshop</div>
+            <div class="itm"><i></i>Marketplace</div>
+            <div class="itm"><i></i>Knowledge</div>
+            <div class="itm"><i></i>Memory</div>
+            <div class="itm"><i></i>Schedules</div>
+            <div class="itm"><i></i>Terminal</div>
+            <div class="grp">INSIGHTS</div>
+            <div class="itm"><i></i>Runs</div>
+            <div class="itm"><i></i>Observability</div>
+          </div>
+          <div class="main">
+            <div class="mhead">
+              <span><b>Welcome back</b><small>Your local agent workspace</small></span>
+              <span style="display:flex;gap:7px"><span class="chip">Marketplace</span><span class="chip p">+ New GAP</span></span>
+            </div>
+            <div class="stats">
+              <div class="stat"><b>4</b><small>GAPs installed</small></div>
+              <div class="stat"><b>7</b><small>Agents</small></div>
+              <div class="stat"><b>128</b><small>Total runs</small></div>
+              <div class="stat"><b>$0.00</b><small>Spend (all-time)</small></div>
+            </div>
+            <div class="panes">
+              <div class="pane">
+                <div class="ph"><b>Agent roster</b><span>View all</span></div>
+                <div class="arow"><span class="av"></span><span><b>Scout</b><small>Research assistant</small></span><span class="tag"><i></i>live</span></div>
+                <div class="arow"><span class="av"></span><span><b>Smith</b><small>Pair programmer</small></span><span class="tag b"><i></i>ready</span></div>
+                <div class="arow"><span class="av"></span><span><b>Ledger</b><small>Weekly reporting</small></span><span class="tag b"><i></i>scheduled</span></div>
+              </div>
+              <div class="pane">
+                <div class="ph"><b>Runs this week</b><span>All runs</span></div>
+                <div class="spark">
+                  <span style="height:34%"></span><span style="height:56%"></span><span style="height:42%"></span>
+                  <span style="height:78%"></span><span style="height:61%"></span><span style="height:92%"></span>
+                  <span style="height:47%"></span>
+                </div>
+              </div>
+            </div>
+            <div class="pane tall">
+              <div class="ph"><b>Recent activity</b><span>All runs</span></div>
+              <div class="lrow"><span class="badge-ok">done</span><span><b>Scout</b> <small>— weekly competitor sweep</small></span><span class="when">2m ago</span></div>
+              <div class="lrow"><span class="badge-run">running</span><span><b>Smith</b> <small>— refactor the parser module</small></span><span class="when">now</span></div>
+              <div class="lrow"><span class="badge-ok">done</span><span><b>Ledger</b> <small>— Friday spend summary</small></span><span class="when">1h ago</span></div>
+              <div class="lrow"><span class="badge-ok">done</span><span><b>Scout</b> <small>— summarise inbox threads</small></span><span class="when">3h ago</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <section class="wrap reveal">
+    <div class="pillars">
+      <div class="pillar">
+        <div class="ico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6.5v5c0 5 3.4 8.7 8 9.5 4.6-.8 8-4.5 8-9.5v-5Z"/></svg></div>
+        <h3>Nothing leaves your device</h3>
+        <p>Agents, chats, keys and memory live in local storage. No account, no hosted backend, no telemetry, no sync you didn't ask for.</p>
+      </div>
+      <div class="pillar">
+        <div class="ico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7Z"/></svg></div>
+        <h3>Costs you nothing to run</h3>
+        <p>Forge drives the Claude Code CLI already on your machine, on the subscription you already pay for. Nothing metered. Bring an API key instead if you prefer.</p>
+      </div>
+      <div class="pillar">
+        <div class="ico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v13H4z"/><path d="M9 7V4h6v3"/><path d="M4 12h16"/></svg></div>
+        <h3>Agents you can hand to someone</h3>
+        <p>A GAP packs agents together with their skills, knowledge, connectors and config into one file. Export it, send it, they install it.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="rule"></div></div>
+
+  <section class="wrap reveal" id="features">
+    <p class="eyebrow">What's inside</p>
+    <h2>A workspace, not a chat box</h2>
+    <p class="lede">Agents here are things you build, version, schedule and keep running — not a tab you leave open.</p>
+
+    <div class="bento">
+      <div class="tile hero-tile">
+        <span class="kicker">Computer access</span>
+        <h3>Let an agent touch the machine, on a leash</h3>
+        <p>Opt in per agent and it gets a shell and file writes, scoped to your home folder. Every single call stops for approval and shows the exact command. Denial is the default, credential folders are blocked outright, and anything running unattended always says no.</p>
+        <div class="demo">
+          <div class="line"><i></i>Scout wants to run <code>git status --short</code></div>
+          <div class="approve"><span>Allow once</span><span class="no">Deny</span></div>
+        </div>
+      </div>
+
+      <div class="tile wide">
+        <span class="kicker">Brains</span>
+        <h3>Detachable minds</h3>
+        <p>A brain carries its own persona, model settings, knowledge and memory pool. Attach it to any agent, move it to another, keep the memory. New facts wait in a queue until you approve them.</p>
+      </div>
+
+      <div class="tile wide">
+        <span class="kicker">Workshop</span>
+        <h3>Build a pack properly</h3>
+        <p>A wizard for the quick version, a full editor when you need it: identity, agents, MCP servers, environment variables, and a raw-manifest escape hatch when the UI is in your way.</p>
+      </div>
+
+      <div class="tile">
+        <span class="kicker">Knowledge</span>
+        <h3>Local retrieval</h3>
+        <p>Per-agent documents with semantic search. The embedding model runs on your machine.</p>
+      </div>
+      <div class="tile">
+        <span class="kicker">Schedules</span>
+        <h3>Cron for agents</h3>
+        <p>Give an agent a routine and it runs without you sitting there watching it.</p>
+      </div>
+      <div class="tile">
+        <span class="kicker">Runs</span>
+        <h3>Every run counted</h3>
+        <p>Token and cost accounting on every run, so a surprise shows up as a number, early.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="rule"></div></div>
+
+  <section class="wrap reveal" id="install">
+    <p class="eyebrow">Getting started</p>
+    <h2>Three steps, no terminal</h2>
+    <p class="lede">You do not need Node, Rust, a package manager, or any idea what those are.</p>
+    <div class="steps">
+      <div class="step">
+        <h3>Download the DMG</h3>
+        <p>One universal build for both Intel and Apple Silicon Macs.</p>
+      </div>
+      <div class="step">
+        <h3>Drag it to Applications</h3>
+        <p>The usual macOS install. Open the disk image, drag the Forge icon across.</p>
+      </div>
+      <div class="step">
+        <h3>Open it and pick a runtime</h3>
+        <p>Point Forge at Claude Code, or paste an API key. That is the entire setup.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="rule"></div></div>
+
+  <section class="wrap reveal" id="faq">
+    <p class="eyebrow">Questions</p>
+    <h2>The honest answers</h2>
+
+    <div class="faq">
+      <details open>
+        <summary>macOS says Forge is damaged. Is it?</summary>
+        <p>
+          No. You will see <em>"Forge is damaged and can't be opened"</em> or <em>"cannot be
+          opened because Apple cannot check it for malicious software."</em> macOS shows that for
+          any app whose developer hasn't paid Apple's yearly signing fee — it is a statement about
+          the paperwork, not about the app.
+        </p>
+        <p>
+          To get past it once: try to open Forge and let it be blocked, then go to
+          <kbd>System Settings</kbd> → <kbd>Privacy &amp; Security</kbd>, scroll to the bottom and
+          click <kbd>Open Anyway</kbd>. You won't be asked again. If you would rather not, the
+          source is on GitHub and you can build it yourself.
+        </p>
+      </details>
+      <details>
+        <summary>Does my data go anywhere?</summary>
+        <p>
+          Your agents, chats, keys and memory are stored on your Mac and nowhere else. There is no
+          account and no server behind Forge to send them to. Two things do use the network,
+          because of what they are: the actual conversation with Claude, and a one-time ~25 MB
+          download of the local search model the first time you use semantic knowledge search.
+          Offline, search quietly falls back to keyword matching.
+        </p>
+      </details>
+      <details>
+        <summary>What does it cost?</summary>
+        <p>
+          Forge is free and open source. If you point it at Claude Code it runs on the subscription
+          you already have and meters nothing. If you use an API key instead, you pay Anthropic
+          directly for tokens — Forge shows you the running total either way.
+        </p>
+      </details>
+      <details>
+        <summary>Windows or Linux?</summary>
+        <p>
+          Not yet. Forge is built on Tauri, which targets all three, so the ports are possible —
+          they just aren't built or tested. macOS is what ships today.
+        </p>
+      </details>
+      <details>
+        <summary>Can I get my data out?</summary>
+        <p>
+          Yes. Settings exports everything to a single JSON file, and imports it back on another
+          machine. Credentials are deliberately stripped from the export, so a backup you share
+          can't leak your API key. There is also a one-click wipe that leaves nothing behind.
+        </p>
+      </details>
+    </div>
+  </section>
+
+  <section class="wrap reveal">
+    <div class="close-cta">
+      <h2>Bring your agents home</h2>
+      <p>Free, open source, and yours after one download.</p>
+      <a class="btn lg" href="https://github.com/gagan-baghel/forge/releases/latest">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></svg>
+        Download for macOS
+      </a>
+      <p class="fine">macOS 10.15+ · Intel &amp; Apple Silicon</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap f-in">
+    <div>
+      <a class="logo" href="#top"><i>F</i>Forge</a>
+      <p>A local-first workspace for AI agents.</p>
+    </div>
+    <div class="f-links">
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/gagan-baghel/forge">GitHub</a>
+      <a href="https://github.com/gagan-baghel/forge/releases/latest">Releases</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Hairline under the nav appears only once the page has moved.
+  const nav = document.getElementById("nav");
+  const onScroll = () => nav.classList.toggle("stuck", window.scrollY > 8);
+  onScroll();
+  addEventListener("scroll", onScroll, { passive: true });
+
+  // Sections fade in once. Adding .js is what arms the hidden state at all, so
+  // the page still renders if anything below this line throws.
+  document.documentElement.classList.add("js");
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+    }
+  }, { rootMargin: "0px 0px -12% 0px" });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+</script>
+
+</body>
+</html>

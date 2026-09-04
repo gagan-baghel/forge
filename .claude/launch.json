@@ -1,17 +1,6 @@
 {
   "version": "0.0.1",
   "configurations": [
-    {
-      "name": "forge-web",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev"],
-      "port": 1620
-    },
-    {
-      "name": "forge-web-alt",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev", "--port", "4173"],
-      "port": 4173
-    }
+    { "name": "forge-web", "runtimeExecutable": "pnpm", "runtimeArgs": ["dev"], "port": 1620 }
   ]
 }
