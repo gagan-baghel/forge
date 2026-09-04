@@ -23,12 +23,14 @@ export function SettingsView() {
 
   const resetAll = async () => {
     const ok = await confirm({
-      title: "Wipe all data?",
+      title: "Clear all my data?",
       body: "Every GAP, agent, chat and run on this device is deleted, and your stored credentials are cleared. This cannot be undone.",
-      confirmLabel: "Wipe everything",
+      confirmLabel: "Clear everything",
     });
     if (!ok) return;
-    // explicitly or a "wipe everything" would quietly leave the API key behind.
+    // clear() rather than removing the forge.* keys one by one: this is the
+    // button people press to leave nothing behind, and a per-key sweep would
+    // quietly spare the API key if a future key ever escapes the prefix.
     localStorage.clear();
     location.reload();
   };
@@ -199,9 +201,11 @@ export function SettingsView() {
             </p>
           )}
           <div className="flex items-center justify-between border-t border-border pt-3">
-            <span className="text-sm text-ink-2">Reset Forge to a clean state.</span>
+            <span className="text-sm text-ink-2">
+              Delete everything Forge has stored on this device. This cannot be undone.
+            </span>
             <Button variant="danger" icon="trash" onClick={resetAll}>
-              Wipe all data
+              Clear All My Data
             </Button>
           </div>
         </Card>
