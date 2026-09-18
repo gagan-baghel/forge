@@ -102,6 +102,13 @@ export interface ClaudeCodeRequest {
   mcpConfig?: string;
   /** Pack environment variables, applied to the CLI process. */
   env?: Record<string, string>;
+  /**
+   * CLI tool names to deny for this run (`--disallowed-tools`). Set for
+   * unattended runs: the CLI carries its own file and shell tools, and Forge's
+   * approval dialog cannot gate them, so the only safe answer with nobody at
+   * the keyboard is to withhold them.
+   */
+  disallowedTools?: string[];
 }
 
 export interface ClaudeCodeCallbacks {
@@ -184,6 +191,7 @@ export async function streamClaudeCode(
           resume: req.resume,
           mcpConfig: req.mcpConfig ?? null,
           env: Object.keys(env).length > 0 ? env : null,
+          disallowedTools: req.disallowedTools?.length ? req.disallowedTools : null,
         });
       })
       .catch((err) => {

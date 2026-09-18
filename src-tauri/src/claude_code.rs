@@ -260,6 +260,7 @@ pub fn claude_code_run(
     resume: String,
     mcp_config: Option<String>,
     env: Option<HashMap<String, String>>,
+    disallowed_tools: Option<Vec<String>>,
 ) -> Result<(), String> {
     let bin = find_claude().ok_or_else(|| "Claude Code CLI not found on this machine.".to_string())?;
 
@@ -271,6 +272,13 @@ pub fn claude_code_run(
     if let Some(vars) = env {
         // Pack/token env layered on top of the shell env, so it takes precedence.
         cmd.envs(vars);
+    }
+    // Unattended runs (channels, schedules) withhold the CLI's own machine
+    // tools. Forge gates its in-app tools with an approval dialog, but the CLI
+    // carries Read/Write/Bash of its own that the dialog never sees — without
+    // this, a headless turn on this runtime could touch the machine unasked.
+    if let Some(deny) = disallowed_tools.filter(|d| !d.is_empty()) {
+        cmd.arg("--disallowed-tools").args(&deny);
     }
     let mut mcp_config_path: Option<PathBuf> = None;
     if let Some(cfg) = mcp_config.filter(|c| !c.trim().is_empty()) {

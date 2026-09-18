@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button, Modal } from "./ui";
-import { setApprover } from "@/lib/approval";
+import { setApprover, type ApprovalResult } from "@/lib/approval";
 
 /**
  * In-app confirm / notify dialogs.
@@ -19,6 +19,12 @@ export interface ConfirmOptions {
   cancelLabel?: string;
   /** Styles the confirm button as destructive. Defaults to true. */
   danger?: boolean;
+  /**
+   * Auto-deny after this long with no answer. Set for agent approvals, which
+   * can fire on an unattended machine; plain UI confirms leave it unset and
+   * wait indefinitely.
+   */
+  timeoutMs?: number;
 }
 
 interface DialogApi {
@@ -29,7 +35,7 @@ interface DialogApi {
 const DialogContext = createContext<DialogApi | null>(null);
 
 type Pending =
-  | { kind: "confirm"; opts: ConfirmOptions; resolve: (ok: boolean) => void }
+  | { kind: "confirm"; opts: ConfirmOptions; resolve: (result: ApprovalResult) => void }
   | { kind: "notify"; title: string; body?: string };
 
 export function DialogProvider({ children }: { children: ReactNode }) {
@@ -37,7 +43,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   // Guards against a resolve firing twice (Escape then button, say).
   const settled = useRef(true);
 
-  const close = useCallback((result: boolean) => {
+  const close = useCallback((result: ApprovalResult) => {
     setPending((current) => {
       if (current?.kind === "confirm" && !settled.current) {
         settled.current = true;
@@ -47,41 +53,59 @@ export function DialogProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const api = useMemo<DialogApi>(
-    () => ({
-      confirm: (opts) =>
-        new Promise<boolean>((resolve) => {
-          settled.current = false;
-          setPending({ kind: "confirm", opts, resolve });
-        }),
-      notify: (title, body) => setPending({ kind: "notify", title, body }),
-    }),
+  /** Resolves "ok" / "denied", or "timeout" when opts.timeoutMs elapses first. */
+  const ask = useCallback(
+    (opts: ConfirmOptions) =>
+      new Promise<ApprovalResult>((resolve) => {
+        settled.current = false;
+        setPending({ kind: "confirm", opts, resolve });
+      }),
     [],
   );
 
+  const api = useMemo<DialogApi>(
+    () => ({
+      confirm: async (opts) => (await ask(opts)) === "ok",
+      notify: (title, body) => setPending({ kind: "notify", title, body }),
+    }),
+    [ask],
+  );
+
+  /**
+   * An unanswered approval used to hang forever, which left a channel or
+   * schedule run wedged with nobody at the keyboard to click. Time it out and
+   * report that distinctly, so the caller can say "nobody answered" rather
+   * than claim the user refused.
+   */
+  useEffect(() => {
+    if (pending?.kind !== "confirm" || !pending.opts.timeoutMs) return;
+    const timer = setTimeout(() => close("timeout"), pending.opts.timeoutMs);
+    return () => clearTimeout(timer);
+  }, [pending, close]);
+
   // Let the agent tool layer reach this dialog; it lives outside React.
   useEffect(() => {
-    setApprover(api.confirm);
+    setApprover(ask);
     return () => setApprover(null);
-  }, [api]);
+  }, [ask]);
 
   return (
     <DialogContext.Provider value={api}>
       {children}
       <Modal
         open={pending !== null}
-        onClose={() => close(false)}
+        onClose={() => close("denied")}
         title={pending?.kind === "confirm" ? pending.opts.title : (pending?.title ?? "")}
       >
         {pending?.kind === "confirm" ? (
           <>
             {pending.opts.body && <p className="text-sm text-ink-2">{pending.opts.body}</p>}
             <div className="mt-6 flex justify-end gap-2">
-              <Button onClick={() => close(false)}>{pending.opts.cancelLabel ?? "Cancel"}</Button>
+              <Button onClick={() => close("denied")}>{pending.opts.cancelLabel ?? "Cancel"}</Button>
               <Button
                 variant={pending.opts.danger === false ? "primary" : "danger"}
                 autoFocus
-                onClick={() => close(true)}
+                onClick={() => close("ok")}
               >
                 {pending.opts.confirmLabel ?? "Delete"}
               </Button>
@@ -91,7 +115,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
           <>
             {pending?.body && <p className="text-sm text-ink-2">{pending.body}</p>}
             <div className="mt-6 flex justify-end">
-              <Button variant="primary" autoFocus onClick={() => close(false)}>
+              <Button variant="primary" autoFocus onClick={() => close("denied")}>
                 OK
               </Button>
             </div>

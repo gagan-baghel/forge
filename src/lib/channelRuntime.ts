@@ -35,16 +35,21 @@ export async function initChannelListener(): Promise<void> {
     const { agent } = found;
     const channel = agent.channels.find((c) => channelKey(agent.id, c.id) === channel_id);
     if (!channel?.token) return;
+    const token = channel.token;
+    const kind = channel.kind === "discord" ? "discord" : "telegram";
 
     try {
-      const result = await recordRun(agent, "channel", () => runAgentHeadless(agent, text), {
-        summary: () => `${channel.kind}: ${text.slice(0, 50)}`,
-      });
+      const result = await recordRun(
+        agent,
+        "channel",
+        () => runAgentHeadless(agent, text, { channel: { kind, token, chatId: chat_id } }),
+        { summary: () => `${channel.kind}: ${text.slice(0, 50)}` },
+      );
       // Reply through whichever provider the message arrived on.
       if (channel.kind === "discord") {
-        await invoke("discord_send_bot", { token: channel.token, channelId: chat_id, text: result.text || "…" });
+        await invoke("discord_send_bot", { token, channelId: chat_id, text: result.text || "…" });
       } else {
-        await invoke("telegram_send", { token: channel.token, chatId: chat_id, text: result.text || "…" });
+        await invoke("telegram_send", { token, chatId: chat_id, text: result.text || "…" });
       }
     } catch {
       // recordRun logged it; an inbound message must not kill the listener.

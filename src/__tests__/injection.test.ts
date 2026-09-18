@@ -44,7 +44,7 @@ describe("prompt injection defences", () => {
     const seen: string[] = [];
     setApprover(async (o) => {
       seen.push(o.body ?? "");
-      return false;
+      return "denied";
     });
 
     markUntrustedContent();
@@ -57,7 +57,7 @@ describe("prompt injection defences", () => {
     const seen: string[] = [];
     setApprover(async (o) => {
       seen.push(o.body ?? "");
-      return false;
+      return "denied";
     });
 
     await approve("Run a command on your computer?", "ls ~");
@@ -71,7 +71,7 @@ describe("prompt injection defences", () => {
     const seen: string[] = [];
     setApprover(async (o) => {
       seen.push(o.body ?? "");
-      return false;
+      return "denied";
     });
     await approve("Run?", "ls");
     expect(seen[0]).not.toMatch(/outside content/i);

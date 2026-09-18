@@ -31,6 +31,56 @@ fn ureq_agent() -> ureq::Agent {
         .build()
 }
 
+/// Cap on a file the `send_file` tool will upload. Keeps one IPC round-trip
+/// and one HTTP request bounded; well under Discord's (8-25MB) and Telegram's
+/// (50MB) own limits either way.
+const MAX_SEND_FILE_BYTES: u64 = 20 * 1024 * 1024;
+
+fn read_file_capped(path: &str) -> Result<(Vec<u8>, String), String> {
+    let meta = std::fs::metadata(path).map_err(|e| format!("can't read {path}: {e}"))?;
+    if meta.len() > MAX_SEND_FILE_BYTES {
+        return Err(format!(
+            "{path} is {} MB, over the 20 MB send limit.",
+            meta.len() / (1024 * 1024)
+        ));
+    }
+    let bytes = std::fs::read(path).map_err(|e| format!("can't read {path}: {e}"))?;
+    let name = std::path::Path::new(path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("file")
+        .to_string();
+    Ok((bytes, name))
+}
+
+/// Build a `multipart/form-data` body by hand — neither provider's upload
+/// endpoint is JSON, and ureq has no multipart helper of its own.
+fn build_multipart(fields: &[(&str, &str)], file_field: &str, filename: &str, file_bytes: &[u8]) -> (Vec<u8>, String) {
+    let boundary = format!(
+        "----forge-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    );
+    let mut body = Vec::new();
+    for (name, value) in fields {
+        body.extend_from_slice(
+            format!("--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n").as_bytes(),
+        );
+    }
+    body.extend_from_slice(
+        format!(
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"{file_field}\"; filename=\"{filename}\"\r\n\
+             Content-Type: application/octet-stream\r\n\r\n"
+        )
+        .as_bytes(),
+    );
+    body.extend_from_slice(file_bytes);
+    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
+    (body, format!("multipart/form-data; boundary={boundary}"))
+}
+
 /// Start polling a Telegram bot. Emits `channel://message` per inbound message.
 #[tauri::command]
 pub fn telegram_start(
@@ -247,10 +297,76 @@ pub fn discord_send(webhook: String, text: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Upload a local file to a Discord channel as an attachment (bot token).
+/// Used by the `send_file` agent tool when a conversation arrived over Discord.
+#[tauri::command]
+pub fn discord_send_file(token: String, channel_id: String, path: String) -> Result<(), String> {
+    let (bytes, filename) = read_file_capped(&path)?;
+    let (body, content_type) = build_multipart(&[], "files[0]", &filename, &bytes);
+    let agent = ureq_agent();
+    agent
+        .post(&format!("{DISCORD_API}/channels/{channel_id}/messages"))
+        .set("Authorization", &format!("Bot {}", token.trim()))
+        .set("Content-Type", &content_type)
+        .send_bytes(&body)
+        .map_err(|e| format!("discord file send failed: {e}"))?;
+    Ok(())
+}
+
+/// Upload a local file to a Telegram chat as a document. Same role as
+/// `discord_send_file`, for the Telegram side of the `send_file` agent tool.
+#[tauri::command]
+pub fn telegram_send_file(token: String, chat_id: String, path: String) -> Result<(), String> {
+    let (bytes, filename) = read_file_capped(&path)?;
+    let (body, content_type) = build_multipart(&[("chat_id", &chat_id)], "document", &filename, &bytes);
+    let agent = ureq_agent();
+    agent
+        .post(&format!("https://api.telegram.org/bot{token}/sendDocument"))
+        .set("Content-Type", &content_type)
+        .send_bytes(&body)
+        .map_err(|e| format!("telegram file send failed: {e}"))?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn channel_stop(state: State<ChannelState>, channel_id: String) -> Result<(), String> {
     if let Some(flag) = state.running.lock().unwrap().remove(&channel_id) {
         flag.store(false, Ordering::Relaxed);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn multipart_body_carries_fields_and_file_bytes_intact() {
+        let (body, content_type) = build_multipart(&[("chat_id", "42")], "document", "notes.txt", b"hi there");
+        assert!(content_type.starts_with("multipart/form-data; boundary="));
+        let text = String::from_utf8_lossy(&body);
+        assert!(text.contains("name=\"chat_id\""));
+        assert!(text.contains("42"));
+        assert!(text.contains("filename=\"notes.txt\""));
+        assert!(text.contains("hi there"));
+    }
+
+    #[test]
+    fn read_file_capped_rejects_a_file_over_the_size_limit() {
+        let path = std::env::temp_dir().join("forge_send_file_cap_test.bin");
+        std::fs::write(&path, vec![0u8; (MAX_SEND_FILE_BYTES + 1) as usize]).unwrap();
+        let err = read_file_capped(path.to_str().unwrap()).unwrap_err();
+        assert!(err.contains("20 MB"), "got {err:?}");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn read_file_capped_reads_a_small_file() {
+        let path = std::env::temp_dir().join("forge_send_file_small_test.txt");
+        std::fs::write(&path, b"hello").unwrap();
+        let (bytes, name) = read_file_capped(path.to_str().unwrap()).unwrap();
+        assert_eq!(bytes, b"hello");
+        assert_eq!(name, "forge_send_file_small_test.txt");
+        let _ = std::fs::remove_file(&path);
+    }
 }

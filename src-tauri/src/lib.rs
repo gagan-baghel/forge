@@ -32,6 +32,8 @@ pub fn run() {
             channels::discord_start,
             channels::discord_send,
             channels::discord_send_bot,
+            channels::discord_send_file,
+            channels::telegram_send_file,
             channels::channel_stop,
         ])
         .run(tauri::generate_context!())

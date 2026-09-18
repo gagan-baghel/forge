@@ -15,7 +15,7 @@ import type { Agent } from "@/types/domain";
 import type { AnyTool, ToolDef } from "./claude";
 import { httpFetch } from "./http";
 import { isDesktop } from "./platform";
-import { approve, markUntrustedContent } from "./approval";
+import { approve, markUntrustedContent, type ApprovalResult } from "./approval";
 import { webSearchToolType } from "./aiConfig";
 import { useMemory } from "@/stores/memory";
 import { brainFor, memoryKeyFor } from "@/stores/brains";
@@ -24,9 +24,28 @@ export interface ToolContext {
   agent: Agent;
   /** Optional progress callback (e.g. to surface "ran web_search" in the UI). */
   onActivity?: (label: string) => void;
+  /**
+   * Set when this turn is answering an inbound message on a connected channel
+   * (Discord/Telegram) rather than the in-app chat. Lets tools like send_file
+   * reply through that same channel instead of just returning text.
+   */
+  channel?: { kind: "discord" | "telegram"; token: string; chatId: string };
 }
 
 type Executor = (input: any, ctx: ToolContext) => Promise<string>;
+
+/**
+ * What the model is told when an approval didn't come back "ok". A timeout is
+ * reported as its own thing: on a channel or schedule run it means nobody was
+ * at the machine, and claiming the user refused would be a lie to whoever is
+ * waiting on the other end.
+ */
+function refusal(result: ApprovalResult, action: string): string {
+  return result === "timeout"
+    ? `Nobody answered the approval prompt on the user's computer in time, so this ${action} did not happen. ` +
+        `Say exactly that — do not claim the user refused, and do not retry.`
+    : `The user denied this ${action}. Do not retry it; ask what they'd prefer instead.`;
+}
 
 interface ClientTool {
   def: ToolDef;
@@ -76,7 +95,8 @@ const fileTool: ClientTool = {
     name: "read_file",
     description:
       "Read a UTF-8 text file by absolute path (desktop only). Scoped to the user's home " +
-      "directory; credential folders (.ssh, .aws, .gnupg, gcloud) are blocked.",
+      "directory; credential folders (.ssh, .aws, .gnupg, gcloud) are blocked. The user must " +
+      "approve every read.",
     input_schema: {
       type: "object",
       properties: { path: { type: "string", description: "Absolute file path" } },
@@ -85,9 +105,15 @@ const fileTool: ClientTool = {
   },
   run: async (input) => {
     if (!isDesktop()) return "Error: read_file is only available in the desktop app.";
+    const path = String(input.path ?? "").trim();
+    if (!path) return "Error: no path given.";
+
+    const ok = await approve("Read a file on your computer?", path);
+    if (ok !== "ok") return refusal(ok, "read");
+
     try {
       const { readTextFile } = await import("@tauri-apps/plugin-fs");
-      const text = await readTextFile(String(input.path));
+      const text = await readTextFile(path);
       return text.slice(0, 8000);
     } catch (e: any) {
       return `Error reading file: ${e?.message ?? e}`;
@@ -256,7 +282,7 @@ const shellTool: ClientTool = {
       "Run a command on your computer?",
       `${purpose}${command}${cwd ? `\n\nin ${cwd}` : ""}`,
     );
-    if (!ok) return "The user denied this command. Do not retry it; ask what they'd prefer instead.";
+    if (ok !== "ok") return refusal(ok, "command");
 
     try {
       const { invoke } = await import("@tauri-apps/api/core");
@@ -296,7 +322,7 @@ const writeFileTool: ClientTool = {
       "Write a file on your computer?",
       `${path}\n\n${content.length} character${content.length === 1 ? "" : "s"}. Any existing file at this path is replaced.`,
     );
-    if (!ok) return "The user denied this write. Do not retry it; ask what they'd prefer instead.";
+    if (ok !== "ok") return refusal(ok, "write");
 
     try {
       const { writeTextFile } = await import("@tauri-apps/plugin-fs");
@@ -308,6 +334,47 @@ const writeFileTool: ClientTool = {
   },
 };
 
+const sendFileTool: ClientTool = {
+  def: {
+    name: "send_file",
+    description:
+      "Send a file from the user's machine as a real attachment (any file type, not just text) " +
+      "to whichever channel this conversation is on — Discord or Telegram. Only works when the " +
+      "conversation arrived through a connected channel; say so if it didn't, don't fall back to " +
+      "read_file. Desktop only, 20MB cap. The user must approve every send.",
+    input_schema: {
+      type: "object",
+      properties: { path: { type: "string", description: "Absolute file path to send" } },
+      required: ["path"],
+    },
+  },
+  run: async (input, ctx) => {
+    if (!isDesktop()) return "Error: send_file is only available in the desktop app.";
+    if (!ctx.channel) {
+      return "Error: this conversation isn't connected to a channel, so there's nowhere to send " +
+        "the file. Tell the user to ask from Discord or Telegram instead.";
+    }
+    const path = String(input.path ?? "").trim();
+    if (!path) return "Error: no path given.";
+
+    const ok = await approve("Send a file from your computer?", `${path}\n\nto ${ctx.channel.kind}`);
+    if (ok !== "ok") return refusal(ok, "send");
+
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const { token, chatId, kind } = ctx.channel;
+      if (kind === "discord") {
+        await invoke("discord_send_file", { token, channelId: chatId, path });
+      } else {
+        await invoke("telegram_send_file", { token, chatId, path });
+      }
+      return `Sent ${path} to ${kind}.`;
+    } catch (e: any) {
+      return `Error sending file: ${e?.message ?? e}`;
+    }
+  },
+};
+
 /* ------------------------------- Assembly ----------------------------- */
 
 const SKILL_TOOLS: Record<string, ClientTool[]> = {
@@ -315,7 +382,7 @@ const SKILL_TOOLS: Record<string, ClientTool[]> = {
   code: [jsTool],
   files: [fileTool],
   memory: [rememberTool, recallTool],
-  computer: [shellTool, writeFileTool],
+  computer: [shellTool, writeFileTool, sendFileTool],
 };
 
 export interface AssembledTools {

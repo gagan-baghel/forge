@@ -39,7 +39,34 @@ export interface AgentTurnOpts {
   resumeSessionId?: string;
   /** Hard cap on tool-use iterations to avoid runaway loops. */
   maxSteps?: number;
+  /** Set when this turn answers an inbound channel message; see ToolContext. */
+  channel?: { kind: "discord" | "telegram"; token: string; chatId: string };
+  /**
+   * True for channel and schedule runs — nobody is necessarily at the machine.
+   * The API runtime still prompts (and times out); the Claude Code runtime has
+   * its machine tools withheld, since its tools bypass Forge's dialog entirely.
+   */
+  headless?: boolean;
 }
+
+/**
+ * CLI tools withheld from unattended runs: everything that can read, write or
+ * execute on the machine, plus the ways around those. Grep and Glob read file
+ * contents as surely as Read does, Task can spawn a subagent that holds the
+ * tools its parent gave up, and WebFetch is an exfiltration path — denying
+ * Read alone just makes the model reach for the next one along.
+ */
+const CLI_MACHINE_TOOLS = [
+  "Bash",
+  "Read",
+  "Write",
+  "Edit",
+  "NotebookEdit",
+  "Grep",
+  "Glob",
+  "Task",
+  "WebFetch",
+];
 
 export interface AgentTurnResult {
   text: string;
@@ -139,6 +166,7 @@ export async function runAgentTurn(
         resume: opts.resumeSessionId ?? "",
         mcpConfig: gap ? buildMcpConfig(gap) : undefined,
         env: gap?.env && Object.keys(gap.env).length > 0 ? gap.env : undefined,
+        disallowedTools: opts.headless ? CLI_MACHINE_TOOLS : undefined,
       },
       { signal: opts.signal, onText: opts.onText },
     );
@@ -190,7 +218,7 @@ export async function runAgentTurn(
     const results: ApiContent[] = [];
     for (const tu of clientToolUses) {
       opts.onTool?.({ id: tu.id, name: tu.name, input: tu.input, status: "running" });
-      const out = await runTool(tu.name, tu.input, executors, { agent, onActivity: opts.onActivity });
+      const out = await runTool(tu.name, tu.input, executors, { agent, onActivity: opts.onActivity, channel: opts.channel });
       opts.onTool?.({ id: tu.id, name: tu.name, input: tu.input, output: out, status: out.startsWith("Error") ? "error" : "done" });
       results.push({ type: "tool_result", tool_use_id: tu.id, content: out });
     }
@@ -205,7 +233,11 @@ export async function runAgentTurn(
 export async function runAgentHeadless(
   agent: Agent,
   userText: string,
-  opts?: { onText?: (d: string) => void; signal?: AbortSignal },
+  opts?: {
+    onText?: (d: string) => void;
+    signal?: AbortSignal;
+    channel?: { kind: "discord" | "telegram"; token: string; chatId: string };
+  },
 ): Promise<AgentTurnResult> {
   const history: ChatMessage[] = [
     { id: "u", role: "user", content: userText, createdAt: Date.now() },
@@ -213,5 +245,7 @@ export async function runAgentHeadless(
   return runAgentTurn(agent, history, {
     onText: opts?.onText ?? (() => {}),
     signal: opts?.signal,
+    channel: opts?.channel,
+    headless: true,
   });
 }
