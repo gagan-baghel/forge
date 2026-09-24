@@ -5,7 +5,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Spinner } from "./components/ui";
 import { useSettings } from "./stores/settings";
 import { startScheduler } from "./lib/scheduler";
-import { initChannelListener } from "./lib/channelRuntime";
+import { initChannelListener, resumeChannels, syncKeepAwake } from "./lib/channelRuntime";
 
 import { HomeView } from "./views/Home";
 import { GapsView } from "./views/Gaps";
@@ -18,7 +18,7 @@ import { OnboardingView } from "./views/Onboarding";
 const MarketplaceView = lazy(() => import("./views/Marketplace").then((m) => ({ default: m.MarketplaceView })));
 const ArchitectView = lazy(() => import("./views/Architect").then((m) => ({ default: m.ArchitectView })));
 const KnowledgeView = lazy(() => import("./views/Knowledge").then((m) => ({ default: m.KnowledgeView })));
-const ChannelsView = lazy(() => import("./views/Channels").then((m) => ({ default: m.ChannelsView })));
+const RemoteView = lazy(() => import("./views/Remote").then((m) => ({ default: m.RemoteView })));
 const SchedulesView = lazy(() => import("./views/Schedules").then((m) => ({ default: m.SchedulesView })));
 const TerminalView = lazy(() => import("./views/Terminal").then((m) => ({ default: m.TerminalView })));
 const RunsView = lazy(() => import("./views/Runs").then((m) => ({ default: m.RunsView })));
@@ -57,17 +57,27 @@ export function App() {
   const theme = useSettings((s) => s.theme);
   const onboarded = useSettings((s) => s.onboarded);
 
+  // "system" follows the OS appearance, live.
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
+    const media = window.matchMedia?.("(prefers-color-scheme: light)");
+    const apply = () =>
+      document.documentElement.setAttribute("data-theme", theme === "system" ? (media?.matches ? "paper" : "dusk") : theme);
+    apply();
+    if (theme !== "system" || !media?.addEventListener) return;
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
   }, [theme]);
 
   // Background services: routine scheduler + live channel message handler.
   useEffect(() => {
     if (!onboarded) return;
     const stop = startScheduler();
-    void initChannelListener();
+    void initChannelListener().then(resumeChannels);
     return stop;
   }, [onboarded]);
+
+  const keepAwake = useSettings((s) => s.keepAwake);
+  useEffect(() => syncKeepAwake(), [keepAwake]);
 
   if (!onboarded) {
     return <OnboardingView />;
@@ -88,7 +98,8 @@ export function App() {
             <Route path="/memory" element={lazyRoute(<MemoryView />)} />
             <Route path="/workshop" element={lazyRoute(<WorkshopView />)} />
             <Route path="/workshop/:id" element={lazyRoute(<GapEditorView />)} />
-            <Route path="/channels" element={lazyRoute(<ChannelsView />)} />
+            <Route path="/remote" element={lazyRoute(<RemoteView />)} />
+            <Route path="/channels" element={<Navigate to="/remote" replace />} />
             <Route path="/architect" element={lazyRoute(<ArchitectView />)} />
             <Route path="/marketplace" element={lazyRoute(<MarketplaceView />)} />
             <Route path="/knowledge" element={lazyRoute(<KnowledgeView />)} />

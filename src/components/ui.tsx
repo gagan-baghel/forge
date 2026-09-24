@@ -1,4 +1,4 @@
-import { type ReactNode, type ButtonHTMLAttributes, useEffect } from "react";
+import { type ReactNode, type ButtonHTMLAttributes, useEffect, useId } from "react";
 import clsx from "clsx";
 import { Icon } from "./Icon";
 
@@ -15,11 +15,11 @@ export function Button({
     primary: "btn-primary",
     ghost: "btn-ghost",
     outline: "btn-outline",
-    danger: "btn border border-danger/40 text-danger hover:bg-danger/10",
+    danger: "btn border border-danger/35 text-danger hover:bg-danger/10",
   };
   return (
     <button className={clsx(variants[variant], className)} {...props}>
-      {icon && <Icon name={icon} size={16} />}
+      {icon && <Icon name={icon} size={15} />}
       {children}
     </button>
   );
@@ -27,7 +27,22 @@ export function Button({
 
 /* ---------------------------------- Card -------------------------------- */
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={clsx("card p-5", className)}>{children}</div>;
+  // Default padding unless the caller sets its own (p-0 for edge-to-edge lists).
+  const custom = /(^|\s)p-\d/.test(className ?? "");
+  return <div className={clsx("card", !custom && "p-5", className)}>{children}</div>;
+}
+
+/** Card title row: a heading, optional hint, optional right-side action. */
+export function CardHeader({ title, hint, action }: { title: ReactNode; hint?: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="mb-4 flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h2 className="text-[13px] font-semibold text-ink">{title}</h2>
+        {hint && <p className="mt-0.5 text-xs text-ink-3">{hint}</p>}
+      </div>
+      {action}
+    </div>
+  );
 }
 
 /* --------------------------------- Badge -------------------------------- */
@@ -40,16 +55,16 @@ export function Badge({
 }) {
   const tones: Record<string, string> = {
     neutral: "chip",
-    brand: "chip border-brand/30 bg-brand/10 text-brand-2",
-    success: "chip border-success/30 bg-success/10 text-success",
-    warn: "chip border-warn/30 bg-warn/10 text-warn",
-    danger: "chip border-danger/30 bg-danger/10 text-danger",
+    brand: "chip border-brand/25 bg-brand/10 text-brand-2",
+    success: "chip border-success/25 bg-success/10 text-success",
+    warn: "chip border-warn/25 bg-warn/10 text-warn",
+    danger: "chip border-danger/25 bg-danger/10 text-danger",
   };
   return <span className={tones[tone]}>{children}</span>;
 }
 
 /* ------------------------------ Status dot ------------------------------ */
-export function StatusDot({ status }: { status: string }) {
+export function StatusDot({ status, pulse }: { status: string; pulse?: boolean }) {
   const color =
     status === "live"
       ? "bg-success"
@@ -57,21 +72,38 @@ export function StatusDot({ status }: { status: string }) {
         ? "bg-brand"
         : status === "paused"
           ? "bg-warn"
-          : "bg-ink-3";
-  return <span className={clsx("inline-block w-2 h-2 rounded-full", color)} />;
+          : status === "error"
+            ? "bg-danger"
+            : "bg-ink-3";
+  return (
+    <span className="relative inline-flex h-2 w-2 shrink-0">
+      {pulse && <span className={clsx("absolute inset-0 animate-ping rounded-full opacity-60", color)} />}
+      <span className={clsx("relative inline-block h-2 w-2 rounded-full", color)} />
+    </span>
+  );
+}
+
+/* -------------------------------- Avatar -------------------------------- */
+/**
+ * An agent/pack mark: the chosen emoji, set small inside a quiet tile rather
+ * than shouting at full size.
+ */
+export function Avatar({ emoji, size = 32, className }: { emoji: string; size?: number; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={clsx("grid shrink-0 place-items-center rounded-lg border border-border bg-surface-2", className)}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.5) }}
+    >
+      {emoji}
+    </span>
+  );
 }
 
 /* -------------------------------- Spinner ------------------------------- */
 export function Spinner({ size = 16, label = "Working" }: { size?: number; label?: string }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      className="animate-spin"
-      role="status"
-      aria-label={label}
-    >
+    <svg width={size} height={size} viewBox="0 0 24 24" className="animate-spin" role="status" aria-label={label}>
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" fill="none" opacity="0.2" />
       <path d="M21 12a9 9 0 00-9-9" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" />
     </svg>
@@ -91,33 +123,71 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center text-center py-16 px-6">
-      <div className="w-14 h-14 rounded-2xl bg-surface-2 grid place-items-center text-ink-3 mb-4">
-        <Icon name={icon} size={26} />
+    <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
+      <div className="mb-3 grid h-10 w-10 place-items-center rounded-lg border border-border bg-surface-2 text-ink-3">
+        <Icon name={icon} size={18} />
       </div>
-      <h3 className="text-base font-semibold text-ink">{title}</h3>
-      {body && <p className="text-sm text-ink-2 mt-1 max-w-sm">{body}</p>}
-      {action && <div className="mt-5">{action}</div>}
+      <h3 className="text-sm font-semibold text-ink">{title}</h3>
+      {body && <p className="mt-1 max-w-sm text-[13px] text-ink-3">{body}</p>}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
 
 /* --------------------------------- Field -------------------------------- */
-export function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: ReactNode;
-}) {
+export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block space-y-1.5">
       <span className="label">{label}</span>
       {children}
       {hint && <span className="block text-xs text-ink-3">{hint}</span>}
     </label>
+  );
+}
+
+/* -------------------------------- Toggle -------------------------------- */
+/** An accessible on/off switch with a label and optional description. */
+export function Toggle({
+  checked,
+  onChange,
+  label,
+  description,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (on: boolean) => void;
+  label: string;
+  description?: ReactNode;
+  disabled?: boolean;
+}) {
+  const id = useId();
+  return (
+    <div className={clsx("flex items-start justify-between gap-4", disabled && "opacity-50")}>
+      <div className="min-w-0">
+        <label htmlFor={id} className="text-[13px] font-medium text-ink">
+          {label}
+        </label>
+        {description && <div className="mt-0.5 text-xs text-ink-3">{description}</div>}
+      </div>
+      <button
+        id={id}
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={clsx(
+          "relative mt-0.5 h-5 w-9 shrink-0 rounded-full border transition-colors",
+          checked ? "border-brand bg-brand" : "border-border-strong bg-surface-3",
+        )}
+      >
+        <span
+          className={clsx(
+            "absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-transform",
+            checked ? "translate-x-[18px]" : "translate-x-0.5",
+          )}
+        />
+      </button>
+    </div>
   );
 }
 
@@ -151,26 +221,58 @@ export function Modal({
 
   if (!open) return null;
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-sm"
-      onMouseDown={onClose}
-    >
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/55 p-4 backdrop-blur-[2px]" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="card w-full p-6 shadow-soft"
+        className="card w-full p-5 shadow-soft"
         style={{ maxWidth: width }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <button className="btn-ghost p-1.5" onClick={onClose} aria-label="Close">
-            <Icon name="x" size={18} />
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-[15px] font-semibold">{title}</h2>
+          <button className="btn-ghost h-7 px-1.5" onClick={onClose} aria-label="Close">
+            <Icon name="x" size={16} />
           </button>
         </div>
         {children}
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------ Tab bar -------------------------------- */
+export function Tabs<T extends string>({
+  tabs,
+  value,
+  onChange,
+  className,
+}: {
+  tabs: { id: T; label: string; icon?: string; count?: number }[];
+  value: T;
+  onChange: (id: T) => void;
+  className?: string;
+}) {
+  return (
+    <div role="tablist" className={clsx("flex gap-0.5 overflow-x-auto", className)}>
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          role="tab"
+          aria-selected={value === t.id}
+          onClick={() => onChange(t.id)}
+          className={clsx(
+            "relative flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 text-[13px] transition-colors",
+            value === t.id ? "text-ink" : "text-ink-3 hover:text-ink-2",
+          )}
+        >
+          {t.icon && <Icon name={t.icon} size={14} />}
+          {t.label}
+          {t.count !== undefined && t.count > 0 && <span className="font-mono text-[10px] text-ink-3">{t.count}</span>}
+          {value === t.id && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-ink" />}
+        </button>
+      ))}
     </div>
   );
 }

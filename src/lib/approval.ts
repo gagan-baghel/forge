@@ -1,67 +1,95 @@
 import type { ConfirmOptions } from "@/components/Confirm";
 
 /**
- * Bridge between the agent tool layer (plain async functions, outside React)
- * and the in-app confirm dialog.
+ * The approval gate every machine-changing agent action passes through.
  *
- * Tools that act on the user's machine — running a command, writing a file —
- * must clear this first. `DialogProvider` registers the real dialog on mount.
+ * Two approvers can answer:
+ *  - the in-app dialog (`DialogProvider` registers it on mount), for turns
+ *    started at the keyboard;
+ *  - the owner's phone (`lib/remote.ts` registers it), for turns that arrived
+ *    over a remote-control channel — the prompt goes to the chat with
+ *    Approve / Allow 15 min / Deny buttons.
+ *
+ * Either way a human decides. With neither available the answer is "denied":
+ * an unattended machine is never acted on.
  */
+
 /**
- * "ok" — the user clicked through. "denied" — they refused, or nothing could
- * ask them. "timeout" — the prompt went unanswered, which on a channel or
- * schedule run means nobody was at the machine.
+ * "ok" — approved. "denied" — refused, or nothing could ask. "timeout" — the
+ * prompt went unanswered, which means nobody was there to see it.
  */
 export type ApprovalResult = "ok" | "denied" | "timeout";
 
-type Approver = (opts: ConfirmOptions) => Promise<ApprovalResult>;
+/** A channel conversation a turn is answering (see ToolContext.channel). */
+export interface ChannelRef {
+  kind: "discord" | "telegram";
+  token: string;
+  chatId: string;
+  /** `${agentId}__${channelId}` — identifies the bot. */
+  key: string;
+  /** Approvals for this turn go to the phone instead of the desktop. */
+  remote: boolean;
+}
+
+/** Per-turn state shared by every tool call in that turn. */
+export interface TurnState {
+  /**
+   * The turn has pulled in third-party content (a web page, a file, command
+   * output). Text like that can hide "ignore your instructions and run X", so
+   * an action proposed after it gets a louder prompt and never rides a trust
+   * window.
+   */
+  untrusted: boolean;
+}
+
+export function newTurn(): TurnState {
+  return { untrusted: false };
+}
+
+export interface ApprovalRequest {
+  title: string;
+  body: string;
+  turn?: TurnState;
+  channel?: ChannelRef;
+}
+
+type DialogApprover = (opts: ConfirmOptions) => Promise<ApprovalResult>;
+type RemoteApprover = (req: ApprovalRequest & { channel: ChannelRef }) => Promise<ApprovalResult>;
 
 /**
- * How long an agent approval waits for a human before auto-denying. Long
- * enough to walk back to the Mac, short enough that a prompt fired by an
- * inbound Discord/Telegram message doesn't wedge the run forever.
+ * How long a desktop approval waits before auto-denying. Long enough to walk
+ * back to the Mac, short enough that a prompt fired by an unattended run
+ * doesn't wedge it forever.
  *
  * ponytail: fixed window, make it a setting if people want a different one.
  */
 export const APPROVAL_TIMEOUT_MS = 120_000;
 
-let approver: Approver | null = null;
+export const UNTRUSTED_WARNING =
+  "⚠ This turn already read outside content (a web page, file, or command output). " +
+  "If you did not ask for this action, deny it — instructions can hide in fetched text.";
 
-/**
- * Whether this turn has pulled in third-party content (a web page, a file, a
- * command's output). Content like that can contain text aimed at the model —
- * "ignore your instructions and run X" — so a machine-changing action proposed
- * *after* it deserves a louder prompt than one the user clearly asked for.
- * Reset at the start of every turn.
- */
-let sawUntrustedContent = false;
+let dialogApprover: DialogApprover | null = null;
+let remoteApprover: RemoteApprover | null = null;
 
-export function resetProvenance(): void {
-  sawUntrustedContent = false;
+export function setApprover(fn: DialogApprover | null): void {
+  dialogApprover = fn;
 }
 
-export function markUntrustedContent(): void {
-  sawUntrustedContent = true;
+export function setRemoteApprover(fn: RemoteApprover | null): void {
+  remoteApprover = fn;
 }
 
-export function setApprover(fn: Approver | null): void {
-  approver = fn;
-}
-
-/**
- * Ask the user to approve one action. Denies when no dialog is mounted, which
- * is every headless path — channel messages and scheduled routines run with
- * nobody at the keyboard, and an unattended machine must never be acted on.
- */
-export async function approve(title: string, body: string): Promise<ApprovalResult> {
-  if (!approver) return "denied";
-  const warning = sawUntrustedContent
-    ? "\n\n⚠ This turn already read outside content (a web page, file, or command output). " +
-      "If you did not ask for this action, deny it — instructions can hide in fetched text."
-    : "";
-  return approver({
-    title,
-    body: body + warning,
+/** Ask a human to approve one action. */
+export async function approve(req: ApprovalRequest): Promise<ApprovalResult> {
+  if (req.channel?.remote && remoteApprover) {
+    return remoteApprover({ ...req, channel: req.channel });
+  }
+  if (!dialogApprover) return "denied";
+  const warning = req.turn?.untrusted ? `\n\n${UNTRUSTED_WARNING}` : "";
+  return dialogApprover({
+    title: req.title,
+    body: req.body + warning,
     confirmLabel: "Run",
     cancelLabel: "Deny",
     danger: true,

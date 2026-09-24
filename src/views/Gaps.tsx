@@ -1,14 +1,14 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageHeader } from "@/components/Shell";
-import { Button, Badge, EmptyState, Modal, Field } from "@/components/ui";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { Avatar, Button, Badge, Card, EmptyState, Modal, Field } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 import { parseGapFile, decodeShareCode } from "@/lib/gapfile";
 import { relativeTime } from "@/lib/format";
 import { useDialog } from "@/components/Confirm";
 
-const COLORS = ["#6D5BFF", "#40C98E", "#F0B446", "#F46060", "#4FA8FF", "#C46DFF"];
+const COLORS = ["#6688FF", "#34C77C", "#EAB308", "#EF5350", "#FF8A4C", "#8B8B96"];
 const EMOJIS = ["📦", "🔬", "⚒️", "🎧", "✍️", "📈", "🤖", "🚀", "🧠", "💡"];
 
 export function GapsView() {
@@ -79,49 +79,51 @@ export function GapsView() {
         }
       />
 
-      <div className="p-7">
+      <PageBody>
         {gaps.length === 0 ? (
-          <EmptyState
-            icon="grid"
-            title="No GAPs installed"
-            body="A GAP bundles one or more agents with their skills and knowledge. Create one or install from the Marketplace."
-            action={
-              <Button variant="primary" icon="plus" onClick={() => setOpen(true)}>
-                Create your first GAP
-              </Button>
-            }
-          />
+          <Card>
+            <EmptyState
+              icon="grid"
+              title="No GAPs installed"
+              body="A GAP bundles one or more agents with their skills and knowledge. Create one or install from the Marketplace."
+              action={
+                <Button variant="primary" icon="plus" onClick={() => setOpen(true)}>
+                  Create your first GAP
+                </Button>
+              }
+            />
+          </Card>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {gaps.map((g) => (
               <button
                 key={g.id}
                 onClick={() => navigate(`/gaps/${g.id}`)}
-                className="card group p-5 text-left transition-all hover:-translate-y-0.5 hover:shadow-soft"
+                className="card flex flex-col p-4 text-left transition-colors hover:border-border-strong hover:bg-surface-2/40"
               >
-                <div className="mb-3 flex items-start justify-between">
-                  <div
-                    className="grid h-11 w-11 place-items-center rounded-xl text-xl"
-                    style={{ background: `${g.color}22` }}
-                  >
-                    {g.emoji}
+                <div className="flex items-start gap-3">
+                  <Avatar emoji={g.emoji} size={32} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: g.color }} />
+                      <h3 className="truncate text-[13px] font-semibold">{g.name}</h3>
+                    </div>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-ink-3">{g.description || "No description"}</p>
                   </div>
                   <Badge tone={g.source === "local" ? "neutral" : "brand"}>{g.source}</Badge>
                 </div>
-                <h3 className="font-semibold">{g.name}</h3>
-                <p className="mt-1 line-clamp-2 text-sm text-ink-2">{g.description || "No description"}</p>
-                <div className="mt-4 flex items-center justify-between text-xs text-ink-3">
+                <div className="mt-4 flex items-center justify-between text-[11px] text-ink-3">
                   <span className="flex items-center gap-1.5">
-                    <Icon name="agents" size={14} />
+                    <Icon name="agents" size={12} />
                     {g.agents.length} agent{g.agents.length === 1 ? "" : "s"}
                   </span>
-                  <span>{relativeTime(g.updatedAt)}</span>
+                  <span>Updated {relativeTime(g.updatedAt)}</span>
                 </div>
               </button>
             ))}
           </div>
         )}
-      </div>
+      </PageBody>
 
       <Modal open={open} onClose={() => setOpen(false)} title="New GAP">
         <div className="space-y-4">
@@ -143,8 +145,10 @@ export function GapsView() {
                   <button
                     key={e}
                     onClick={() => setEmoji(e)}
-                    className={`grid h-9 w-9 place-items-center rounded-lg border text-lg ${
-                      emoji === e ? "border-brand bg-brand/10" : "border-border"
+                    aria-label={`Icon ${e}`}
+                    aria-pressed={emoji === e}
+                    className={`grid h-8 w-8 place-items-center rounded-md border text-[15px] transition-colors ${
+                      emoji === e ? "border-ink-3 bg-surface-3" : "border-border hover:bg-surface-2"
                     }`}
                   >
                     {e}
@@ -158,7 +162,9 @@ export function GapsView() {
                   <button
                     key={c}
                     onClick={() => setColor(c)}
-                    className={`h-8 w-8 rounded-full border-2 ${color === c ? "border-ink" : "border-transparent"}`}
+                    aria-label={`Color ${c}`}
+                    aria-pressed={color === c}
+                    className={`h-6 w-6 rounded-full ring-offset-2 ring-offset-surface ${color === c ? "ring-2 ring-ink-2" : ""}`}
                     style={{ background: c }}
                   />
                 ))}

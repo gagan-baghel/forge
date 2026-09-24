@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageHeader } from "@/components/Shell";
-import { Button, Card, Badge, EmptyState, StatusDot } from "@/components/ui";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { Avatar, Button, Card, EmptyState, StatusDot } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 import { MODELS } from "@/types/domain";
@@ -38,22 +38,17 @@ export function AgentsView() {
           </Button>
         }
       />
-      <div className="p-7">
-        <div className="mb-5 flex flex-wrap items-center gap-2">
-          <div className="relative max-w-sm flex-1">
-            <Icon name="search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
-            <input
-              className="input pl-9"
-              placeholder="Search agents…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
+      <PageBody>
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[200px] max-w-xs flex-1">
+            <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
+            <input className="input pl-8" placeholder="Search agents…" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <select className="input w-auto" value={gapFilter} onChange={(e) => setGapFilter(e.target.value)}>
             <option value="">All GAPs</option>
             {gaps.map((g) => (
               <option key={g.id} value={g.id}>
-                {g.emoji} {g.name}
+                {g.name}
               </option>
             ))}
           </select>
@@ -65,48 +60,52 @@ export function AgentsView() {
               </option>
             ))}
           </select>
+          <span className="ml-auto text-xs text-ink-3">
+            {rows.length} agent{rows.length === 1 ? "" : "s"}
+          </span>
         </div>
 
-        {rows.length === 0 ? (
-          <EmptyState
-            icon="agents"
-            title={q || gapFilter || statusFilter ? "No matching agents" : "No agents yet"}
-            body={q || gapFilter || statusFilter ? "Try different search or filters." : "Create a GAP and add agents to it."}
-            action={
-              !q && !gapFilter && !statusFilter && (
-                <Button variant="primary" icon="store" onClick={() => navigate("/marketplace")}>
-                  Browse Marketplace
-                </Button>
-              )
-            }
-          />
-        ) : (
-          <Card className="p-0">
-            <div className="divide-y divide-border">
+        <Card className="p-0">
+          {rows.length === 0 ? (
+            <EmptyState
+              icon="agents"
+              title={q || gapFilter || statusFilter ? "No matching agents" : "No agents yet"}
+              body={q || gapFilter || statusFilter ? "Try different search or filters." : "Create a GAP and add agents to it."}
+              action={
+                !q && !gapFilter && !statusFilter && (
+                  <Button variant="primary" icon="store" onClick={() => navigate("/marketplace")}>
+                    Browse Marketplace
+                  </Button>
+                )
+              }
+            />
+          ) : (
+            <ul className="divide-y divide-border">
               {rows.map(({ agent, gap }) => (
-                <button
-                  key={agent.id}
-                  onClick={() => navigate(`/agents/${agent.id}`)}
-                  className="flex w-full items-center gap-4 px-5 py-3.5 text-left transition-colors hover:bg-surface-2"
-                >
-                  <span className="text-2xl">{agent.emoji}</span>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{agent.name}</div>
-                    <div className="text-xs text-ink-3">{agent.role}</div>
-                  </div>
-                  <Badge>{gap.emoji} {gap.name}</Badge>
-                  <Badge tone="brand">{modelLabel(agent.model)}</Badge>
-                  <div className="flex w-20 items-center justify-end gap-1.5 text-xs text-ink-2">
-                    <StatusDot status={agent.status} />
-                    {agent.status}
-                  </div>
-                  <Icon name="chevron" size={16} className="text-ink-3" />
-                </button>
+                <li key={agent.id}>
+                  <button
+                    onClick={() => navigate(`/agents/${agent.id}`)}
+                    className="flex w-full items-center gap-3 px-5 py-2.5 text-left transition-colors hover:bg-surface-2/50"
+                  >
+                    <Avatar emoji={agent.emoji} size={30} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-medium">{agent.name}</div>
+                      <div className="truncate text-xs text-ink-3">{agent.role}</div>
+                    </div>
+                    <span className="hidden w-40 truncate text-xs text-ink-2 md:block">{gap.name}</span>
+                    <span className="hidden w-24 truncate text-right text-[11px] text-ink-3 sm:block">{modelLabel(agent.model)}</span>
+                    <span className="flex w-20 items-center justify-end gap-1.5 text-xs capitalize text-ink-2">
+                      <StatusDot status={agent.status} />
+                      {agent.status}
+                    </span>
+                    <Icon name="chevron" size={14} className="text-ink-3" />
+                  </button>
+                </li>
               ))}
-            </div>
-          </Card>
-        )}
-      </div>
+            </ul>
+          )}
+        </Card>
+      </PageBody>
     </div>
   );
 }

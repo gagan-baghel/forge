@@ -87,7 +87,8 @@ src/
   hooks/         useChat / useClaudeCode orchestration
   types/         domain model (Gap, Agent, Brain, McpServer, …)
 src-tauri/       Rust shell: Claude Code bridge (detect / install / run),
-                 PTY terminal, channel runtimes, HTTP proxy
+                 Forge tool bridge (loopback MCP server), Telegram/Discord
+                 bots, desktop control, PTY terminal, HTTP proxy
 ```
 
 ## Features
@@ -104,12 +105,14 @@ src-tauri/       Rust shell: Claude Code bridge (detect / install / run),
   optional learning queue holds new facts until you approve them
 - **Claude Code runtime** — in-built bridge to the local CLI: auto-detect or
   in-app install, $0 API cost, pack MCP servers + env mounted per turn
-- **Computer** — an opt-in per-agent skill giving it `run_shell` and
-  `write_file` on the client's machine. Every single call opens an approval
-  dialog showing the exact command or path; denial is the default, and headless
-  paths (schedules, channels) always deny because nobody is at the keyboard.
-  File access is scoped to `$HOME` with credential folders (`.ssh`, `.aws`,
-  `.gnupg`, gcloud) blocked outright
+- **Computer** — an opt-in per-agent skill giving it `run_shell`,
+  `write_file`, `send_file` and desktop control (`screenshot`, `click`,
+  `type_text`, `press_key`, `scroll`). Every call asks first, showing the exact
+  command, path or keystrokes; denial is the default. File access is scoped to
+  `$HOME` with credential folders (`.ssh`, `.aws`, `.gnupg`, gcloud) blocked
+  outright
+- **Remote** — message any agent from your phone over Telegram or Discord and
+  have it work on this Mac (see below)
 - **Memory** — workspace-wide browser over every agent's memory and every
   shared brain pool, with search and inline review
 - **Architect** — describe a goal, Claude designs a GAP you can install
@@ -119,11 +122,56 @@ src-tauri/       Rust shell: Claude Code bridge (detect / install / run),
 - **Terminal** — a real shell (desktop only)
 - **Settings** — BYOK key, default model, theme, price overrides, data reset
 
+## Remote control from your phone
+
+Connect an agent to a Telegram or Discord bot (**Remote → Connect an agent**,
+or the agent's Channels tab), pair your phone, and message it from anywhere —
+"find the invoice PDF from last week and send it to me", "run the test suite
+and tell me what failed", "open Figma and screenshot the dashboard".
+
+- **Pairing.** A bot only answers people you pair. Press **Pair a phone** and
+  send the one-time `/pair 123456` code to the bot. Codes expire after 10
+  minutes, work once, and burn after 5 wrong guesses; everyone else gets a
+  refusal and shows up in the Remote activity log.
+- **Remote control** (per bot, off by default). With it on, the agent may run
+  commands, edit files, look at the screen, click and type — and **every
+  action is sent to your phone first** with *Approve*, *Allow 15 min* and
+  *Deny* buttons (Discord: reply yes / trust / no). *Allow 15 min* opens a trust
+  window for that chat: actions run without asking but are still announced, and
+  anything proposed after the agent read outside content (a web page, a file,
+  command output) asks again regardless. `/lock` ends the window early.
+- **Commands.** `/status`, `/stop`, `/new`, `/screenshot`, `/lock`, `/unpair`.
+- **Files both ways.** Send a file or photo to the bot and it lands in
+  `~/Downloads/Forge`; ask for one and the agent sends it back.
+- **Same conversation everywhere.** A phone thread is a normal conversation in
+  the agent's chat list, streaming live on the desktop.
+- **Schedules report to you.** A routine on an agent with a paired phone
+  delivers its result there, and any approval it needs goes there too.
+- **Stays reachable.** Bots that were live come back when Forge starts, the
+  Mac is kept awake while remote control is live (toggle on the Remote page),
+  and closing the window keeps Forge running — ⌘Q quits.
+- **macOS permissions.** Seeing the screen needs *Screen Recording*; clicking
+  and typing need *Accessibility*. The Remote page has buttons that open both.
+
+Both runtimes get the same gate. On the Claude API runtime Forge runs the
+tools itself. On the Claude Code runtime Forge serves a loopback MCP endpoint
+per run (`src-tauri/src/bridge.rs`, bearer-secret protected) that exposes the
+agent's Forge tools — memory, connectors, desktop control, `send_file` — and
+answers the CLI's `--permission-prompt-tool`, so every Bash/Write/Edit the CLI
+wants goes through the in-app dialog or your phone. Unattended runs with no
+phone to ask still have the CLI's machine tools withheld.
+
+Bot tokens, webhooks, paired phones and connector tokens never leave the
+device: they are stripped from exported `.gap` files, share codes and backups
+(restoring a backup keeps this device's own).
+
 ## Test
 
 ```bash
 pnpm typecheck   # tsc --noEmit
 pnpm test        # vitest
+cd src-tauri && cargo test                        # Rust unit tests
+cd src-tauri && cargo test -- --ignored --nocapture  # live Claude Code smoke tests (uses your subscription)
 ```
 
 Note: never emit JavaScript into `src/`. Vite resolves `.js` before `.ts`, so a

@@ -43,18 +43,18 @@ export class ErrorBoundary extends Component<Props, State> {
     const { title = "Something broke", fatal } = this.props;
     return (
       <div className="grid h-full place-items-center p-6">
-        <Card className="max-w-lg">
+        <Card className="w-full max-w-lg">
           <div className="flex items-start gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-danger/12 text-danger">
-              <Icon name="info" size={20} />
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-danger/25 bg-danger/10 text-danger">
+              <Icon name="info" size={15} />
             </div>
             <div className="min-w-0">
-              <h2 className="font-semibold">{title}</h2>
-              <p className="mt-1 text-sm text-ink-3">
+              <h2 className="text-[13px] font-semibold">{title}</h2>
+              <p className="mt-1 text-[13px] text-ink-3">
                 This screen hit an unexpected error. Your GAPs, chats and keys are stored
                 locally and were not affected.
               </p>
-              <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-danger/8 p-3 text-xs text-danger">
+              <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-bg p-3 font-mono text-xs text-danger">
                 {error.message || String(error)}
               </pre>
               <div className="mt-4 flex gap-2">

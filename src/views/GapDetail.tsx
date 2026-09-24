@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { PageHeader } from "@/components/Shell";
-import { Button, Card, Badge, EmptyState, Modal, Field, StatusDot } from "@/components/ui";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { Avatar, Button, Card, CardHeader, Badge, EmptyState, Modal, Field, StatusDot } from "@/components/ui";
+import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 import { usePublished } from "@/stores/published";
 import { downloadGap, encodeShareCode } from "@/lib/gapfile";
@@ -26,9 +27,9 @@ export function GapDetailView() {
 
   if (!gap) {
     return (
-      <div className="p-7">
+      <PageBody>
         <EmptyState icon="grid" title="GAP not found" action={<Button onClick={() => navigate("/gaps")}>Back to GAPs</Button>} />
-      </div>
+      </PageBody>
     );
   }
 
@@ -44,7 +45,7 @@ export function GapDetailView() {
   return (
     <div>
       <PageHeader
-        title={`${gap.emoji}  ${gap.name}`}
+        title={gap.name}
         subtitle={gap.description}
         actions={
           <>
@@ -67,59 +68,65 @@ export function GapDetailView() {
         }
       />
 
-      <div className="space-y-6 p-7">
+      <PageBody className="space-y-6">
         <div className="flex flex-wrap items-center gap-3">
-          <Badge tone="brand">{gap.source}</Badge>
-          <Badge>v{gap.version}</Badge>
-          <Badge>by {gap.author}</Badge>
-          {gap.tags.map((t) => (
-            <Badge key={t}>#{t}</Badge>
-          ))}
+          <Avatar emoji={gap.emoji} size={36} />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge tone="brand">{gap.source}</Badge>
+            <Badge>v{gap.version}</Badge>
+            <Badge>by {gap.author}</Badge>
+            {gap.tags.map((t) => (
+              <Badge key={t}>#{t}</Badge>
+            ))}
+          </div>
+          <Link to={`/workshop/${gap.id}`} className="ml-auto text-xs text-ink-3 hover:text-ink">
+            Edit in Workshop
+          </Link>
         </div>
 
-        <Card>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-semibold">Agents in this GAP</h2>
-            <span className="text-xs text-ink-3">{gap.agents.length} total</span>
+        <Card className="p-0">
+          <div className="px-5 pt-4">
+            <CardHeader title="Agents in this GAP" hint={`${gap.agents.length} total`} />
           </div>
           {gap.agents.length === 0 ? (
-            <EmptyState
-              icon="agents"
-              title="No agents yet"
-              body="Add an agent to this GAP to start building."
-              action={
-                <Button variant="primary" icon="plus" onClick={() => setAgentOpen(true)}>
-                  Add agent
-                </Button>
-              }
-            />
-          ) : (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {gap.agents.map((a) => (
-                <Link
-                  key={a.id}
-                  to={`/agents/${a.id}`}
-                  className="flex items-center gap-3 rounded-xl border border-border p-3.5 transition-colors hover:border-brand/40 hover:bg-surface-2"
-                >
-                  <span className="text-2xl">{a.emoji}</span>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{a.name}</div>
-                    <div className="text-xs text-ink-3">{a.role}</div>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-ink-2">
-                    <StatusDot status={a.status} />
-                    {a.status}
-                  </div>
-                </Link>
-              ))}
+            <div className="border-t border-border">
+              <EmptyState
+                icon="agents"
+                title="No agents yet"
+                body="Add an agent to this GAP to start building."
+                action={
+                  <Button variant="primary" icon="plus" onClick={() => setAgentOpen(true)}>
+                    Add agent
+                  </Button>
+                }
+              />
             </div>
+          ) : (
+            <ul className="divide-y divide-border border-t border-border">
+              {gap.agents.map((a) => (
+                <li key={a.id}>
+                  <Link to={`/agents/${a.id}`} className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-surface-2/50">
+                    <Avatar emoji={a.emoji} size={30} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-medium">{a.name}</div>
+                      <div className="truncate text-xs text-ink-3">{a.role}</div>
+                    </div>
+                    <span className="flex w-20 items-center justify-end gap-1.5 text-xs capitalize text-ink-2">
+                      <StatusDot status={a.status} />
+                      {a.status}
+                    </span>
+                    <Icon name="chevron" size={14} className="text-ink-3" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </Card>
 
-        <Card>
-          <h2 className="mb-3 font-semibold">Danger zone</h2>
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-ink-2">Uninstall this GAP and all its agents. This can't be undone.</div>
+        <Card className="border-danger/25">
+          <CardHeader title="Danger zone" />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-[13px] text-ink-2">Uninstall this GAP and all its agents. This can't be undone.</div>
             <Button
               variant="danger"
               icon="trash"
@@ -134,7 +141,7 @@ export function GapDetailView() {
             </Button>
           </div>
         </Card>
-      </div>
+      </PageBody>
 
       <Modal open={agentOpen} onClose={() => setAgentOpen(false)} title="Add agent">
         <div className="space-y-4">
@@ -155,7 +162,7 @@ export function GapDetailView() {
 
       <Modal open={shareOpen} onClose={() => setShareOpen(false)} title={`Share ${gap.name}`}>
         <div className="space-y-4">
-          <p className="text-sm text-ink-2">
+          <p className="text-[13px] text-ink-2">
             Hand this GAP to anyone — they import it from the GAPs tab. Export a file, or copy a share code.
           </p>
           <div className="flex gap-2">

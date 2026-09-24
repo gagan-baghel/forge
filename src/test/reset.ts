@@ -22,5 +22,6 @@ export function resetStores() {
     theme: "dusk",
     userName: "",
     onboarded: false,
+    keepAwake: true,
   });
 }

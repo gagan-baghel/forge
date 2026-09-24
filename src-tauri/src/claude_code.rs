@@ -20,6 +20,8 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 use tauri::{Emitter, Manager, State};
 
+use crate::bridge::{BridgeState, PERMISSION_TOOL};
+
 #[derive(Default)]
 pub struct ClaudeCodeState {
     children: Mutex<HashMap<String, Child>>,
@@ -234,6 +236,17 @@ pub fn claude_code_install(app: tauri::AppHandle) -> Result<(), String> {
 enum CcEvent {
     #[serde(rename = "text")]
     Text { run_id: String, text: String },
+    /// A tool the CLI ran (Bash, Read, an MCP tool…): once with `input` when
+    /// it starts, again with `output` when its result comes back.
+    #[serde(rename = "tool")]
+    Tool {
+        run_id: String,
+        id: String,
+        name: String,
+        input: Option<serde_json::Value>,
+        output: Option<String>,
+        status: String,
+    },
     #[serde(rename = "done")]
     Done {
         run_id: String,
@@ -261,6 +274,8 @@ pub fn claude_code_run(
     mcp_config: Option<String>,
     env: Option<HashMap<String, String>>,
     disallowed_tools: Option<Vec<String>>,
+    bridge_tools: Option<Vec<serde_json::Value>>,
+    approvals: Option<bool>,
 ) -> Result<(), String> {
     let bin = find_claude().ok_or_else(|| "Claude Code CLI not found on this machine.".to_string())?;
 
@@ -280,11 +295,39 @@ pub fn claude_code_run(
     if let Some(deny) = disallowed_tools.filter(|d| !d.is_empty()) {
         cmd.arg("--disallowed-tools").args(&deny);
     }
+    // Mount Forge's own tool bridge next to the pack's MCP servers: the
+    // agent's Forge tools, and (with approvals on) the permission prompt that
+    // routes every Bash/Write the CLI wants through Forge's approval gate.
+    let bridge = app.state::<BridgeState>();
+    let approvals = approvals.unwrap_or(false);
+    let use_bridge = bridge.available() && (approvals || bridge_tools.as_ref().is_some_and(|t| !t.is_empty()));
+    let mcp_config = if use_bridge {
+        let entry = bridge.register(&run_id, bridge_tools.unwrap_or_default(), approvals);
+        let mut cfg: serde_json::Value = mcp_config
+            .as_deref()
+            .and_then(|c| serde_json::from_str(c).ok())
+            .unwrap_or_else(|| serde_json::json!({ "mcpServers": {} }));
+        cfg["mcpServers"]["forge"] = entry;
+        // Forge's tools gate themselves; don't make the CLI ask again.
+        cmd.arg("--allowedTools").arg("mcp__forge");
+        if approvals {
+            cmd.arg("--permission-prompt-tool").arg(format!("mcp__forge__{PERMISSION_TOOL}"));
+        }
+        Some(cfg.to_string())
+    } else {
+        mcp_config
+    };
     let mut mcp_config_path: Option<PathBuf> = None;
     if let Some(cfg) = mcp_config.filter(|c| !c.trim().is_empty()) {
         // The CLI takes a file path; drop the JSON in the temp dir per run.
         let path = std::env::temp_dir().join(format!("forge-mcp-{run_id}.json"));
         std::fs::write(&path, cfg).map_err(|e| format!("Failed to write MCP config: {e}"))?;
+        // It carries the bridge's bearer secret: owner-only.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+        }
         cmd.arg("--mcp-config").arg(&path);
         mcp_config_path = Some(path);
     }
@@ -307,7 +350,10 @@ pub fn claude_code_run(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    let mut child = cmd.spawn().map_err(|e| format!("Failed to start claude: {e}"))?;
+    let mut child = cmd.spawn().map_err(|e| {
+        bridge.unregister(&run_id);
+        format!("Failed to start claude: {e}")
+    })?;
     let stdout = child.stdout.take().ok_or("no stdout")?;
 
     state.children.lock().unwrap().insert(run_id.clone(), child);
@@ -334,14 +380,14 @@ pub fn claude_code_run(
             let idle = last.lock().map(|t| t.elapsed()).unwrap_or_default();
             if idle > IDLE_TIMEOUT {
                 timed.store(true, Ordering::Relaxed);
-                if let Some(mut c) = app_wd
+                if let Some(c) = app_wd
                     .state::<ClaudeCodeState>()
                     .children
                     .lock()
                     .unwrap()
                     .remove(&run_wd)
                 {
-                    let _ = c.kill();
+                    stop_child(c);
                 }
                 return;
             }
@@ -400,6 +446,42 @@ pub fn claude_code_run(
                         _ => {}
                     }
                 }
+                // Whole assistant messages carry the tool calls with their input…
+                Some("assistant") => {
+                    for block in json["message"]["content"].as_array().into_iter().flatten() {
+                        if block["type"] == "tool_use" {
+                            let _ = app2.emit(
+                                "cc://event",
+                                CcEvent::Tool {
+                                    run_id: run_id2.clone(),
+                                    id: block["id"].as_str().unwrap_or("").into(),
+                                    name: block["name"].as_str().unwrap_or("tool").into(),
+                                    input: Some(block["input"].clone()),
+                                    output: None,
+                                    status: "running".into(),
+                                },
+                            );
+                        }
+                    }
+                }
+                // …and the following user message carries their results.
+                Some("user") => {
+                    for block in json["message"]["content"].as_array().into_iter().flatten() {
+                        if block["type"] == "tool_result" {
+                            let _ = app2.emit(
+                                "cc://event",
+                                CcEvent::Tool {
+                                    run_id: run_id2.clone(),
+                                    id: block["tool_use_id"].as_str().unwrap_or("").into(),
+                                    name: String::new(),
+                                    input: None,
+                                    output: Some(tool_result_text(&block["content"])),
+                                    status: if block["is_error"].as_bool() == Some(true) { "error" } else { "done" }.into(),
+                                },
+                            );
+                        }
+                    }
+                }
                 Some("result") => {
                     if json.get("is_error").and_then(|v| v.as_bool()) == Some(true) {
                         error = json
@@ -455,6 +537,7 @@ pub fn claude_code_run(
             ));
         }
 
+        app2.state::<BridgeState>().unregister(&run_id2);
         // The CLI has read the per-run MCP config by now; don't litter the temp dir.
         if let Some(path) = mcp_config_path {
             let _ = std::fs::remove_file(path);
@@ -476,10 +559,52 @@ pub fn claude_code_run(
     Ok(())
 }
 
+/// Flatten a tool_result's content (a string, or text/image blocks) to text,
+/// capped so a huge command output doesn't flood the IPC channel.
+fn tool_result_text(content: &serde_json::Value) -> String {
+    let text = match content {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Array(items) => items
+            .iter()
+            .map(|i| match i["type"].as_str() {
+                Some("text") => i["text"].as_str().unwrap_or("").to_string(),
+                Some("image") => "[image]".to_string(),
+                _ => String::new(),
+            })
+            .collect::<Vec<_>>()
+            .join("\n"),
+        _ => String::new(),
+    };
+    text.chars().take(4000).collect()
+}
+
+/// Stop a CLI run so that nothing it started outlives it. SIGKILL gives the
+/// CLI no chance to clean up, and the shells its Bash tool spawns run in their
+/// own process groups — they were left orphaned, still running whatever was
+/// cancelled. SIGTERM first lets the CLI take them down; SIGKILL only if it
+/// hasn't exited after a grace period. Runs off-thread: never blocks a command.
+pub fn stop_child(mut child: Child) {
+    std::thread::spawn(move || {
+        #[cfg(unix)]
+        {
+            let _ = Command::new("kill").args(["-TERM", &child.id().to_string()]).status();
+            let deadline = Instant::now() + Duration::from_secs(3);
+            while Instant::now() < deadline {
+                if let Ok(Some(_)) = child.try_wait() {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(100));
+            }
+        }
+        let _ = child.kill();
+        let _ = child.wait();
+    });
+}
+
 #[tauri::command]
 pub fn claude_code_cancel(state: State<ClaudeCodeState>, run_id: String) -> Result<(), String> {
-    if let Some(mut child) = state.children.lock().unwrap().remove(&run_id) {
-        let _ = child.kill();
+    if let Some(child) = state.children.lock().unwrap().remove(&run_id) {
+        stop_child(child);
     }
     Ok(())
 }

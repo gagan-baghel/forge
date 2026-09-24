@@ -9,25 +9,54 @@
  * into that one entry rather than skipping a whole key.
  */
 
+import type { Gap } from "@/types/domain";
+import { stripSecrets as stripGapSecrets } from "./gapfile";
+
 export const BACKUP_MAGIC = "forge.backup/v1";
 
 const SETTINGS_KEY = "forge.settings";
+const GAPS_KEY = "forge.gaps";
 /** Fields that must never leave the device inside a backup file. */
 const SECRET_FIELDS = ["apiKey", "ccToken"] as const;
 
 const isForgeKey = (k: string) => k.startsWith("forge.");
 
-/** Remove credential fields from a persisted settings blob, if it is one. */
+/**
+ * Remove credentials from a persisted blob: the API key and CLI token in
+ * settings, and bot tokens, webhooks, paired owners and connector tokens in
+ * the packs — a bot token in a backup file is remote control of this Mac.
+ */
 function stripSecrets(key: string, value: string): string {
-  if (key !== SETTINGS_KEY) return value;
+  if (key !== SETTINGS_KEY && key !== GAPS_KEY) return value;
   try {
     const parsed = JSON.parse(value);
-    if (parsed?.state) for (const f of SECRET_FIELDS) delete parsed.state[f];
+    if (key === SETTINGS_KEY && parsed?.state) for (const f of SECRET_FIELDS) delete parsed.state[f];
+    if (key === GAPS_KEY && Array.isArray(parsed?.state?.gaps)) {
+      parsed.state.gaps = parsed.state.gaps.map((g: Gap) => ({ ...stripGapSecrets(g), env: g.env, mcpServers: g.mcpServers }));
+    }
     return JSON.stringify(parsed);
   } catch {
-    // Unparseable settings blob: drop it rather than risk exporting a key.
+    // Unparseable blob: drop it rather than risk exporting a credential.
     return "";
   }
+}
+
+type ChannelSecrets = Pick<import("@/types/domain").Channel, "token" | "config" | "owners" | "remoteControl">;
+
+/** This device's channel and connector secrets, by agent and entry id. */
+function deviceSecrets(store: Storage): Map<string, ChannelSecrets | string[] | undefined> {
+  const out = new Map<string, ChannelSecrets | string[] | undefined>();
+  try {
+    const gaps: Gap[] = JSON.parse(store.getItem(GAPS_KEY) ?? "null")?.state?.gaps ?? [];
+    for (const g of gaps)
+      for (const a of g.agents) {
+        for (const c of a.channels) out.set(`${a.id}/ch/${c.id}`, { token: c.token, config: c.config, owners: c.owners, remoteControl: c.remoteControl });
+        for (const c of a.connectors) if (c.scopes) out.set(`${a.id}/co/${c.id}`, c.scopes);
+      }
+  } catch {
+    // Nothing worth keeping from a corrupt blob.
+  }
+  return out;
 }
 
 /** Every persisted Forge key, with credentials stripped out of the settings blob. */
@@ -50,6 +79,7 @@ export function collectBackup(store: Storage = localStorage): Record<string, str
  * would log the user out of their own API key every time.
  */
 export function applyBackup(data: Record<string, string>, store: Storage = localStorage): void {
+  const secrets = deviceSecrets(store);
   const current = store.getItem(SETTINGS_KEY);
   const keep: Record<string, string> = {};
   if (current) {
@@ -68,6 +98,24 @@ export function applyBackup(data: Record<string, string>, store: Storage = local
   for (const [k, v] of Object.entries(data)) {
     // Defence in depth: a hand-edited file must not inject credentials either.
     store.setItem(k, stripSecrets(k, v) || v);
+  }
+
+  // Put this device's bot and connector credentials back on matching entries.
+  if (secrets.size > 0) {
+    try {
+      const parsed = JSON.parse(store.getItem(GAPS_KEY) ?? "null");
+      for (const g of parsed?.state?.gaps ?? [])
+        for (const a of g.agents ?? []) {
+          a.channels = (a.channels ?? []).map((c: any) => ({ ...c, ...(secrets.get(`${a.id}/ch/${c.id}`) as object) }));
+          a.connectors = (a.connectors ?? []).map((c: any) => {
+            const scopes = secrets.get(`${a.id}/co/${c.id}`);
+            return scopes ? { ...c, scopes, status: "connected" } : c;
+          });
+        }
+      if (parsed) store.setItem(GAPS_KEY, JSON.stringify(parsed));
+    } catch {
+      // Unreadable restored blob: leave it.
+    }
   }
 
   // Put this device's own credentials back on top of the restored settings.

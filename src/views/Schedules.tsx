@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { PageHeader } from "@/components/Shell";
+import clsx from "clsx";
+import { PageBody, PageHeader } from "@/components/Shell";
 import { Button, Card, Badge, EmptyState, Modal, Field } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useRoutines } from "@/stores/routines";
@@ -92,63 +93,79 @@ export function SchedulesView() {
           </Button>
         }
       />
-      <div className="p-7">
-        {routines.length === 0 ? (
-          <EmptyState
-            icon="clock"
-            title="No routines"
-            body={agents.length === 0 ? "Create an agent first, then schedule it." : "Schedule an agent to run a prompt on a cron cadence."}
-            action={
-              agents.length > 0 && (
-                <Button variant="primary" icon="plus" onClick={openCreate}>
-                  New routine
-                </Button>
-              )
-            }
-          />
-        ) : (
-          <Card className="p-0">
-            <div className="divide-y divide-border">
+      <PageBody className="space-y-3">
+        <p className="flex items-center gap-1.5 text-xs text-ink-3">
+          <Icon name="phone" size={13} className="shrink-0" />
+          Results also go to your paired phone — and approvals are asked there — when the agent has remote control on.
+        </p>
+        <Card className="p-0">
+          {routines.length === 0 ? (
+            <EmptyState
+              icon="clock"
+              title="No routines"
+              body={agents.length === 0 ? "Create an agent first, then schedule it." : "Schedule an agent to run a prompt on a cron cadence."}
+              action={
+                agents.length > 0 && (
+                  <Button variant="primary" icon="plus" onClick={openCreate}>
+                    New routine
+                  </Button>
+                )
+              }
+            />
+          ) : (
+            <ul className="divide-y divide-border">
               {routines.map((r) => (
-                <div key={r.id} className="flex items-center gap-4 px-5 py-4">
+                <li key={r.id} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-surface-2/50">
                   <button
+                    role="switch"
+                    aria-checked={r.enabled}
                     onClick={() => toggle(r.id)}
-                    className={`h-6 w-10 shrink-0 rounded-full p-0.5 transition-colors ${r.enabled ? "bg-success" : "bg-surface-2"}`}
+                    className={clsx(
+                      "relative h-5 w-9 shrink-0 rounded-full border transition-colors",
+                      r.enabled ? "border-brand bg-brand" : "border-border-strong bg-surface-3",
+                    )}
                     aria-label={r.enabled ? "Pause routine" : "Resume routine"}
                   >
-                    <span className={`block h-5 w-5 rounded-full bg-white transition-transform ${r.enabled ? "translate-x-4" : ""}`} />
+                    <span
+                      className={clsx(
+                        "absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-transform",
+                        r.enabled ? "translate-x-[18px]" : "translate-x-0.5",
+                      )}
+                    />
                   </button>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium">{r.name}</div>
-                    <div className="text-xs text-ink-3">
-                      {r.agentName} · <code className="font-mono">{r.cron}</code>
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-[13px] font-medium">{r.name}</span>
+                      {!r.enabled && <Badge>paused</Badge>}
+                    </div>
+                    <div className="truncate text-xs text-ink-3">
+                      {r.agentName} · <code className="font-mono text-[11px] text-ink-2">{r.cron}</code>
                       {" · "}
                       {r.lastRunAt ? `last ${relativeTime(r.lastRunAt)}` : "never ran"}
                       {r.enabled && r.nextRunAt ? ` · next ${relativeTime(r.nextRunAt)}` : ""}
                     </div>
                   </div>
-                  <Badge tone={r.enabled ? "success" : "neutral"}>{r.enabled ? "active" : "paused"}</Badge>
-                  <Button icon="bolt" disabled={firing === r.id} onClick={() => void runNow(r)}>
+                  <Button icon="play" disabled={firing === r.id} onClick={() => void runNow(r)}>
                     {firing === r.id ? "Running…" : "Run now"}
                   </Button>
-                  <button className="btn-ghost p-1.5 text-ink-3 hover:text-ink" onClick={() => openEdit(r)} aria-label="Edit routine">
-                    <Icon name="edit" size={15} />
+                  <button className="btn-ghost h-7 px-1.5 text-ink-3 hover:text-ink" onClick={() => openEdit(r)} aria-label="Edit routine">
+                    <Icon name="edit" size={14} />
                   </button>
                   <button
-                    className="btn-ghost p-1.5 text-ink-3 hover:text-danger"
+                    className="btn-ghost h-7 px-1.5 text-ink-3 hover:text-danger"
                     onClick={async () => {
                       if (await confirm({ title: `Delete routine "${r.name}"?`, body: "The schedule stops running immediately." })) remove(r.id);
                     }}
                     aria-label="Delete routine"
                   >
-                    <Icon name="trash" size={15} />
+                    <Icon name="trash" size={14} />
                   </button>
-                </div>
+                </li>
               ))}
-            </div>
-          </Card>
-        )}
-      </div>
+            </ul>
+          )}
+        </Card>
+      </PageBody>
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? "Edit routine" : "New routine"}>
         <div className="space-y-4">
@@ -159,7 +176,7 @@ export function SchedulesView() {
             <select className="input" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
               {agents.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.emoji} {a.name}
+                  {a.name}
                 </option>
               ))}
             </select>
@@ -167,7 +184,12 @@ export function SchedulesView() {
           <Field label="Schedule">
             <div className="mb-2 flex flex-wrap gap-1.5">
               {PRESETS.map((p) => (
-                <button key={p.cron} onClick={() => setCron(p.cron)} className={`chip ${cron === p.cron ? "border-brand bg-brand/10 text-brand-2" : ""}`}>
+                <button
+                  key={p.cron}
+                  onClick={() => setCron(p.cron)}
+                  aria-pressed={cron === p.cron}
+                  className={clsx("chip h-6 px-2 transition-colors", cron === p.cron ? "border-border-strong bg-surface-3 text-ink" : "hover:text-ink")}
+                >
                   {p.label}
                 </button>
               ))}

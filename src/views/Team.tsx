@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { PageHeader } from "@/components/Shell";
-import { Button, Card, Badge, EmptyState, Modal, Field } from "@/components/ui";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { Button, Card, EmptyState, Modal, Field } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useDialog } from "@/components/Confirm";
 import { useTeam, type Role } from "@/stores/team";
@@ -39,37 +39,43 @@ export function TeamView() {
           </Button>
         }
       />
-      <div className="space-y-4 p-7">
-        <div className="rounded-lg border border-border bg-surface-2 px-4 py-3 text-xs text-ink-3">
-          Forge is local-first — there's no shared server. This roster helps you track collaborators; share GAPs with
-          them via export or share code from any GAP's <strong>Share</strong> button.
-        </div>
+      <PageBody className="space-y-4">
+        <p className="flex items-start gap-2 rounded-lg border border-border bg-surface px-3.5 py-2.5 text-xs text-ink-3">
+          <Icon name="info" size={13} className="mt-px shrink-0" />
+          <span>
+            Forge is local-first — there's no shared server. This roster helps you track collaborators; share GAPs with
+            them via export or share code from any GAP's <span className="font-medium text-ink-2">Share</span> button.
+          </span>
+        </p>
 
-        {members.length === 0 ? (
-          <EmptyState
-            icon="agents"
-            title="No members yet"
-            body="Add the people you collaborate with to keep your workspace organized."
-            action={
-              <Button variant="primary" icon="plus" onClick={() => setOpen(true)}>
-                Add member
-              </Button>
-            }
-          />
-        ) : (
-          <Card className="p-0">
-            <div className="divide-y divide-border">
+        <Card className="p-0">
+          {members.length === 0 ? (
+            <EmptyState
+              icon="user"
+              title="No members yet"
+              body="Add the people you collaborate with to keep your workspace organized."
+              action={
+                <Button variant="primary" icon="plus" onClick={() => setOpen(true)}>
+                  Add member
+                </Button>
+              }
+            />
+          ) : (
+            <ul className="divide-y divide-border">
               {members.map((m) => (
-                <div key={m.id} className="flex items-center gap-4 px-5 py-3.5">
-                  <div className="grid h-9 w-9 place-items-center rounded-full bg-brand/15 text-sm font-semibold text-brand-2">
+                <li key={m.id} className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-surface-2/50">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border bg-surface-2 text-xs font-medium text-ink-2">
                     {m.name.slice(0, 1).toUpperCase()}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{m.name}</div>
-                    <div className="text-xs text-ink-3">{m.email || "no email"} · added {relativeTime(m.addedAt)}</div>
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] font-medium">{m.name}</div>
+                    <div className="truncate text-xs text-ink-3">
+                      {m.email || "no email"} · added {relativeTime(m.addedAt)}
+                    </div>
                   </div>
                   <select
-                    className="input w-auto"
+                    className="input h-7 w-auto py-0 text-xs"
+                    aria-label={`Role for ${m.name}`}
                     value={m.role}
                     onChange={(e) => updateRole(m.id, e.target.value as Role)}
                   >
@@ -79,23 +85,22 @@ export function TeamView() {
                       </option>
                     ))}
                   </select>
-                  <Badge tone={m.role === "owner" ? "brand" : "neutral"}>{m.role}</Badge>
                   <button
-                    className="btn-ghost p-1.5 text-ink-3 hover:text-danger"
+                    className="btn-ghost h-7 px-1.5 text-ink-3 hover:text-danger"
                     aria-label={`Remove ${m.name}`}
                     onClick={async () => {
                       if (await confirm({ title: `Remove ${m.name}?`, body: "They are removed from this workspace.", confirmLabel: "Remove" }))
                         remove(m.id);
                     }}
                   >
-                    <Icon name="trash" size={15} />
+                    <Icon name="trash" size={14} />
                   </button>
-                </div>
+                </li>
               ))}
-            </div>
-          </Card>
-        )}
-      </div>
+            </ul>
+          )}
+        </Card>
+      </PageBody>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Add member">
         <div className="space-y-4">

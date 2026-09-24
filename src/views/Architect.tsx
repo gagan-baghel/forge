@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { nanoid } from "nanoid";
-import { PageHeader } from "@/components/Shell";
-import { Button, Card, Field, Badge, Spinner } from "@/components/ui";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { Avatar, Button, Card, CardHeader, Field, Badge, Spinner } from "@/components/ui";
 import { streamChat } from "@/lib/claude";
 import { useSettings } from "@/stores/settings";
 import { useGaps } from "@/stores/gaps";
@@ -149,62 +149,67 @@ export function ArchitectView() {
   return (
     <div>
       <PageHeader title="Architect" subtitle="Describe what you want — Claude designs a GAP you can install" />
-      <div className="mx-auto max-w-3xl space-y-6 p-7">
+      <PageBody className="max-w-3xl space-y-6">
         <Card className="space-y-4">
           <Field label="What should this GAP do?">
             <textarea
-              className="input min-h-[110px] resize-y"
+              className="input min-h-[110px] resize-y leading-relaxed"
               placeholder="e.g. A research team that finds academic papers, summarizes them, and drafts a literature review."
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
             />
           </Field>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <span className="text-xs text-ink-3">Powered by Opus 4.8 · uses your API key</span>
-            <Button variant="primary" icon="spark" onClick={design} disabled={busy || !goal.trim()}>
-              {busy ? <><Spinner size={15} /> Designing…</> : "Design GAP"}
+            <Button variant="primary" icon={busy ? undefined : "spark"} onClick={design} disabled={busy || !goal.trim()}>
+              {busy ? <><Spinner size={14} /> Designing…</> : "Design GAP"}
             </Button>
           </div>
-          {error && <div className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
+          {error && <div className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
         </Card>
 
         {draft && (
-          <Card className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-xl text-2xl" style={{ background: `${draft.color}22` }}>
-                {draft.emoji}
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold">{draft.name}</h3>
-                <p className="text-sm text-ink-2">{draft.description}</p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {(draft.tags ?? []).map((t) => (
-                    <Badge key={t}>#{t}</Badge>
-                  ))}
-                </div>
+          <Card className="p-0">
+            <div className="flex items-start gap-3 border-b border-border px-5 py-4">
+              <Avatar emoji={draft.emoji} size={36} />
+              <div className="min-w-0 flex-1">
+                <h3 className="text-[15px] font-semibold">{draft.name}</h3>
+                <p className="mt-0.5 text-[13px] text-ink-2">{draft.description}</p>
+                {(draft.tags ?? []).length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {draft.tags.map((t) => (
+                      <Badge key={t}>#{t}</Badge>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="px-5 pt-4">
+              <CardHeader title={`Agents (${draft.agents.length})`} />
+            </div>
+            <ul className="divide-y divide-border border-t border-border">
               {draft.agents.map((a, i) => (
-                <div key={i} className="rounded-lg border border-border p-3.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{a.emoji}</span>
-                    <span className="text-sm font-medium">{a.name}</span>
+                <li key={i} className="px-5 py-3">
+                  <div className="flex items-center gap-2.5">
+                    <Avatar emoji={a.emoji} size={24} className="rounded-md" />
+                    <span className="text-[13px] font-medium">{a.name}</span>
                     <Badge>{a.role}</Badge>
                   </div>
                   <p className="mt-2 text-xs leading-relaxed text-ink-2">{a.systemPrompt}</p>
-                </div>
+                </li>
               ))}
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button onClick={() => setDraft(null)}>Discard</Button>
+            </ul>
+            <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
+              <Button variant="ghost" onClick={() => setDraft(null)}>
+                Discard
+              </Button>
               <Button variant="primary" icon="check" onClick={create}>
                 Install this GAP
               </Button>
             </div>
           </Card>
         )}
-      </div>
+      </PageBody>
     </div>
   );
 }

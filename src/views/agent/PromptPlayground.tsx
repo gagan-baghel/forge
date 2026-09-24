@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Agent } from "@/types/domain";
-import { Button, Card, Field, Spinner, Badge } from "@/components/ui";
+import { Button, Card, CardHeader, Field, Spinner, Badge } from "@/components/ui";
 import { Markdown } from "@/components/Markdown";
 import { runAgentHeadless } from "@/lib/agentRun";
 import { fmtUsd, fmtTokens } from "@/lib/format";
@@ -34,13 +34,10 @@ export function PromptPlayground({ agent }: { agent: Agent }) {
   };
 
   return (
-    <div className="h-full overflow-y-auto p-7">
-      <div className="mx-auto max-w-3xl space-y-4">
-        <Card className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Playground</h3>
-            <span className="text-xs text-ink-3">Isolated · doesn't save to chat history</span>
-          </div>
+    <div className="h-full overflow-y-auto">
+      <div className="mx-auto max-w-3xl space-y-6 px-8 py-6">
+        <Card>
+          <CardHeader title="Playground" hint="Isolated · doesn't save to chat history" />
           <Field label="Message">
             <textarea
               className="input min-h-[120px] resize-y"
@@ -53,29 +50,35 @@ export function PromptPlayground({ agent }: { agent: Agent }) {
               }}
             />
           </Field>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-ink-3">⌘/Ctrl + Enter to run</span>
-            <Button variant="primary" icon="spark" onClick={run} disabled={busy || !input.trim()}>
+          <div className="mt-3 flex items-center justify-between">
+            <span className="text-[11px] text-ink-3">
+              <kbd className="kbd">⌘</kbd>/<kbd className="kbd">Ctrl</kbd> + <kbd className="kbd">Enter</kbd> to run
+            </span>
+            <Button variant="primary" icon={busy ? undefined : "play"} onClick={run} disabled={busy || !input.trim()}>
               {busy ? <><Spinner size={14} /> Running…</> : "Run"}
             </Button>
           </div>
         </Card>
 
         {(output || error || busy) && (
-          <Card className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">Output</h3>
-              {meta && (
-                <div className="flex gap-2">
-                  <Badge>{fmtTokens(meta.tokens)} tok</Badge>
-                  <Badge>{fmtUsd(meta.cost)}</Badge>
-                </div>
-              )}
-            </div>
+          <Card>
+            <CardHeader
+              title="Output"
+              action={
+                meta && (
+                  <div className="flex gap-1.5">
+                    <Badge>{fmtTokens(meta.tokens)} tok</Badge>
+                    <Badge>{fmtUsd(meta.cost)}</Badge>
+                  </div>
+                )
+              }
+            />
             {error ? (
-              <div className="text-sm text-danger">{error}</div>
+              <div className="text-[13px] text-danger">{error}</div>
             ) : output ? (
-              <Markdown content={output} />
+              <div className="text-[13px] leading-relaxed">
+                <Markdown content={output} />
+              </div>
             ) : (
               <Spinner size={16} />
             )}

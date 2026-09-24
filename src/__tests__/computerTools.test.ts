@@ -23,8 +23,17 @@ afterEach(() => {
 });
 
 describe("computer skill tools", () => {
-  it("exposes run_shell, write_file and send_file only when the skill is enabled", () => {
-    expect(Object.keys(buildTools(agent).executors).sort()).toEqual(["run_shell", "send_file", "write_file"]);
+  it("exposes the machine and desktop-control tools only when the skill is enabled", () => {
+    expect(Object.keys(buildTools(agent).executors).sort()).toEqual([
+      "click",
+      "press_key",
+      "run_shell",
+      "screenshot",
+      "scroll",
+      "send_file",
+      "type_text",
+      "write_file",
+    ]);
 
     const off = { ...agent, skills: [{ ...skill("computer"), enabled: false }] } as Agent;
     expect(Object.keys(buildTools(off).executors)).toEqual([]);
@@ -91,7 +100,7 @@ describe("computer skill tools", () => {
     const { executors } = buildTools(agent);
     const out = await executors.send_file(
       { path: "/tmp/report.pdf" },
-      { agent, channel: { kind: "discord", token: "t", chatId: "123" } },
+      { agent, channel: { kind: "discord", token: "t", chatId: "123", key: "a__c", remote: false } },
     );
     expect(out).toMatch(/sent/i);
   });
@@ -103,5 +112,39 @@ describe("computer skill tools", () => {
     const out = await executors.run_shell({ command: "echo hi" }, { agent });
     expect(out).toMatch(/nobody answered/i);
     expect(out).not.toMatch(/user denied/i);
+  });
+});
+
+describe("computer tools under /stop and loose model input", () => {
+  it("cancels a running command when the turn is stopped", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const calls: string[] = [];
+    let release!: () => void;
+    (invoke as any).mockImplementation(async (cmd: string) => {
+      calls.push(cmd);
+      if (cmd === "shell_exec") await new Promise<void>((r) => (release = r));
+      return { stdout: "", stderr: "", code: 143 };
+    });
+    setApprover(async () => "ok");
+    const controller = new AbortController();
+    const { executors } = buildTools(agent);
+    const pending = executors.run_shell({ command: "sleep 100" }, { agent, signal: controller.signal });
+    await vi.waitFor(() => expect(calls).toContain("shell_exec"));
+    controller.abort();
+    await vi.waitFor(() => expect(calls).toContain("shell_cancel"));
+    release();
+    expect(await pending).toMatch(/stopped/i);
+  });
+
+  it("press_key accepts the field name a model guesses", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const combos: unknown[] = [];
+    (invoke as any).mockImplementation(async (_cmd: string, args: any) => combos.push(args?.combo));
+    setApprover(async () => "ok");
+    const { executors } = buildTools(agent);
+    for (const input of [{ key: "escape" }, { keys: "escape" }, { combo: "escape" }, { keys: ["cmd", "space"] }]) {
+      expect(await executors.press_key(input, { agent })).toMatch(/^Pressed/);
+    }
+    expect(combos).toEqual(["escape", "escape", "escape", "cmd+space"]);
   });
 });

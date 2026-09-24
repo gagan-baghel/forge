@@ -7,7 +7,7 @@
 import { cronMatches, nextRun } from "./cron";
 import { runAgentHeadless } from "./agentRun";
 import { recordRun } from "./runner";
-import { discordSend } from "./channelRuntime";
+import { discordSend, ownerChannelRef, sendText } from "./channelRuntime";
 import { isDesktop } from "./platform";
 import type { Agent } from "@/types/domain";
 import { useRoutines } from "@/stores/routines";
@@ -38,15 +38,17 @@ async function fireRoutine(routineId: string): Promise<void> {
   const { agent } = found;
 
   useRoutines.getState().update(r.id, { lastRunAt: Date.now(), nextRunAt: nextRun(r.cron, new Date()) });
+  // A paired phone, if the agent has one: approvals go there and so does the result.
+  const owner = ownerChannelRef(agent);
   try {
     const result = await recordRun(
       agent,
       "schedule",
-      () => runAgentHeadless(agent, r.prompt || `Run routine: ${r.name}`),
+      () => runAgentHeadless(agent, r.prompt || `Run routine: ${r.name}`, { channel: owner }),
       { summary: (res) => `⏰ ${r.name}: ${res.text.slice(0, 60)}` },
     );
-    // If the agent has a Discord webhook, deliver the result there.
     await deliverToDiscord(agent, `⏰ ${r.name}\n\n${result.text}`);
+    if (owner) await sendText(owner, `⏰ ${r.name}\n\n${result.text || "Done."}`).catch(() => {});
   } catch {
     // recordRun already logged the failure; a routine must not take the
     // scheduler down with it.

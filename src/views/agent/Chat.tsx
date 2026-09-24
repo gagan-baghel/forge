@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Agent } from "@/types/domain";
+import clsx from "clsx";
+import type { Agent, ToolCall } from "@/types/domain";
 import { useChat } from "@/hooks/useChat";
 import { useConversations } from "@/stores/conversations";
 import { useSettings } from "@/stores/settings";
 import { Markdown } from "@/components/Markdown";
 import { Icon } from "@/components/Icon";
-import { Button, Spinner } from "@/components/ui";
-import { fmtUsd, fmtTokens } from "@/lib/format";
+import { Avatar, Button, Spinner } from "@/components/ui";
+import { fmtUsd, fmtTokens, relativeTime } from "@/lib/format";
 
 export function Chat({ agent }: { agent: Agent }) {
   const ensureConversation = useConversations((s) => s.ensureConversation);
@@ -50,34 +51,42 @@ export function Chat({ agent }: { agent: Agent }) {
   return (
     <div className="flex h-full">
       {/* Conversation list */}
-      <div className="flex w-56 shrink-0 flex-col border-r border-border">
+      <div className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface/40 md:flex">
         <div className="p-3">
-          <Button
-            variant="outline"
-            icon="plus"
-            className="w-full"
-            onClick={() => setConvId(newConversation(agent.id))}
-          >
+          <Button variant="outline" icon="plus" className="w-full" onClick={() => setConvId(newConversation(agent.id))}>
             New chat
           </Button>
         </div>
-        <div className="flex-1 overflow-y-auto px-2 pb-2">
+        <div className="flex-1 space-y-px overflow-y-auto px-2 pb-2">
           {agentConvs.map((c) => (
             <button
               key={c.id}
               onClick={() => setConvId(c.id)}
-              className={`mb-0.5 w-full truncate rounded-lg px-2.5 py-2 text-left text-sm transition-colors ${
-                c.id === convId ? "bg-brand/12 text-ink" : "text-ink-2 hover:bg-surface-2"
-              }`}
+              className={clsx(
+                "block w-full rounded-md px-2.5 py-1.5 text-left transition-colors",
+                c.id === convId ? "bg-surface-2 text-ink" : "text-ink-2 hover:bg-surface-2/50 hover:text-ink",
+              )}
             >
-              {c.title || "New chat"}
+              <div className="truncate text-[13px]">{c.title || "New chat"}</div>
+              <div className="flex items-center gap-1 truncate text-[11px] text-ink-3">
+                {c.origin ? (
+                  <>
+                    <Icon name="phone" size={11} className="shrink-0" />
+                    <span className="truncate">
+                      {c.origin.kind === "telegram" ? "Telegram" : "Discord"} · {c.origin.from}
+                    </span>
+                  </>
+                ) : (
+                  relativeTime(c.updatedAt)
+                )}
+              </div>
             </button>
           ))}
         </div>
       </div>
 
       {/* Thread */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Announce streamed replies to screen readers. "polite" so it waits
             for a pause rather than interrupting on every token. */}
         <div
@@ -88,83 +97,72 @@ export function Chat({ agent }: { agent: Agent }) {
           className="flex-1 overflow-y-auto px-6 py-6"
         >
           {messages.length === 0 ? (
-            <div className="mx-auto mt-10 max-w-md text-center">
-              <div className="mb-3 text-4xl">{agent.emoji}</div>
-              <h3 className="text-lg font-semibold">{agent.name}</h3>
-              <p className="mt-1 text-sm text-ink-2">{agent.role}</p>
+            <div className="mx-auto mt-16 flex max-w-sm flex-col items-center text-center">
+              <Avatar emoji={agent.emoji} size={40} />
+              <h3 className="mt-3 text-[15px] font-semibold">{agent.name}</h3>
+              <p className="mt-0.5 text-[13px] text-ink-3">{agent.role}</p>
+              {conv?.origin && (
+                <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-ink-3">
+                  <Icon name="phone" size={12} /> {conv.origin.kind === "telegram" ? "Telegram" : "Discord"} · {conv.origin.from}
+                </p>
+              )}
               {needsKey && (
-                <div className="mt-5 rounded-lg border border-warn/40 bg-warn/10 px-4 py-3 text-sm text-warn">
+                <div className="mt-5 rounded-md border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">
                   Add your Claude API key in Settings — or switch this agent to the Claude Code runtime.
                 </div>
               )}
               {runtime === "claude-code" && (
-                <div className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1 text-xs text-success">
-                  <Icon name="bolt" size={13} /> Running on Claude Code · your subscription
+                <div className="mt-5 inline-flex items-center gap-1.5 text-xs text-ink-3">
+                  <span className="h-1.5 w-1.5 rounded-full bg-success" /> Running on Claude Code · your subscription
                 </div>
               )}
             </div>
           ) : (
-            <div className="mx-auto max-w-3xl space-y-5">
-              {messages.map((m) => (
-                <div key={m.id} className={m.role === "user" ? "flex justify-end" : "flex gap-3"}>
-                  {m.role === "assistant" && <span className="mt-0.5 text-xl">{agent.emoji}</span>}
-                  <div
-                    className={
-                      m.role === "user"
-                        ? "max-w-[80%] rounded-2xl rounded-tr-sm bg-brand px-4 py-2.5 text-sm text-white whitespace-pre-wrap"
-                        : "max-w-[85%] rounded-2xl rounded-tl-sm bg-surface px-4 py-3 border border-border"
-                    }
-                  >
-                    {m.role === "assistant" ? (
-                      <>
-                        {m.toolCalls && m.toolCalls.length > 0 && (
-                          <div className="mb-2 flex flex-col gap-1">
-                            {m.toolCalls.map((tc) => (
-                              <details key={tc.id} className="rounded-lg border border-border bg-bg/60 text-xs">
-                                <summary className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5">
-                                  {tc.status === "running" ? <Spinner size={12} /> : (
-                                    <Icon name={tc.status === "error" ? "x" : "check"} size={13} className={tc.status === "error" ? "text-danger" : "text-success"} />
-                                  )}
-                                  <span className="font-mono text-ink-2">{tc.name}</span>
-                                </summary>
-                                {tc.output && (
-                                  <pre className="max-h-48 overflow-auto border-t border-border px-2.5 py-1.5 font-mono text-[0.7rem] text-ink-3 whitespace-pre-wrap">
-                                    {tc.output.slice(0, 1500)}
-                                  </pre>
-                                )}
-                              </details>
-                            ))}
-                          </div>
-                        )}
-                        {m.content ? <Markdown content={m.content} /> : m.pending && <Spinner size={14} />}
-                        {m.error && <div className="mt-1 text-xs text-danger">{m.error}</div>}
-                        {m.usage && (
-                          <div className="mt-2 flex gap-3 text-[0.68rem] text-ink-3">
-                            <span>{fmtTokens(m.usage.inputTokens + m.usage.outputTokens)} tok</span>
-                            {m.usage.costUsd > 0 && <span>{fmtUsd(m.usage.costUsd)}</span>}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      m.content
-                    )}
+            <div className="mx-auto max-w-3xl space-y-6">
+              {messages.map((m) =>
+                m.role === "user" ? (
+                  <div key={m.id} className="flex justify-end">
+                    <div className="max-w-[80%] whitespace-pre-wrap rounded-lg bg-surface-2 px-3.5 py-2 text-[13px] leading-relaxed text-ink">
+                      {m.content}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ) : (
+                  <div key={m.id} className="flex gap-3">
+                    <Avatar emoji={agent.emoji} size={24} className="mt-0.5 rounded-md" />
+                    <div className="min-w-0 flex-1 text-[13px] leading-relaxed">
+                      {m.toolCalls && m.toolCalls.length > 0 && (
+                        <div className="mb-2 overflow-hidden rounded-md border border-border">
+                          {m.toolCalls.map((tc) => (
+                            <ToolRow key={tc.id} call={tc} />
+                          ))}
+                        </div>
+                      )}
+                      {m.content ? <Markdown content={m.content} /> : m.pending && <Spinner size={14} />}
+                      {m.error && <div className="mt-1 text-xs text-danger">{m.error}</div>}
+                      {m.usage && (
+                        <div className="mt-1.5 flex gap-2 font-mono text-[10px] text-ink-3">
+                          <span>{fmtTokens(m.usage.inputTokens + m.usage.outputTokens)} tok</span>
+                          {m.usage.costUsd > 0 && <span>{fmtUsd(m.usage.costUsd)}</span>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ),
+              )}
             </div>
           )}
         </div>
 
         {/* Composer */}
-        <div className="border-t border-border p-4">
+        <div className="px-6 pb-4">
           <div className="mx-auto max-w-3xl">
-            <div className="flex items-end gap-2 rounded-xl border border-border bg-surface p-2 focus-within:border-brand">
+            <div className="flex items-end gap-2 rounded-lg border border-border bg-surface p-1.5 transition-colors focus-within:border-border-strong">
               <textarea
                 ref={taRef}
                 value={draft}
                 rows={1}
                 placeholder={`Message ${agent.name}…`}
-                className="max-h-40 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none"
+                className="max-h-40 flex-1 resize-none bg-transparent px-2 py-1.5 text-[13px] outline-none placeholder:text-ink-3"
                 onChange={(e) => {
                   setDraft(e.target.value);
                   e.target.style.height = "auto";
@@ -178,25 +176,22 @@ export function Chat({ agent }: { agent: Agent }) {
                 }}
               />
               {streaming ? (
-                <button className="btn-ghost p-2 text-danger" onClick={stop} title="Stop">
-                  <Icon name="stop" size={18} />
+                <button className="btn-outline h-8 w-8 px-0 text-danger" onClick={stop} title="Stop" aria-label="Stop">
+                  <Icon name="stop" size={14} />
                 </button>
               ) : (
-                <button
-                  className="grid h-9 w-9 place-items-center rounded-lg bg-brand text-white disabled:opacity-40"
-                  onClick={submit}
-                  disabled={!draft.trim()}
-                  title="Send"
-                >
-                  <Icon name="send" size={18} />
+                <button className="btn-primary h-8 w-8 px-0" onClick={submit} disabled={!draft.trim()} title="Send" aria-label="Send">
+                  <Icon name="send" size={14} />
                 </button>
               )}
             </div>
-            <div className="mt-1.5 flex justify-between px-1 text-[0.68rem] text-ink-3">
-              <span>Enter to send · Shift+Enter for newline</span>
+            <div className="mt-1.5 flex justify-between px-1 text-[11px] text-ink-3">
+              <span>
+                <kbd className="kbd">Enter</kbd> to send · <kbd className="kbd">Shift</kbd>+<kbd className="kbd">Enter</kbd> for newline
+              </span>
               {totalTokens > 0 && (
-                <span>
-                  Session: {fmtTokens(totalTokens)} tok{totalCost > 0 && ` · ${fmtUsd(totalCost)}`}
+                <span className="font-mono">
+                  {fmtTokens(totalTokens)} tok{totalCost > 0 && ` · ${fmtUsd(totalCost)}`}
                 </span>
               )}
             </div>
@@ -204,5 +199,50 @@ export function Chat({ agent }: { agent: Agent }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** A short, human line for what a tool was asked to do (the Bash command, the query, the path…). */
+function summarize(input: unknown): string {
+  if (input == null) return "";
+  if (typeof input !== "object") return String(input);
+  const o = input as Record<string, unknown>;
+  for (const k of ["command", "query", "url", "file_path", "path", "pattern", "text", "prompt", "name"]) {
+    if (typeof o[k] === "string" && o[k]) return o[k] as string;
+  }
+  const first = Object.values(o).find((v) => typeof v === "string" && v);
+  return typeof first === "string" ? first : JSON.stringify(o);
+}
+
+function ToolRow({ call }: { call: ToolCall }) {
+  // The summary appears once the call settles: while it runs, an approval
+  // dialog may be showing the very same command, and one copy is enough.
+  const summary = call.status === "running" ? "" : summarize(call.input).replace(/\s+/g, " ");
+  const icon =
+    call.status === "running" ? (
+      <Spinner size={12} />
+    ) : (
+      <Icon name={call.status === "error" ? "x" : "check"} size={12} className={call.status === "error" ? "text-danger" : "text-success"} />
+    );
+  const head = (
+    <>
+      <span className="grid w-3 shrink-0 place-items-center">{icon}</span>
+      <span className="shrink-0 font-mono text-ink-2">{call.name}</span>
+      {summary && <span className="min-w-0 truncate font-mono text-ink-3">{summary.slice(0, 200)}</span>}
+    </>
+  );
+  if (!call.output) {
+    return <div className="flex items-center gap-2 border-b border-border px-2.5 py-1.5 text-xs last:border-b-0">{head}</div>;
+  }
+  return (
+    <details className="group border-b border-border text-xs last:border-b-0">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-2.5 py-1.5 hover:bg-surface-2/50 [&::-webkit-details-marker]:hidden">
+        {head}
+        <Icon name="chevron" size={12} className="ml-auto shrink-0 text-ink-3 transition-transform group-open:rotate-90" />
+      </summary>
+      <pre className="max-h-48 overflow-auto whitespace-pre-wrap border-t border-border bg-bg/60 px-2.5 py-2 font-mono text-[11px] text-ink-3">
+        {call.output.slice(0, 1500)}
+      </pre>
+    </details>
   );
 }

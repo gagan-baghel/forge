@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { PageHeader } from "@/components/Shell";
-import { EmptyState } from "@/components/ui";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { Card, EmptyState } from "@/components/ui";
 import { isDesktop } from "@/lib/platform";
 import "@xterm/xterm/css/xterm.css";
 
@@ -10,6 +10,12 @@ import "@xterm/xterm/css/xterm.css";
 const AUTORUN: Record<string, string> = {
   claude: "claude\r",
 };
+
+/** Read a theme token (stored as "r g b" channels) as an rgba() color xterm understands. */
+function token(name: string, alpha = 1): string {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
+  return v ? `rgba(${v.split(/\s+/).join(", ")}, ${alpha})` : "";
+}
 
 /**
  * A real terminal. On desktop it spawns a login shell PTY via Tauri and pipes
@@ -32,9 +38,16 @@ export function TerminalView() {
       const { listen } = await import("@tauri-apps/api/event");
 
       const term = new Terminal({
-        fontFamily: "var(--f-mono)",
+        // Canvas rendering can't resolve CSS vars, so hand xterm concrete values.
+        fontFamily: getComputedStyle(document.documentElement).getPropertyValue("--f-mono").trim() || "monospace",
         fontSize: 13,
-        theme: { background: "#0f1017", foreground: "#e9ecf5", cursor: "#6D5BFF" },
+        theme: {
+          background: token("bg"),
+          foreground: token("ink"),
+          cursor: token("ink-2"),
+          cursorAccent: token("bg"),
+          selectionBackground: token("brand", 0.3),
+        },
         cursorBlink: true,
       });
       const fit = new FitAddon();
@@ -74,13 +87,17 @@ export function TerminalView() {
     <div className="flex h-screen flex-col">
       <PageHeader title="Terminal" subtitle="A real shell, scoped to your machine" />
       {desktop ? (
-        <div ref={ref} className="flex-1 overflow-hidden bg-[#0f1017] p-2" />
+        <div ref={ref} className="min-h-0 flex-1 overflow-hidden bg-bg px-4 py-3" />
       ) : (
-        <EmptyState
-          icon="terminal"
-          title="Terminal needs the desktop app"
-          body="The terminal spawns a real shell process on your machine, which isn't available in the web build. Run `pnpm desktop` to launch Forge natively."
-        />
+        <PageBody>
+          <Card className="p-0">
+            <EmptyState
+              icon="terminal"
+              title="Terminal needs the desktop app"
+              body="The terminal spawns a real shell process on your machine, which isn't available in the web build. Run `pnpm desktop` to launch Forge natively."
+            />
+          </Card>
+        </PageBody>
       )}
     </div>
   );

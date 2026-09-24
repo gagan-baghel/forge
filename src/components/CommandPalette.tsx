@@ -66,17 +66,17 @@ export function CommandPalette() {
       { id: "agents", label: "Agents", icon: "agents", run: go("/agents") },
       { id: "brains", label: "Brains", icon: "brain", run: go("/brains") },
       { id: "workshop", label: "Workshop", icon: "hammer", run: go("/workshop") },
-      { id: "channels", label: "Channels", icon: "message", run: go("/channels") },
+      { id: "remote", label: "Remote", icon: "phone", run: go("/remote") },
       { id: "architect", label: "Architect", icon: "spark", run: go("/architect") },
       { id: "marketplace", label: "Marketplace", icon: "store", run: go("/marketplace") },
       { id: "knowledge", label: "Knowledge", icon: "book", run: go("/knowledge") },
       { id: "memory", label: "Memory", icon: "memory", run: go("/memory") },
       { id: "schedules", label: "Schedules", icon: "clock", run: go("/schedules") },
       { id: "terminal", label: "Terminal", icon: "terminal", run: go("/terminal") },
-      { id: "runs", label: "Runs", icon: "bolt", run: go("/runs") },
+      { id: "runs", label: "Runs", icon: "activity", run: go("/runs") },
       { id: "observability", label: "Observability", icon: "chart", run: go("/observability") },
       { id: "integrations", label: "Integrations", icon: "plug", run: go("/integrations") },
-      { id: "team", label: "Team", icon: "agents", run: go("/team") },
+      { id: "team", label: "Team", icon: "user", run: go("/team") },
       { id: "settings", label: "Settings", icon: "settings", run: go("/settings") },
     ];
     const actions: Command[] = [
@@ -126,15 +126,15 @@ export function CommandPalette() {
   if (!open) return null;
 
   return (
-    <div data-testid="command-palette" className="fixed inset-0 z-[60] flex items-start justify-center bg-black/50 p-4 pt-[12vh] backdrop-blur-sm" onMouseDown={() => setOpen(false)}>
-      <div className="card w-full max-w-lg overflow-hidden p-0 shadow-soft" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2 border-b border-border px-4">
-          <Icon name="search" size={16} className="text-ink-3" />
+    <div data-testid="command-palette" className="fixed inset-0 z-[60] flex items-start justify-center bg-black/55 p-4 pt-[14vh] backdrop-blur-[2px]" onMouseDown={() => setOpen(false)}>
+      <div className="card w-full max-w-xl overflow-hidden p-0 shadow-soft" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2.5 border-b border-border px-4">
+          <Icon name="search" size={15} className="shrink-0 text-ink-3" />
           <input
             ref={inputRef}
             value={query}
             placeholder="Jump to anything…"
-            className="w-full bg-transparent py-3.5 text-sm outline-none"
+            className="h-12 w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-ink-3"
             onChange={(e) => {
               setQuery(e.target.value);
               setActive(0);
@@ -151,22 +151,22 @@ export function CommandPalette() {
               }
             }}
           />
-          <kbd className="rounded border border-border px-1.5 py-0.5 text-[0.65rem] text-ink-3">ESC</kbd>
+          <kbd className="kbd">esc</kbd>
         </div>
-        <div className="max-h-80 overflow-y-auto py-1.5">
+        <div className="max-h-[360px] overflow-y-auto p-1.5">
           {filtered.length === 0 ? (
-            <div className="px-4 py-6 text-center text-sm text-ink-3">No matches</div>
+            <div className="px-4 py-8 text-center text-[13px] text-ink-3">No matches</div>
           ) : (
             filtered.map((c, i) => (
               <button
                 key={c.id}
                 onMouseEnter={() => setActive(i)}
                 onClick={c.run}
-                className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm ${i === active ? "bg-brand/12" : ""}`}
+                className={`flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-[13px] ${i === active ? "bg-surface-2 text-ink" : "text-ink-2"}`}
               >
-                <Icon name={c.icon} size={15} className="text-ink-3" />
-                <span className="flex-1">{c.label}</span>
-                {c.hint && <span className="text-xs text-ink-3">{c.hint}</span>}
+                <Icon name={c.icon} size={14} className="shrink-0 text-ink-3" />
+                <span className="flex-1 truncate">{c.label}</span>
+                {c.hint && <span className="truncate text-xs text-ink-3">{c.hint}</span>}
               </button>
             ))
           )}

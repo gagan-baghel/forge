@@ -35,6 +35,21 @@ const paths: Record<string, string> = {
   memory:
     "M5 8h14v11H5zM8 8V5m4 3V5m4 3V5M8 19v2m4-2v2m4-2v2M9 12h6v3H9z",
   info: "M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8v.01",
+  phone: "M8 2.5h8a1.5 1.5 0 011.5 1.5v16a1.5 1.5 0 01-1.5 1.5H8A1.5 1.5 0 016.5 20V4A1.5 1.5 0 018 2.5zM11 18.5h2",
+  shield: "M12 3l7.5 3v5.5c0 4.5-3.2 8.3-7.5 9.5-4.3-1.2-7.5-5-7.5-9.5V6L12 3zM9 12l2 2 4-4",
+  lock: "M6 11h12v9.5H6zM8.5 11V8a3.5 3.5 0 017 0v3",
+  monitor: "M3.5 4.5h17v11h-17zM9 20h6M12 15.5V20",
+  power: "M12 3v8M6.4 6.4a8 8 0 1011.2 0",
+  activity: "M3 12h4l3-8 4 16 3-8h4",
+  key: "M15.5 8.5a3 3 0 11-6 0 3 3 0 016 0zM10.3 10.7L4 17v3h3v-2h2v-2h2l1.3-1.3",
+  link: "M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1",
+  pause: "M8 5v14M16 5v14",
+  play: "M7 4.5l12 7.5-12 7.5z",
+  user: "M12 12a4 4 0 100-8 4 4 0 000 8zM4 20c0-3.3 3.6-6 8-6s8 2.7 8 6",
+  sidebar: "M3.5 4.5h17v15h-17zM9 4.5v15",
+  arrowRight: "M5 12h14M13 6l6 6-6 6",
+  external: "M14 4h6v6M20 4l-9 9M18 14v6H4V6h6",
+  command: "M9 6a3 3 0 10-3 3h12a3 3 0 10-3-3v12a3 3 0 103-3H6a3 3 0 103 3V6z",
 };
 
 export function Icon({

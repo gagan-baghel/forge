@@ -10,6 +10,9 @@
 import { nanoid } from "nanoid";
 import { invoke, isDesktop } from "./platform";
 import { useSettings } from "@/stores/settings";
+import { initBridge, registerBridgeRun, unregisterBridgeRun, type BridgeRun } from "./bridge";
+import type { ToolDef } from "./claude";
+import type { ToolEvent } from "./agentRun";
 
 export interface ClaudeCodeInfo {
   available: boolean;
@@ -82,6 +85,15 @@ export async function installClaudeCode(onLine: (text: string) => void): Promise
 type CcEvent =
   | { kind: "text"; run_id: string; text: string }
   | {
+      kind: "tool";
+      run_id: string;
+      id: string;
+      name: string;
+      input: unknown | null;
+      output: string | null;
+      status: "running" | "done" | "error";
+    }
+  | {
       kind: "done";
       run_id: string;
       session_id: string;
@@ -109,10 +121,17 @@ export interface ClaudeCodeRequest {
    * the keyboard is to withhold them.
    */
   disallowedTools?: string[];
+  /**
+   * Forge tools to mount over the tool bridge, and the context to run them
+   * in. With `approvals` on, the CLI's own Bash/Write/Edit also ask first.
+   */
+  bridge?: BridgeRun & { defs: ToolDef[]; approvals: boolean };
 }
 
 export interface ClaudeCodeCallbacks {
   onText: (delta: string) => void;
+  /** CLI tool activity (its own tools and bridged ones). */
+  onTool?: (event: ToolEvent) => void;
   signal?: AbortSignal;
 }
 
@@ -140,8 +159,11 @@ export async function streamClaudeCode(
 
     const cleanup = () => {
       unlisten?.();
+      unregisterBridgeRun(runId);
       cb.signal?.removeEventListener("abort", onAbort);
     };
+    // CLI tool results arrive without a name; remember it from the start event.
+    const toolNames = new Map<string, string>();
 
     const onAbort = () => {
       if (settled) return;
@@ -151,11 +173,29 @@ export async function streamClaudeCode(
       reject(Object.assign(new Error("Stopped."), { name: "AbortError" }));
     };
 
-    listen<CcEvent>("cc://event", (e) => {
+    if (req.bridge) {
+      registerBridgeRun(runId, { executors: req.bridge.executors, ctx: req.bridge.ctx, onTool: req.bridge.onTool });
+    }
+
+    initBridge()
+      .then(() => listen<CcEvent>("cc://event", (e) => {
       const ev = e.payload;
       if (ev.run_id !== runId) return;
       if (ev.kind === "text") {
         cb.onText(ev.text);
+      } else if (ev.kind === "tool") {
+        // Bridged tools report themselves (with richer detail) from bridge.ts.
+        if (ev.name.startsWith("mcp__forge__")) return;
+        if (ev.name) toolNames.set(ev.id, ev.name);
+        const name = ev.name || toolNames.get(ev.id) || "tool";
+        if (name.startsWith("mcp__forge__")) return;
+        cb.onTool?.({
+          id: ev.id,
+          name,
+          input: ev.input ?? undefined,
+          output: ev.output ?? undefined,
+          status: ev.status,
+        });
       } else if (ev.kind === "done") {
         if (settled) return;
         settled = true;
@@ -171,7 +211,7 @@ export async function streamClaudeCode(
           });
         }
       }
-    })
+    }))
       .then((un) => {
         unlisten = un;
         if (cb.signal?.aborted) return onAbort();
@@ -192,6 +232,10 @@ export async function streamClaudeCode(
           mcpConfig: req.mcpConfig ?? null,
           env: Object.keys(env).length > 0 ? env : null,
           disallowedTools: req.disallowedTools?.length ? req.disallowedTools : null,
+          bridgeTools: req.bridge
+            ? req.bridge.defs.map((d) => ({ name: d.name, description: d.description, inputSchema: d.input_schema }))
+            : null,
+          approvals: req.bridge?.approvals ?? false,
         });
       })
       .catch((err) => {

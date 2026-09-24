@@ -10,38 +10,49 @@
  * ------------------------------------------------------------------------- */
 :root,
 [data-theme="dusk"] {
-  --bg: 15 16 23;
-  --surface: 22 24 33;
-  --surface-2: 30 33 45;
-  --border: 44 48 64;
-  --ink: 233 236 245;
-  --ink-2: 168 175 196;
-  --ink-3: 110 118 140;
-  --brand: 109 91 255;
-  --brand-2: 142 124 255;
-  --accent: 255 209 102;
-  --success: 64 201 142;
-  --warn: 240 180 70;
-  --danger: 244 96 96;
+  /* Graphite, not violet: neutral surfaces with one calm accent. */
+  --bg: 12 12 14;
+  --surface: 19 19 22;
+  --surface-2: 27 27 31;
+  --surface-3: 36 36 41;
+  --border: 39 39 45;
+  --border-strong: 58 58 66;
+  --ink: 237 237 240;
+  --ink-2: 163 163 172;
+  --ink-3: 112 112 122;
+  --brand: 102 136 255;
+  --brand-2: 140 164 255;
+  --accent: 255 138 76;
+  --success: 52 199 124;
+  --warn: 234 179 8;
+  --danger: 239 83 80;
+  --primary: 237 237 240;
+  --on-primary: 12 12 14;
 
   --f-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
 }
 
 [data-theme="paper"] {
-  --bg: 247 247 250;
+  --bg: 250 250 250;
   --surface: 255 255 255;
-  --surface-2: 241 242 246;
-  --border: 222 224 232;
-  --ink: 24 26 34;
-  --ink-2: 82 88 104;
-  --ink-3: 140 146 162;
-  --brand: 90 70 240;
-  --brand-2: 120 102 250;
-  --accent: 224 150 30;
-  --success: 28 160 110;
-  --warn: 200 140 30;
-  --danger: 220 70 70;
+  --surface-2: 244 244 245;
+  --surface-3: 234 234 237;
+  --border: 228 228 231;
+  --border-strong: 212 212 216;
+  --ink: 17 17 20;
+  --ink-2: 82 82 91;
+  --ink-3: 132 132 142;
+  --brand: 59 91 219;
+  --brand-2: 50 80 200;
+  --accent: 224 102 40;
+  --success: 22 150 90;
+  --warn: 180 120 0;
+  --danger: 210 55 55;
+  --primary: 17 17 20;
+  --on-primary: 250 250 250;
+  color-scheme: light;
 }
 
 * {
@@ -59,8 +70,16 @@ body {
   background: rgb(var(--bg));
   color: rgb(var(--ink));
   font-family: var(--f-sans);
+  font-size: 14px;
+  font-feature-settings: "cv11", "ss01", "tnum" 0;
+  letter-spacing: -0.003em;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--brand) / 0.7);
+  outline-offset: 1px;
 }
 
 ::selection {
@@ -89,28 +108,32 @@ body {
     @apply bg-surface border border-border rounded-xl;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium
-           transition-colors disabled:opacity-50 disabled:pointer-events-none select-none;
+    @apply inline-flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 text-[13px] font-medium
+           transition-colors disabled:opacity-40 disabled:pointer-events-none select-none;
   }
   .btn-primary {
-    @apply btn bg-brand text-white hover:bg-brand-2;
+    @apply btn bg-primary text-on-primary hover:bg-primary/85;
   }
   .btn-ghost {
     @apply btn text-ink-2 hover:bg-surface-2 hover:text-ink;
   }
   .btn-outline {
-    @apply btn border border-border text-ink hover:bg-surface-2;
+    @apply btn border border-border bg-surface text-ink hover:border-border-strong hover:bg-surface-2;
   }
   .input {
-    @apply w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-ink
-           placeholder:text-ink-3 outline-none focus:border-brand;
+    @apply w-full rounded-md border border-border bg-bg px-2.5 py-1.5 text-[13px] text-ink
+           placeholder:text-ink-3 outline-none transition-colors hover:border-border-strong
+           focus:border-brand/70 focus:ring-2 focus:ring-brand/15;
   }
   .chip {
-    @apply inline-flex items-center gap-1 rounded-full border border-border bg-surface-2
-           px-2.5 py-0.5 text-xs font-medium text-ink-2;
+    @apply inline-flex items-center gap-1 rounded-md border border-border bg-surface-2
+           px-1.5 py-px text-[11px] font-medium text-ink-2;
   }
   .label {
-    @apply text-xs font-medium uppercase tracking-wider text-ink-3;
+    @apply text-[11px] font-medium text-ink-3;
+  }
+  .kbd {
+    @apply rounded border border-border bg-surface-2 px-1 font-mono text-[10px] text-ink-3;
   }
 }
 

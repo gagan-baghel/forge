@@ -7,6 +7,9 @@
  *  - run_javascript → sandboxed JS execution in a Web Worker
  *  - read_file    → reads a local file (desktop only)
  *  - run_shell / write_file → act on the machine, each behind an approval prompt
+ *  - screenshot / click / type_text / press_key / scroll → see and drive the
+ *    desktop, so a message from a phone can do what a person at the Mac could
+ *  - send_file → attach a file to the channel conversation
  *  - remember / recall → persistent agent memory
  *  - connector tools (github/slack/notion/linear/...) → real provider API calls
  */
@@ -15,7 +18,7 @@ import type { Agent } from "@/types/domain";
 import type { AnyTool, ToolDef } from "./claude";
 import { httpFetch } from "./http";
 import { isDesktop } from "./platform";
-import { approve, markUntrustedContent, type ApprovalResult } from "./approval";
+import { approve, newTurn, type ApprovalResult, type ChannelRef, type TurnState } from "./approval";
 import { webSearchToolType } from "./aiConfig";
 import { useMemory } from "@/stores/memory";
 import { brainFor, memoryKeyFor } from "@/stores/brains";
@@ -27,12 +30,35 @@ export interface ToolContext {
   /**
    * Set when this turn is answering an inbound message on a connected channel
    * (Discord/Telegram) rather than the in-app chat. Lets tools like send_file
-   * reply through that same channel instead of just returning text.
+   * reply through that same channel, and routes approvals to the phone when
+   * the channel has remote control on.
    */
-  channel?: { kind: "discord" | "telegram"; token: string; chatId: string };
+  channel?: ChannelRef;
+  /** Per-turn provenance; created on first use when a caller omits it. */
+  turn?: TurnState;
+  /** The turn's cancel signal: a Stop also ends a running command. */
+  signal?: AbortSignal;
 }
 
-type Executor = (input: any, ctx: ToolContext) => Promise<string>;
+/** An image a tool hands back to the model (a screenshot, say). */
+export interface ToolImage {
+  data: string;
+  mediaType: "image/jpeg" | "image/png";
+}
+
+/** What a tool returns: plain text, or text plus images. */
+export type ToolOutput = string | { text: string; images: ToolImage[] };
+
+export function outputText(out: ToolOutput): string {
+  return typeof out === "string" ? out : out.text;
+}
+
+type Executor = (input: any, ctx: ToolContext) => Promise<ToolOutput>;
+
+/** Ask for approval in whatever way this turn's context calls for. */
+function ask(ctx: ToolContext, title: string, body: string) {
+  return approve({ title, body, turn: ctx.turn, channel: ctx.channel });
+}
 
 /**
  * What the model is told when an approval didn't come back "ok". A timeout is
@@ -103,12 +129,12 @@ const fileTool: ClientTool = {
       required: ["path"],
     },
   },
-  run: async (input) => {
+  run: async (input, ctx) => {
     if (!isDesktop()) return "Error: read_file is only available in the desktop app.";
     const path = String(input.path ?? "").trim();
     if (!path) return "Error: no path given.";
 
-    const ok = await approve("Read a file on your computer?", path);
+    const ok = await ask(ctx, "Read a file on your computer?", path);
     if (ok !== "ok") return refusal(ok, "read");
 
     try {
@@ -271,28 +297,35 @@ const shellTool: ClientTool = {
       required: ["command"],
     },
   },
-  run: async (input) => {
+  run: async (input, ctx) => {
     if (!isDesktop()) return "Error: run_shell is only available in the desktop app.";
     const command = String(input.command ?? "").trim();
     if (!command) return "Error: no command given.";
     const cwd = input.cwd ? String(input.cwd) : undefined;
     const purpose = input.purpose ? `${String(input.purpose)}\n\n` : "";
 
-    const ok = await approve(
+    const ok = await ask(
+      ctx,
       "Run a command on your computer?",
       `${purpose}${command}${cwd ? `\n\nin ${cwd}` : ""}`,
     );
     if (ok !== "ok") return refusal(ok, "command");
 
+    const { invoke } = await import("@tauri-apps/api/core");
+    const id = `sh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const cancel = () => void invoke("shell_cancel", { id })?.catch?.(() => {});
+    ctx.signal?.addEventListener("abort", cancel);
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
-      const r = await invoke<{ stdout: string; stderr: string; code: number }>("shell_exec", { command, cwd });
+      const r = await invoke<{ stdout: string; stderr: string; code: number }>("shell_exec", { command, cwd, id });
+      if (ctx.signal?.aborted) return "Stopped by the user before the command finished.";
       const parts = [`exit code: ${r.code}`];
       if (r.stdout.trim()) parts.push(`stdout:\n${r.stdout}`);
       if (r.stderr.trim()) parts.push(`stderr:\n${r.stderr}`);
       return parts.join("\n\n");
     } catch (e: any) {
       return `Error running command: ${e?.message ?? e}`;
+    } finally {
+      ctx.signal?.removeEventListener("abort", cancel);
     }
   },
 };
@@ -312,13 +345,14 @@ const writeFileTool: ClientTool = {
       required: ["path", "content"],
     },
   },
-  run: async (input) => {
+  run: async (input, ctx) => {
     if (!isDesktop()) return "Error: write_file is only available in the desktop app.";
     const path = String(input.path ?? "").trim();
     const content = String(input.content ?? "");
     if (!path) return "Error: no path given.";
 
-    const ok = await approve(
+    const ok = await ask(
+      ctx,
       "Write a file on your computer?",
       `${path}\n\n${content.length} character${content.length === 1 ? "" : "s"}. Any existing file at this path is replaced.`,
     );
@@ -357,7 +391,7 @@ const sendFileTool: ClientTool = {
     const path = String(input.path ?? "").trim();
     if (!path) return "Error: no path given.";
 
-    const ok = await approve("Send a file from your computer?", `${path}\n\nto ${ctx.channel.kind}`);
+    const ok = await ask(ctx, "Send a file from your computer?", `${path}\n\nto ${ctx.channel.kind}`);
     if (ok !== "ok") return refusal(ok, "send");
 
     try {
@@ -375,6 +409,179 @@ const sendFileTool: ClientTool = {
   },
 };
 
+/* ---------------------------- Desktop control ------------------------- */
+
+/**
+ * See and drive the screen. Together with run_shell these cover anything a
+ * person at the keyboard could do. Each asks first (a trust window granted
+ * from the phone can cover a run of them); scrolling alone is harmless enough
+ * to go unasked.
+ */
+
+async function native<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<T>(cmd, args);
+}
+
+const DESKTOP_ONLY = "Error: desktop control is only available in the desktop app.";
+
+const screenshotTool: ClientTool = {
+  def: {
+    name: "screenshot",
+    description:
+      "Capture the user's screen and look at it. Use it to see what is open before clicking or typing, " +
+      "and again afterwards to check the result. Click/scroll coordinates are in this image's pixels. " +
+      "Set send_to_user when the user asked to see their screen (it is then also sent to their chat).",
+    input_schema: {
+      type: "object",
+      properties: {
+        send_to_user: { type: "boolean", description: "Also send the image to the user's chat", default: false },
+      },
+    },
+  },
+  run: async (input, ctx) => {
+    if (!isDesktop()) return DESKTOP_ONLY;
+    const toUser = !!input.send_to_user && !!ctx.channel;
+    const ok = await ask(
+      ctx,
+      "Show the agent your screen?",
+      toUser ? `A screenshot is taken and also sent to your ${ctx.channel!.kind} chat.` : "A screenshot is taken so the agent can see it.",
+    );
+    if (ok !== "ok") return refusal(ok, "screenshot");
+    try {
+      const shot = await native<{ path: string; base64: string; width: number; height: number }>("screen_capture");
+      if (toUser && ctx.channel) await sendImageToChannel(ctx.channel, shot.path, "Your screen");
+      return {
+        text: `Screenshot ${shot.width}×${shot.height}px${toUser ? ", also sent to the user" : ""}. Coordinates for click and scroll are in these pixels.`,
+        images: [{ data: shot.base64, mediaType: "image/jpeg" }],
+      };
+    } catch (e: any) {
+      return `Error taking screenshot: ${e?.message ?? e}`;
+    }
+  },
+};
+
+/** Post an image to a channel conversation (a photo on Telegram, an attachment on Discord). */
+export async function sendImageToChannel(channel: ChannelRef, path: string, caption: string): Promise<void> {
+  if (channel.kind === "telegram") {
+    await native("telegram_send_photo", { token: channel.token, chatId: channel.chatId, path, caption });
+  } else {
+    await native("discord_send_file", { token: channel.token, channelId: channel.chatId, path });
+  }
+}
+
+const clickTool: ClientTool = {
+  def: {
+    name: "click",
+    description: "Click on the screen at a point from the latest screenshot. Take a screenshot first.",
+    input_schema: {
+      type: "object",
+      properties: {
+        x: { type: "number", description: "X in screenshot pixels" },
+        y: { type: "number", description: "Y in screenshot pixels" },
+        button: { type: "string", enum: ["left", "right"], default: "left" },
+        double: { type: "boolean", description: "Double-click", default: false },
+        target: { type: "string", description: "What is being clicked, shown to the user" },
+      },
+      required: ["x", "y"],
+    },
+  },
+  run: async (input, ctx) => {
+    if (!isDesktop()) return DESKTOP_ONLY;
+    const x = Number(input.x);
+    const y = Number(input.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return "Error: x and y must be numbers.";
+    const what = input.target ? `${String(input.target)}\n\n` : "";
+    const ok = await ask(ctx, "Click on your screen?", `${what}${input.double ? "Double-click" : "Click"} at (${Math.round(x)}, ${Math.round(y)})`);
+    if (ok !== "ok") return refusal(ok, "click");
+    try {
+      await native("input_click", { x, y, button: input.button === "right" ? "right" : "left", clicks: input.double ? 2 : 1 });
+      return "Clicked. Take a screenshot to check the result.";
+    } catch (e: any) {
+      return `Error clicking: ${e?.message ?? e}`;
+    }
+  },
+};
+
+const typeTool: ClientTool = {
+  def: {
+    name: "type_text",
+    description: "Type text into whatever currently has keyboard focus on the user's screen.",
+    input_schema: {
+      type: "object",
+      properties: { text: { type: "string", description: "Text to type" } },
+      required: ["text"],
+    },
+  },
+  run: async (input, ctx) => {
+    if (!isDesktop()) return DESKTOP_ONLY;
+    const text = String(input.text ?? "");
+    if (!text) return "Error: no text given.";
+    const ok = await ask(ctx, "Type on your computer?", text.length > 400 ? `${text.slice(0, 400)}…` : text);
+    if (ok !== "ok") return refusal(ok, "typing");
+    try {
+      await native("input_type", { text });
+      return `Typed ${text.length} character${text.length === 1 ? "" : "s"}.`;
+    } catch (e: any) {
+      return `Error typing: ${e?.message ?? e}`;
+    }
+  },
+};
+
+const keyTool: ClientTool = {
+  def: {
+    name: "press_key",
+    description:
+      "Press a key or shortcut on the user's computer, e.g. 'enter', 'escape', 'tab', 'cmd+space', " +
+      "'cmd+shift+t', 'down'. Modifiers: cmd, shift, alt, ctrl.",
+    input_schema: {
+      type: "object",
+      properties: { key: { type: "string", description: "Key or shortcut, '+'-separated, e.g. 'escape' or 'cmd+space'" } },
+      required: ["key"],
+    },
+  },
+  run: async (input, ctx) => {
+    if (!isDesktop()) return DESKTOP_ONLY;
+    // Models guess the field name; take whichever they sent.
+    const raw = input.key ?? input.keys ?? input.combo ?? input.shortcut ?? "";
+    const keys = (Array.isArray(raw) ? raw.join("+") : String(raw)).trim();
+    if (!keys) return "Error: no keys given.";
+    const ok = await ask(ctx, "Press keys on your computer?", keys);
+    if (ok !== "ok") return refusal(ok, "key press");
+    try {
+      await native("input_key", { combo: keys });
+      return `Pressed ${keys}.`;
+    } catch (e: any) {
+      return `Error pressing ${keys}: ${e?.message ?? e}`;
+    }
+  },
+};
+
+const scrollTool: ClientTool = {
+  def: {
+    name: "scroll",
+    description: "Scroll at a point from the latest screenshot. Positive amount scrolls down, negative up (in lines).",
+    input_schema: {
+      type: "object",
+      properties: {
+        x: { type: "number" },
+        y: { type: "number" },
+        amount: { type: "number", description: "Lines; positive = down", default: 5 },
+      },
+      required: ["x", "y"],
+    },
+  },
+  run: async (input) => {
+    if (!isDesktop()) return DESKTOP_ONLY;
+    try {
+      await native("input_scroll", { x: Number(input.x), y: Number(input.y), amount: Math.round(Number(input.amount ?? 5)) });
+      return "Scrolled.";
+    } catch (e: any) {
+      return `Error scrolling: ${e?.message ?? e}`;
+    }
+  },
+};
+
 /* ------------------------------- Assembly ----------------------------- */
 
 const SKILL_TOOLS: Record<string, ClientTool[]> = {
@@ -382,7 +589,7 @@ const SKILL_TOOLS: Record<string, ClientTool[]> = {
   code: [jsTool],
   files: [fileTool],
   memory: [rememberTool, recallTool],
-  computer: [shellTool, writeFileTool, sendFileTool],
+  computer: [shellTool, writeFileTool, sendFileTool, screenshotTool, clickTool, typeTool, keyTool, scrollTool],
 };
 
 export interface AssembledTools {
@@ -422,6 +629,46 @@ export function buildTools(agent: Agent): AssembledTools {
   return { defs, executors };
 }
 
+/**
+ * Tools the Claude Code CLI already has natively (Bash, Read, Write,
+ * WebFetch…). Everything else an agent has — memory, connectors, send_file,
+ * desktop control — reaches the CLI over the tool bridge.
+ */
+const CLI_NATIVE = new Set(["run_shell", "read_file", "write_file", "http_request", "run_javascript"]);
+
+export function buildCliBridgeTools(agent: Agent): AssembledTools {
+  const { defs, executors } = buildTools(agent);
+  const keep = (name: string) => !CLI_NATIVE.has(name) && !!executors[name];
+  return {
+    defs: defs.filter((d) => "input_schema" in d && keep(d.name)),
+    executors: Object.fromEntries(Object.entries(executors).filter(([n]) => keep(n))),
+  };
+}
+
+/**
+ * Claude Code's own tools whose results are outside content when they carry
+ * any. Read and Grep run without asking in the CLI, so their results — not
+ * their approval — are the only reliable signal.
+ */
+const CLI_READERS = new Set(["Read", "Grep", "Glob", "Bash", "WebFetch", "WebSearch", "NotebookRead"]);
+
+/** Whether a CLI tool result brought third-party text into the turn. */
+export function cliResultIsUntrusted(name: string, output: string | undefined): boolean {
+  if (!CLI_READERS.has(name) || !output) return false;
+  const text = output.trim();
+  // The CLI's own status lines and Forge's own denial text carry nothing
+  // from outside; treating them as content voided every trust window.
+  return text.length > 0 && !CLI_STATUS_LINES.some((re) => re.test(text));
+}
+
+const CLI_STATUS_LINES = [
+  /^\(Bash completed with no output\)$/,
+  /^\(no output\)$/i,
+  /^Command running in background with ID: \S+\. Output is being written to: \S+$/,
+  /^The user denied this\./,
+  /^Nobody answered the approval in time/,
+];
+
 /** Execute a single tool by name; never throws (returns an error string). */
 /**
  * Tools whose output is somebody else's text — a web page, a file, a command's
@@ -448,14 +695,17 @@ export async function runTool(
   input: any,
   executors: Record<string, Executor>,
   ctx: ToolContext,
-): Promise<string> {
+): Promise<ToolOutput> {
   const exec = executors[name];
   if (!exec) return `Error: unknown tool "${name}".`;
+  ctx.turn ??= newTurn();
   ctx.onActivity?.(name);
   try {
     const out = await exec(input, ctx);
-    if (!UNTRUSTED_OUTPUT.has(name) || out.startsWith("Error")) return out;
-    markUntrustedContent();
+    if (typeof out !== "string" || !UNTRUSTED_OUTPUT.has(name) || out.startsWith("Error")) return out;
+    // A command that printed nothing brought nothing in; only real output
+    // (a page, a file, stdout/stderr) taints the turn.
+    if (name !== "run_shell" || /\n\n(stdout|stderr):/.test(out)) ctx.turn.untrusted = true;
     return fenceUntrusted(name, out);
   } catch (e: any) {
     return `Error running ${name}: ${e?.message ?? e}`;

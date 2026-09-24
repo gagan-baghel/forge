@@ -175,15 +175,36 @@ export interface McpServer {
   enabled: boolean;
 }
 
+/**
+ * Someone allowed to talk to an agent through a channel. Pairing adds one:
+ * they send `/pair <code>` from their phone with the code Forge shows. Nobody
+ * else's messages ever reach the agent.
+ */
+export interface ChannelOwner {
+  /** Provider user id (Telegram `from.id`, Discord `author.id`). */
+  id: string;
+  name: string;
+  /** Chat they paired from — where approvals and routine results go. */
+  chatId: string;
+  pairedAt: number;
+}
+
 /** A messaging channel that fronts an agent (Telegram, Discord, …). */
 export interface Channel {
   id: ID;
   kind: "telegram" | "discord" | "slack" | "web";
   label: string;
   status: "active" | "inactive";
-  /** Provider token; stored locally only. */
+  /** Provider token; stored locally only, never exported. */
   token?: string;
   config?: Record<string, string>;
+  /** Paired people. Empty = nobody can use the bot yet. */
+  owners?: ChannelOwner[];
+  /**
+   * Remote control: the agent may act on this machine for a paired owner,
+   * with each action approved from their phone (Approve / Allow 15 min / Deny).
+   */
+  remoteControl?: boolean;
 }
 
 /**
@@ -305,9 +326,18 @@ export interface ChatMessage {
   error?: string;
 }
 
+/** Where a conversation came from, when it wasn't the in-app chat. */
+export interface ConversationOrigin {
+  kind: "telegram" | "discord";
+  /** `${channelKey}:${chatId}` — one running thread per phone chat. */
+  key: string;
+  from: string;
+}
+
 export interface Conversation {
   id: ID;
   agentId: ID;
+  origin?: ConversationOrigin;
   title: string;
   messages: ChatMessage[];
   /** Claude Code session id, set after the first CLI turn so we can --resume. */
@@ -357,7 +387,7 @@ export interface Routine {
 
 /* ----------------------------- Settings ------------------------------- */
 
-export type ThemeName = "dusk" | "paper";
+export type ThemeName = "dusk" | "paper" | "system";
 
 export interface Settings {
   apiKey: string;
@@ -374,6 +404,8 @@ export interface Settings {
   theme: ThemeName;
   userName: string;
   onboarded: boolean;
+  /** Keep the Mac awake while a remote-control bot is live. */
+  keepAwake: boolean;
   /** Price overrides per model, USD per million tokens [in, out]. */
   priceOverrides: Record<string, { in: number; out: number }>;
 }

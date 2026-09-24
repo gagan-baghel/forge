@@ -4,7 +4,7 @@
  * fields; import re-homes ids.
  */
 
-import type { Gap } from "@/types/domain";
+import type { Agent, Gap } from "@/types/domain";
 import { asAgentSeeds, asRecord, asString } from "@/lib/validate";
 import { saveTextFile } from "./saveFile";
 
@@ -22,17 +22,39 @@ export function exportGap(gap: Gap): string {
 }
 
 /**
+ * An agent with everything device- or person-specific removed: bot tokens and
+ * webhook URLs (a shared bot token is a shared remote control of this Mac),
+ * paired owners, and connector tokens (kept in `scopes[0]`). The channel and
+ * connector entries stay so the recipient sees what to set up.
+ */
+export function stripAgentSecrets(agent: Agent): Agent {
+  return {
+    ...agent,
+    channels: agent.channels.map((c) => ({
+      id: c.id,
+      kind: c.kind,
+      label: c.label,
+      status: "inactive" as const,
+      remoteControl: false,
+      ...(c.config?.trigger ? { config: { trigger: c.config.trigger } } : {}),
+    })),
+    connectors: agent.connectors.map((c) => ({ ...c, scopes: undefined, status: "disconnected" as const })),
+  };
+}
+
+/**
  * Environment values (pack env, MCP server env) routinely hold tokens — they
  * must never leave the machine inside a shared pack. Keys are kept, blanked,
  * so the recipient can see what to fill in.
  */
-function stripSecrets(gap: Gap): Gap {
+export function stripSecrets(gap: Gap): Gap {
   const blank = (env?: Record<string, string>) =>
     env ? Object.fromEntries(Object.keys(env).map((k) => [k, ""])) : undefined;
   return {
     ...gap,
     env: blank(gap.env),
     mcpServers: gap.mcpServers?.map((s) => ({ ...s, env: blank(s.env) })),
+    agents: gap.agents.map(stripAgentSecrets),
   };
 }
 

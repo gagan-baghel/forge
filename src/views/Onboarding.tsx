@@ -3,6 +3,7 @@ import { useSettings } from "@/stores/settings";
 import { MODELS } from "@/types/domain";
 import { Button, Field } from "@/components/ui";
 import { Icon } from "@/components/Icon";
+import { ForgeMark } from "@/components/Shell";
 
 /**
  * First-run onboarding. Collects a display name, the Claude API key, and a
@@ -24,19 +25,25 @@ export function OnboardingView() {
   };
 
   return (
-    <div className="grid h-screen w-screen place-items-center bg-bg p-6" data-theme="dusk">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-brand text-white shadow-glow">
-            <span className="font-mono text-xl font-bold">F</span>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">Welcome to Forge</h1>
-          <p className="mt-1 text-sm text-ink-2">
+    <div className="grid h-screen w-screen place-items-center overflow-y-auto bg-bg p-6" data-tauri-drag-region>
+      <div className="w-full max-w-[400px]">
+        <div className="mb-7 flex flex-col items-center text-center">
+          <ForgeMark size={36} />
+          <h1 className="mt-5 text-lg font-semibold tracking-tight">Welcome to Forge</h1>
+          <p className="mt-1.5 max-w-xs text-[13px] leading-relaxed text-ink-3">
             Build, run and share AI agents as GAPs — Global Agent Packs. Local-first, your keys, your machine.
           </p>
         </div>
 
         <div className="card space-y-5 p-6">
+          <div className="flex items-center justify-between text-[11px] text-ink-3">
+            <span>{step === 0 ? "About you" : "Runtime & model"}</span>
+            <span className="flex items-center gap-1" aria-label={`Step ${step + 1} of 2`}>
+              {[0, 1].map((i) => (
+                <span key={i} className={`h-1 w-5 rounded-full ${i <= step ? "bg-ink-2" : "bg-surface-3"}`} />
+              ))}
+            </span>
+          </div>
           {step === 0 && (
             <>
               <Field label="Your name" hint="Used to personalize the workspace.">
@@ -50,15 +57,15 @@ export function OnboardingView() {
                 />
               </Field>
               <Button variant="primary" className="w-full" onClick={() => setStep(1)}>
-                Continue <Icon name="chevron" size={16} />
+                Continue <Icon name="chevron" size={14} />
               </Button>
             </>
           )}
 
           {step === 1 && (
             <>
-              <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/[0.07] px-3 py-2.5">
-                <Icon name="bolt" size={16} className="mt-0.5 shrink-0 text-success" />
+              <div className="flex items-start gap-2.5 rounded-md border border-border bg-surface-2/60 px-3 py-2.5">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-success" />
                 <p className="text-xs text-ink-2">
                   Forge runs on your <span className="font-medium text-ink">local Claude Code</span> automatically — no
                   key, nothing metered. An API key below is optional, only if you'd rather use metered API calls.
@@ -85,20 +92,27 @@ export function OnboardingView() {
                 />
               </Field>
               <Field label="Default model">
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {MODELS.map((m) => (
                     <button
                       key={m.id}
                       onClick={() => setModel(m.id)}
-                      className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-                        model === m.id ? "border-brand bg-brand/10" : "border-border hover:bg-surface-2"
+                      aria-pressed={model === m.id}
+                      className={`flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left text-[13px] transition-colors ${
+                        model === m.id ? "border-border-strong bg-surface-2" : "border-border hover:bg-surface-2/50"
                       }`}
                     >
-                      <span>
+                      <span
+                        className={`grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border ${
+                          model === m.id ? "border-ink" : "border-border-strong"
+                        }`}
+                      >
+                        {model === m.id && <span className="h-1.5 w-1.5 rounded-full bg-ink" />}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">
                         <span className="font-medium">{m.label}</span>
                         <span className="ml-2 text-xs text-ink-3">{m.blurb}</span>
                       </span>
-                      {model === m.id && <Icon name="check" size={16} className="text-brand-2" />}
                     </button>
                   ))}
                 </div>

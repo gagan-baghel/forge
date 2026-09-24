@@ -69,7 +69,7 @@ describe("computer use (end to end)", () => {
 
     // Only now does it reach the shell, with the command the user actually saw.
     await waitFor(() => expect(invoke).toHaveBeenCalledTimes(1));
-    expect(invoke).toHaveBeenCalledWith("shell_exec", { command: "ls ~", cwd: undefined });
+    expect(invoke).toHaveBeenCalledWith("shell_exec", { command: "ls ~", cwd: undefined, id: expect.any(String) });
 
     // The tool result is fed back and the agent answers from it.
     expect(await screen.findByText("You have Desktop and Documents.")).toBeInTheDocument();

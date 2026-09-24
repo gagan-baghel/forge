@@ -10,6 +10,7 @@ interface SettingsStore extends Settings {
   setRuntime: (r: RuntimeKind) => void;
   setTheme: (t: ThemeName) => void;
   setUserName: (n: string) => void;
+  setKeepAwake: (on: boolean) => void;
   setPriceOverride: (model: string, price: { in: number; out: number }) => void;
   completeOnboarding: () => void;
   reset: () => void;
@@ -26,6 +27,7 @@ const initial: Settings = {
   theme: "dusk",
   userName: "",
   onboarded: false,
+  keepAwake: true,
   priceOverrides: {},
 };
 
@@ -39,6 +41,7 @@ export const useSettings = create<SettingsStore>()(
       setRuntime: (runtime) => set({ runtime }),
       setTheme: (theme) => set({ theme }),
       setUserName: (userName) => set({ userName }),
+      setKeepAwake: (keepAwake) => set({ keepAwake }),
       setPriceOverride: (model, price) =>
         set((s) => ({ priceOverrides: { ...s.priceOverrides, [model]: price } })),
       completeOnboarding: () => set({ onboarded: true }),
@@ -46,9 +49,13 @@ export const useSettings = create<SettingsStore>()(
     }),
     {
       name: STORE_KEY,
-      version: 1,
+      version: 2,
       // A retired defaultModel would price every new run at $0.
-      migrate: (state: any) => ({ ...state, defaultModel: currentModel(state?.defaultModel) }),
+      migrate: (state: any) => ({
+        keepAwake: true,
+        ...state,
+        defaultModel: currentModel(state?.defaultModel),
+      }),
     },
   ),
 );

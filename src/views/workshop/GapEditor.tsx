@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
 import { nanoid } from "nanoid";
-import { Button, Card, Badge, EmptyState, Field, StatusDot } from "@/components/ui";
+import { Avatar, Button, Card, CardHeader, Badge, EmptyState, Field, StatusDot, Toggle } from "@/components/ui";
+import { PageBody } from "@/components/Shell";
 import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 import { useBrains } from "@/stores/brains";
@@ -20,7 +21,7 @@ const SECTIONS: { id: Section; label: string; icon: string }[] = [
   { id: "advanced", label: "Advanced", icon: "settings" },
 ];
 
-const COLORS = ["#6D5BFF", "#40C98E", "#F0B446", "#F46060", "#4FA8FF", "#C46DFF"];
+const COLORS = ["#6688FF", "#34C77C", "#EAB308", "#EF5350", "#FF8A4C", "#8B8B96"];
 
 /**
  * Pack editor — the Workshop's deep-editing surface for one GAP. Everything a
@@ -36,31 +37,26 @@ export function GapEditorView() {
 
   if (!gap) {
     return (
-      <div className="p-7">
+      <PageBody>
         <EmptyState
           icon="grid"
           title="GAP not found"
           action={<Button onClick={() => navigate("/workshop")}>Back to Workshop</Button>}
         />
-      </div>
+      </PageBody>
     );
   }
 
   return (
     <div className="flex h-screen flex-col">
-      <div className="flex items-center gap-4 border-b border-border px-7 py-4">
-        <button onClick={() => navigate("/workshop")} className="btn-ghost p-1.5">
-          <Icon name="chevron" size={18} className="rotate-180" />
+      <div className="flex min-h-[56px] items-center gap-3 border-b border-border px-6 py-3" data-tauri-drag-region>
+        <button onClick={() => navigate("/workshop")} className="btn-ghost h-7 w-7 px-0" aria-label="Back to Workshop">
+          <Icon name="chevron" size={16} className="rotate-180" />
         </button>
-        <span
-          className="grid h-10 w-10 place-items-center rounded-lg text-xl"
-          style={{ background: `${gap.color}22` }}
-        >
-          {gap.emoji}
-        </span>
-        <div className="flex-1">
-          <h1 className="text-lg font-semibold">{gap.name}</h1>
-          <div className="text-xs text-ink-3">
+        <Avatar emoji={gap.emoji} size={32} />
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-[15px] font-semibold tracking-tight">{gap.name}</h1>
+          <div className="truncate text-xs text-ink-3">
             Pack editor · v{gap.version} · {gap.agents.length} agent{gap.agents.length === 1 ? "" : "s"}
           </div>
         </div>
@@ -79,27 +75,28 @@ export function GapEditorView() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-[190px] shrink-0 border-r border-border p-3">
+        <nav className="w-[184px] shrink-0 space-y-px border-r border-border p-3">
           {SECTIONS.map((s) => (
             <button
               key={s.id}
               onClick={() => setSection(s.id)}
               className={clsx(
-                "mb-0.5 flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
-                section === s.id ? "bg-brand/12 font-medium text-ink" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+                "flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors",
+                section === s.id ? "bg-surface-2 font-medium text-ink" : "text-ink-2 hover:bg-surface-2/60 hover:text-ink",
               )}
             >
-              <Icon name={s.icon} size={16} className={section === s.id ? "text-brand-2" : "text-ink-3"} />
+              <Icon name={s.icon} size={15} className={section === s.id ? "text-ink" : "text-ink-3"} />
               {s.label}
-              {s.id === "agents" && (
-                <span className="ml-auto font-mono text-[0.62rem] text-ink-3">{gap.agents.length}</span>
+              {s.id === "agents" && <span className="ml-auto font-mono text-[10px] text-ink-3">{gap.agents.length}</span>}
+              {s.id === "mcp" && (gap.mcpServers?.length ?? 0) > 0 && (
+                <span className="ml-auto font-mono text-[10px] text-ink-3">{gap.mcpServers?.length}</span>
               )}
             </button>
           ))}
-        </aside>
+        </nav>
 
-        <div className="flex-1 overflow-y-auto p-7">
-          <div className="mx-auto max-w-2xl space-y-6">
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-2xl space-y-6 px-8 py-6">
             {section === "identity" && <IdentitySection gap={gap} />}
             {section === "agents" && <AgentsSection gap={gap} />}
             {section === "mcp" && <McpSection gap={gap} />}
@@ -117,7 +114,7 @@ function IdentitySection({ gap }: { gap: Gap }) {
   const updateGap = useGaps((s) => s.updateGap);
   return (
     <Card className="space-y-4">
-      <h3 className="font-semibold">Identity</h3>
+      <CardHeader title="Identity" hint="How this pack appears in lists, the Marketplace and exported files." />
       <div className="grid grid-cols-[80px_1fr] gap-4">
         <Field label="Emoji">
           <input
@@ -167,12 +164,13 @@ function IdentitySection({ gap }: { gap: Gap }) {
         />
       </Field>
       <Field label="Color">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pt-1">
           {COLORS.map((c) => (
             <button
               key={c}
               onClick={() => updateGap(gap.id, { color: c })}
-              className={clsx("h-8 w-8 rounded-full border-2", gap.color === c ? "border-ink" : "border-transparent")}
+              aria-pressed={gap.color === c}
+              className={clsx("h-6 w-6 rounded-full ring-offset-2 ring-offset-surface", gap.color === c && "ring-2 ring-ink-2")}
               style={{ background: c }}
               aria-label={c}
             />
@@ -191,17 +189,19 @@ function AgentsSection({ gap }: { gap: Gap }) {
   return (
     <>
       {gap.agents.length === 0 ? (
-        <EmptyState
-          icon="agents"
-          title="No agents in this pack"
-          action={
-            <Button variant="primary" icon="plus" onClick={() => addAgent(gap.id, { name: "New agent", role: "Assistant" })}>
-              Add agent
-            </Button>
-          }
-        />
+        <Card>
+          <EmptyState
+            icon="agents"
+            title="No agents in this pack"
+            action={
+              <Button variant="primary" icon="plus" onClick={() => addAgent(gap.id, { name: "New agent", role: "Assistant" })}>
+                Add agent
+              </Button>
+            }
+          />
+        </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {gap.agents.map((a) => (
             <AgentRow key={a.id} agent={a} open={openId === a.id} onToggle={() => setOpenId(openId === a.id ? null : a.id)} />
           ))}
@@ -225,13 +225,17 @@ function AgentRow({ agent, open, onToggle }: { agent: Agent; open: boolean; onTo
 
   return (
     <Card className="p-0">
-      <button onClick={onToggle} className="flex w-full items-center gap-3 px-4 py-3 text-left">
-        <span className="text-xl">{agent.emoji}</span>
-        <div className="flex-1">
-          <div className="text-sm font-medium">{agent.name}</div>
-          <div className="text-xs text-ink-3">{agent.role}</div>
+      <button
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left transition-colors hover:bg-surface-2/50"
+      >
+        <Avatar emoji={agent.emoji} size={30} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[13px] font-medium">{agent.name}</div>
+          <div className="truncate text-xs text-ink-3">{agent.role}</div>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-ink-2">
+        <div className="flex items-center gap-1.5 text-xs capitalize text-ink-2">
           <StatusDot status={agent.status} />
           {agent.status}
         </div>
@@ -310,7 +314,7 @@ function AgentRow({ agent, open, onToggle }: { agent: Agent; open: boolean; onTo
             <div className="flex items-center gap-2 text-xs text-ink-3">
               <Badge>{agent.skills.length} skills</Badge>
               <Badge>{agent.knowledge.length} docs</Badge>
-              <Link to={`/agents/${agent.id}`} className="text-brand-2 hover:underline">
+              <Link to={`/agents/${agent.id}`} className="ml-1 text-ink-2 hover:text-ink">
                 Open full agent →
               </Link>
             </div>
@@ -337,7 +341,7 @@ function SystemPromptField({ agent }: { agent: Agent }) {
   return (
     <Field label="System prompt">
       <textarea
-        className="input min-h-[110px] resize-y font-mono text-[0.82rem] leading-relaxed"
+        className="input min-h-[110px] resize-y font-mono text-xs leading-relaxed"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
       />
@@ -372,33 +376,41 @@ function McpSection({ gap }: { gap: Gap }) {
   return (
     <>
       <Card className="space-y-4">
-        <div>
-          <h3 className="font-semibold">MCP servers</h3>
-          <p className="mt-0.5 text-xs text-ink-3">
-            Model Context Protocol servers mounted for every agent in this pack. On the Claude Code runtime the CLI
-            spawns/connects them and their tools become available as <code className="font-mono">mcp__&lt;server&gt;__*</code>.
-          </p>
-        </div>
+        <CardHeader
+          title="MCP servers"
+          hint={
+            <>
+              Model Context Protocol servers mounted for every agent in this pack. On the Claude Code runtime the CLI
+              spawns/connects them and their tools become available as <code className="font-mono">mcp__&lt;server&gt;__*</code>.
+            </>
+          }
+          action={
+            <Button icon="plus" onClick={add}>
+              Add MCP server
+            </Button>
+          }
+        />
         {servers.length === 0 ? (
-          <p className="text-sm text-ink-3">No MCP servers yet.</p>
+          <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-ink-3">No MCP servers yet.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="divide-y divide-border rounded-lg border border-border">
             {servers.map((s) => {
               const open = openId === s.id;
               return (
-                <div key={s.id} className="rounded-lg border border-border">
+                <div key={s.id}>
                   <button
                     onClick={() => setOpenId(open ? null : s.id)}
-                    className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left"
+                    aria-expanded={open}
+                    className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-surface-2/50"
                   >
-                    <Icon name="plug" size={15} className="text-ink-3" />
-                    <span className="flex-1 text-sm font-medium">{s.name || "unnamed server"}</span>
+                    <Icon name="plug" size={14} className="text-ink-3" />
+                    <span className="flex-1 truncate font-mono text-[13px]">{s.name || "unnamed server"}</span>
                     <Badge>{s.transport}</Badge>
                     <Badge tone={s.enabled ? "success" : "neutral"}>{s.enabled ? "enabled" : "off"}</Badge>
                     <Icon name="chevron" size={14} className={clsx("text-ink-3 transition-transform", open && "rotate-90")} />
                   </button>
                   {open && (
-                    <div className="space-y-3 border-t border-border p-3.5">
+                    <div className="space-y-3 border-t border-border bg-surface-2/30 p-3.5">
                       <div className="grid grid-cols-2 gap-3">
                         <Field label="Name" hint="Tool namespace, e.g. github.">
                           <input className="input font-mono" value={s.name} onChange={(e) => patch(s.id, { name: e.target.value })} />
@@ -439,10 +451,7 @@ function McpSection({ gap }: { gap: Gap }) {
                         </Field>
                       )}
                       <div className="flex items-center justify-between border-t border-border pt-3">
-                        <label className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" checked={s.enabled} onChange={(e) => patch(s.id, { enabled: e.target.checked })} className="accent-brand" />
-                          Enabled
-                        </label>
+                        <Toggle checked={s.enabled} onChange={(on) => patch(s.id, { enabled: on })} label="Enabled" />
                         <Button
                           variant="danger"
                           icon="trash"
@@ -460,9 +469,6 @@ function McpSection({ gap }: { gap: Gap }) {
             })}
           </div>
         )}
-        <Button icon="plus" onClick={add}>
-          Add MCP server
-        </Button>
         <p className="text-xs text-ink-3">
           MCP tools run on the Claude Code runtime (desktop). The API runtime uses the agent's built-in skills and
           connectors instead.
@@ -476,13 +482,8 @@ function McpSection({ gap }: { gap: Gap }) {
 function EnvironmentSection({ gap }: { gap: Gap }) {
   const updateGap = useGaps((s) => s.updateGap);
   return (
-    <Card className="space-y-4">
-      <div>
-        <h3 className="font-semibold">Environment</h3>
-        <p className="mt-0.5 text-xs text-ink-3">
-          Variables injected into this pack's Claude Code runs and its MCP servers. Stored locally with the GAP.
-        </p>
-      </div>
+    <Card>
+      <CardHeader title="Environment" hint="Variables injected into this pack's Claude Code runs and its MCP servers. Stored locally with the GAP." />
       <EnvRows label="Variables" env={gap.env ?? {}} onChange={(env) => updateGap(gap.id, { env })} />
     </Card>
   );
@@ -531,7 +532,8 @@ function EnvRows({
               onChange={(e) => commit(rows.map((r, j) => (j === i ? { ...r, v: e.target.value } : r)))}
             />
             <button
-              className="btn-ghost p-1.5 text-ink-3 hover:text-danger"
+              className="btn-ghost h-7 w-7 shrink-0 px-0 text-ink-3 hover:text-danger"
+              aria-label={`Remove ${row.k || "variable"}`}
               onClick={() => commit(rows.filter((_, j) => j !== i))}
             >
               <Icon name="x" size={14} />
@@ -581,19 +583,17 @@ function AdvancedSection({ gap }: { gap: Gap }) {
   return (
     <>
       <Card className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-semibold">Raw manifest</h3>
-            <p className="mt-0.5 text-xs text-ink-3">
-              The whole GAP as JSON — the escape hatch for anything the form doesn't surface. Saving replaces the pack.
-            </p>
-          </div>
-          {dirty && (
-            <Button variant="primary" icon="check" onClick={save}>
-              Save manifest
-            </Button>
-          )}
-        </div>
+        <CardHeader
+          title="Raw manifest"
+          hint="The whole GAP as JSON — the escape hatch for anything the form doesn't surface. Saving replaces the pack."
+          action={
+            dirty && (
+              <Button variant="primary" icon="check" onClick={save}>
+                Save manifest
+              </Button>
+            )
+          }
+        />
         <textarea
           className="input min-h-[340px] resize-y font-mono text-xs leading-relaxed"
           value={text}
@@ -608,8 +608,8 @@ function AdvancedSection({ gap }: { gap: Gap }) {
         )}
       </Card>
 
-      <Card className="space-y-3">
-        <h3 className="font-semibold">Share</h3>
+      <Card>
+        <CardHeader title="Share" hint="Hand this pack to anyone as a file or a share code." />
         <div className="flex gap-2">
           <Button className="flex-1" icon="download" onClick={async () => {
               try {
@@ -633,10 +633,10 @@ function AdvancedSection({ gap }: { gap: Gap }) {
         </div>
       </Card>
 
-      <Card>
-        <h3 className="mb-3 font-semibold">Danger zone</h3>
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-ink-2">Delete this GAP and all its agents. This can't be undone.</div>
+      <Card className="border-danger/25">
+        <CardHeader title="Danger zone" />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-[13px] text-ink-2">Delete this GAP and all its agents. This can't be undone.</div>
           <Button
             variant="danger"
             icon="trash"

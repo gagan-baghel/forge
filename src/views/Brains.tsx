@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { PageHeader } from "@/components/Shell";
-import { Button, Card, Badge, EmptyState, Modal, Field } from "@/components/ui";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { Avatar, Button, Card, Badge, EmptyState, Modal, Field } from "@/components/ui";
 import { useBrains } from "@/stores/brains";
 import { useGaps } from "@/stores/gaps";
 import { MODELS } from "@/types/domain";
@@ -43,58 +43,58 @@ export function BrainsView() {
         }
       />
 
-      <div className="p-7">
+      <PageBody>
         {brains.length === 0 ? (
-          <EmptyState
-            icon="brain"
-            title="No brains yet"
-            body="Create a brain once, then attach it to any agent. Detach and move it whenever you like — the agent keeps its own config underneath."
-            action={
-              <Button variant="primary" icon="plus" onClick={() => setOpen(true)}>
-                Create your first brain
-              </Button>
-            }
-          />
+          <Card className="p-0">
+            <EmptyState
+              icon="brain"
+              title="No brains yet"
+              body="Create a brain once, then attach it to any agent. Detach and move it whenever you like — the agent keeps its own config underneath."
+              action={
+                <Button variant="primary" icon="plus" onClick={() => setOpen(true)}>
+                  Create your first brain
+                </Button>
+              }
+            />
+          </Card>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             {brains.map((b) => {
               const wearing = agents.filter((a) => a.brainId === b.id);
               const model = MODELS.find((m) => m.id === b.model);
               return (
-                <Link key={b.id} to={`/brains/${b.id}`}>
-                  <Card className="h-full transition-colors hover:border-brand/40">
-                    <div className="flex items-start gap-3">
-                      <span className="text-3xl">{b.emoji}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="truncate font-semibold">{b.name}</h3>
-                          <span className="text-xs text-ink-3">v{b.version}</span>
-                        </div>
-                        <p className="mt-0.5 line-clamp-2 text-sm text-ink-2">
-                          {b.description || "No description yet."}
-                        </p>
+                <Link
+                  key={b.id}
+                  to={`/brains/${b.id}`}
+                  className="card flex flex-col p-4 transition-colors hover:border-border-strong"
+                >
+                  <div className="flex items-start gap-3">
+                    <Avatar emoji={b.emoji} size={32} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2">
+                        <h3 className="truncate text-[13px] font-semibold">{b.name}</h3>
+                        <span className="font-mono text-[11px] text-ink-3">v{b.version}</span>
                       </div>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-ink-3">{b.description || "No description yet."}</p>
                     </div>
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
-                      <Badge tone={wearing.length > 0 ? "brand" : "neutral"}>
-                        {wearing.length === 0
-                          ? "unattached"
-                          : `${wearing.length} agent${wearing.length === 1 ? "" : "s"}`}
-                      </Badge>
-                      {model && <Badge>{model.label}</Badge>}
-                      {b.sharedMemory && <Badge tone="success">shared memory</Badge>}
-                      {b.knowledge.length > 0 && <Badge>{b.knowledge.length} docs</Badge>}
-                      {b.tags.map((t) => (
-                        <Badge key={t}>#{t}</Badge>
-                      ))}
-                    </div>
-                  </Card>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center gap-1.5">
+                    <Badge tone={wearing.length > 0 ? "brand" : "neutral"}>
+                      {wearing.length === 0 ? "unattached" : `${wearing.length} agent${wearing.length === 1 ? "" : "s"}`}
+                    </Badge>
+                    {model && <Badge>{model.label}</Badge>}
+                    {b.sharedMemory && <Badge tone="success">shared memory</Badge>}
+                    {b.knowledge.length > 0 && <Badge>{b.knowledge.length} docs</Badge>}
+                    {b.tags.map((t) => (
+                      <Badge key={t}>#{t}</Badge>
+                    ))}
+                  </div>
                 </Link>
               );
             })}
           </div>
         )}
-      </div>
+      </PageBody>
 
       <Modal open={open} onClose={() => setOpen(false)} title="New brain">
         <div className="space-y-4">

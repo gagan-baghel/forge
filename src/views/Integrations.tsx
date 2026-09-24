@@ -1,5 +1,5 @@
-import { PageHeader } from "@/components/Shell";
-import { Card, Badge, Button } from "@/components/ui";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { Card, Badge } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 
@@ -19,32 +19,38 @@ export function IntegrationsView() {
   return (
     <div>
       <PageHeader title="Integrations" subtitle="Connectors available to your agents" />
-      <div className="p-7">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {PROVIDERS.map((p) => {
-            const isOn = connected.has(p.id as any);
-            const count = allConnectors.filter((c) => c.provider === p.id).length;
-            return (
-              <Card key={p.id} className="flex flex-col">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-surface-2 text-ink-2">
-                    <Icon name="plug" size={18} />
+      <PageBody className="space-y-3">
+        <Card className="p-0">
+          <ul className="divide-y divide-border">
+            {PROVIDERS.map((p) => {
+              const isOn = connected.has(p.id as any);
+              const count = allConnectors.filter((c) => c.provider === p.id).length;
+              return (
+                <li key={p.id} className="flex items-center gap-3 px-5 py-3">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border bg-surface-2 text-ink-2">
+                    <Icon name="plug" size={15} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-medium">{p.name}</div>
+                    <div className="truncate text-xs text-ink-3">{p.blurb}</div>
                   </div>
-                  {isOn && <Badge tone="success">{count} agent{count === 1 ? "" : "s"}</Badge>}
-                </div>
-                <h3 className="font-semibold">{p.name}</h3>
-                <p className="mt-1 flex-1 text-sm text-ink-2">{p.blurb}</p>
-                <Button className="mt-4 w-full" disabled>
-                  {isOn ? "Connected" : "Add from an agent"}
-                </Button>
-              </Card>
-            );
-          })}
-        </div>
-        <p className="mt-5 text-center text-xs text-ink-3">
+                  {isOn ? (
+                    <Badge tone="success">
+                      {count} agent{count === 1 ? "" : "s"}
+                    </Badge>
+                  ) : (
+                    <span className="text-xs text-ink-3">Not connected</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+        <p className="flex items-center gap-1.5 text-xs text-ink-3">
+          <Icon name="info" size={13} />
           Connectors are attached per-agent in the agent's Connections tab.
         </p>
-      </div>
+      </PageBody>
     </div>
   );
 }

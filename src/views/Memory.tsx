@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { PageHeader } from "@/components/Shell";
-import { Button, Card, Badge, EmptyState } from "@/components/ui";
+import clsx from "clsx";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { Avatar, Button, Card, Badge, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useMemory, type MemoryNote } from "@/stores/memory";
 import { useGaps } from "@/stores/gaps";
@@ -89,24 +90,28 @@ export function MemoryView() {
   const pendingTotal = notes.filter((n) => n.status === "pending").length;
   const bytes = notes.reduce((a, n) => a + n.text.length, 0);
 
+  const visible = pools.filter((p) => p.notes.length > 0 || !query);
+
   return (
     <div>
       <PageHeader
         title="Memory"
         subtitle="Everything your agents remember — private per agent, or pooled through a shared brain."
         actions={
-          <div className="flex items-center gap-3 text-xs text-ink-3">
-            <span>{total} memories</span>·<span>{(bytes / 1024).toFixed(1)} KB</span>
+          <div className="flex items-center gap-2 text-xs tabular-nums text-ink-3">
             {pendingTotal > 0 && <Badge tone="warn">{pendingTotal} pending review</Badge>}
+            <span>
+              {total} memories · {(bytes / 1024).toFixed(1)} KB
+            </span>
           </div>
         }
       />
 
-      <div className="mx-auto max-w-3xl space-y-6 p-7">
-        <div className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3.5">
-          <Icon name="search" size={16} className="text-ink-3" />
+      <PageBody className="max-w-3xl space-y-4">
+        <div className="relative">
+          <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
           <input
-            className="w-full bg-transparent py-3 text-sm outline-none"
+            className="input h-9 pl-8"
             placeholder="Search all memories…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -114,89 +119,88 @@ export function MemoryView() {
         </div>
 
         {total === 0 ? (
-          <EmptyState
-            icon="book"
-            title="No memories yet"
-            body="Agents with the Memory skill save facts with `remember` and recall them automatically. Everything they keep shows up here."
-          />
+          <Card className="p-0">
+            <EmptyState
+              icon="memory"
+              title="No memories yet"
+              body="Agents with the Memory skill save facts with `remember` and recall them automatically. Everything they keep shows up here."
+            />
+          </Card>
+        ) : visible.length === 0 ? (
+          <p className="py-8 text-center text-xs text-ink-3">No memories match “{query}”.</p>
         ) : (
-          pools
-            .filter((p) => p.notes.length > 0 || !query)
-            .map((pool) => (
-              <Card key={pool.key} className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{pool.emoji}</span>
-                  <div className="min-w-0 flex-1">
-                    <Link to={pool.href} className="text-sm font-semibold hover:text-brand-2">
-                      {pool.title}
-                    </Link>
-                    <div className="truncate text-xs text-ink-3">{pool.subtitle}</div>
-                  </div>
-                  <Badge tone={pool.key.startsWith("brain:") ? "brand" : "neutral"}>
-                    {pool.notes.length} {pool.notes.length === 1 ? "memory" : "memories"}
-                  </Badge>
-                  {pool.notes.length > 0 && (
-                    <Button
-                      variant="danger"
-                      icon="trash"
-                      onClick={async () => {
-                        if (await confirm({ title: `Clear ${pool.notes.length} memories?`, body: `Every memory stored for "${pool.title}" is deleted.`, confirmLabel: "Clear" })) clearAgent(pool.key);
-                      }}
-                    >
-                      Clear
-                    </Button>
-                  )}
+          visible.map((pool) => (
+            <Card key={pool.key} className="p-0">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <Avatar emoji={pool.emoji} size={28} />
+                <div className="min-w-0 flex-1">
+                  <Link to={pool.href} className="text-[13px] font-medium hover:text-brand-2">
+                    {pool.title}
+                  </Link>
+                  <div className="truncate text-xs text-ink-3">{pool.subtitle}</div>
                 </div>
-                {pool.notes.length === 0 ? (
-                  <p className="text-sm text-ink-3">Empty.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {pool.notes.map((n) => (
-                      <div
+                <Badge tone={pool.key.startsWith("brain:") ? "brand" : "neutral"}>
+                  {pool.notes.length} {pool.notes.length === 1 ? "memory" : "memories"}
+                </Badge>
+                {pool.notes.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    icon="trash"
+                    className="h-7 px-2 text-xs hover:text-danger"
+                    onClick={async () => {
+                      if (await confirm({ title: `Clear ${pool.notes.length} memories?`, body: `Every memory stored for "${pool.title}" is deleted.`, confirmLabel: "Clear" })) clearAgent(pool.key);
+                    }}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              {pool.notes.length === 0 ? (
+                <p className="border-t border-border px-4 py-3 text-xs text-ink-3">Empty.</p>
+              ) : (
+                <ul className="divide-y divide-border border-t border-border">
+                  {pool.notes.map((n) => {
+                    const pending = n.status === "pending";
+                    return (
+                      <li
                         key={n.id}
-                        className={
-                          n.status === "pending"
-                            ? "flex items-start gap-3 rounded-lg border border-warn/40 px-3.5 py-2.5"
-                            : "flex items-start gap-3 rounded-lg border border-border px-3.5 py-2.5"
-                        }
+                        className={clsx("group flex items-start gap-3 px-4 py-2.5", pending && "bg-warn/[0.04]")}
                       >
-                        <Icon
-                          name="book"
-                          size={15}
-                          className={n.status === "pending" ? "mt-0.5 text-warn" : "mt-0.5 text-ink-3"}
-                        />
+                        <span className={clsx("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", pending ? "bg-warn" : "bg-ink-3/50")} />
                         <div className="min-w-0 flex-1">
-                          <div className="text-sm">{n.text}</div>
-                          <div className="text-[0.7rem] text-ink-3">
-                            {n.status === "pending" && `pending${n.proposedBy ? ` · by ${n.proposedBy}` : ""} · `}
+                          <div className="text-[13px] text-ink">{n.text}</div>
+                          <div className="text-[11px] text-ink-3">
+                            {pending && `pending${n.proposedBy ? ` · by ${n.proposedBy}` : ""} · `}
                             {relativeTime(n.createdAt)}
                           </div>
                         </div>
-                        {n.status === "pending" ? (
-                          <>
-                            <Button variant="primary" icon="check" onClick={() => approve(n.id)}>
-                              Approve
-                            </Button>
-                            <Button icon="x" onClick={() => reject(n.id)}>
+                        {pending ? (
+                          <div className="flex shrink-0 gap-1.5">
+                            <Button icon="x" variant="ghost" className="h-7 px-2 text-xs" onClick={() => reject(n.id)}>
                               Reject
                             </Button>
-                          </>
+                            <Button variant="primary" icon="check" className="h-7 px-2 text-xs" onClick={() => approve(n.id)}>
+                              Approve
+                            </Button>
+                          </div>
                         ) : (
                           <button
-                            className="btn-ghost p-1 text-ink-3 hover:text-danger"
+                            className="btn-ghost h-6 px-1 text-ink-3 opacity-0 hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
+                            aria-label="Forget memory"
                             onClick={() => removeNote(n.id)}
                           >
-                            <Icon name="x" size={14} />
+                            <Icon name="x" size={13} />
                           </button>
                         )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            ))
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </Card>
+          ))
         )}
-      </div>
+      </PageBody>
     </div>
   );
 }

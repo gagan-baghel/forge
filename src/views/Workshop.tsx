@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { PageHeader } from "@/components/Shell";
-import { Button, Card, Badge, EmptyState, Field } from "@/components/ui";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { Avatar, Button, Card, CardHeader, Badge, EmptyState, Field } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 import { MODELS, type ModelId } from "@/types/domain";
 import { relativeTime } from "@/lib/format";
 
-const COLORS = ["#6D5BFF", "#40C98E", "#F0B446", "#F46060", "#4FA8FF", "#C46DFF"];
+const COLORS = ["#6688FF", "#34C77C", "#EAB308", "#EF5350", "#FF8A4C", "#8B8B96"];
 const EMOJIS = ["📦", "🔬", "⚒️", "🎧", "✍️", "📈", "🤖", "🚀", "🧠", "💡"];
 
 interface DraftAgent {
@@ -39,10 +39,10 @@ export function WorkshopView() {
         title="Workshop"
         subtitle="Author GAPs from scratch and edit every part of the ones you have."
       />
-      <div className="mx-auto max-w-3xl space-y-8 p-7">
+      <PageBody className="max-w-3xl space-y-6">
         <PackBuilder />
         <InstalledPacks />
-      </div>
+      </PageBody>
     </div>
   );
 }
@@ -92,37 +92,37 @@ function PackBuilder() {
 
   return (
     <Card className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h2 className="font-semibold">Pack builder</h2>
-        <div className="flex items-center gap-1.5">
-          {STEPS.map((label, i) => (
-            <div key={label} className="flex items-center gap-1.5">
-              <button
-                onClick={() => i < step && setStep(i as Step)}
-                className={clsx(
-                  "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs transition-colors",
-                  i === step
-                    ? "bg-brand/12 font-medium text-ink"
-                    : i < step
-                      ? "text-ink-2 hover:text-ink"
-                      : "text-ink-3",
-                )}
-              >
-                <span
+      <CardHeader
+        title="Pack builder"
+        hint="From a blank page to a working GAP in three steps."
+        action={
+          <ol className="flex items-center gap-1">
+            {STEPS.map((label, i) => (
+              <li key={label} className="flex items-center gap-1">
+                <button
+                  onClick={() => i < step && setStep(i as Step)}
+                  aria-current={i === step ? "step" : undefined}
                   className={clsx(
-                    "grid h-4 w-4 place-items-center rounded-full text-[0.6rem] font-semibold",
-                    i <= step ? "bg-brand text-white" : "bg-surface-2 text-ink-3",
+                    "flex h-6 items-center gap-1.5 rounded-md px-2 text-xs transition-colors",
+                    i === step ? "bg-surface-2 font-medium text-ink" : i < step ? "text-ink-2 hover:text-ink" : "text-ink-3",
                   )}
                 >
-                  {i < step ? "✓" : i + 1}
-                </span>
-                {label}
-              </button>
-              {i < STEPS.length - 1 && <Icon name="chevron" size={12} className="text-ink-3" />}
-            </div>
-          ))}
-        </div>
-      </div>
+                  <span
+                    className={clsx(
+                      "grid h-4 w-4 place-items-center rounded-full border text-[10px] font-medium",
+                      i < step ? "border-success bg-success text-bg" : i === step ? "border-ink-2 text-ink" : "border-border-strong",
+                    )}
+                  >
+                    {i < step ? <Icon name="check" size={9} strokeWidth={3} /> : i + 1}
+                  </span>
+                  {label}
+                </button>
+                {i < STEPS.length - 1 && <span className="h-px w-3 bg-border-strong" />}
+              </li>
+            ))}
+          </ol>
+        }
+      />
 
       {step === 0 && (
         <div className="space-y-4">
@@ -150,9 +150,11 @@ function PackBuilder() {
                   <button
                     key={e}
                     onClick={() => setEmoji(e)}
+                    aria-label={`Emoji ${e}`}
+                    aria-pressed={emoji === e}
                     className={clsx(
-                      "grid h-9 w-9 place-items-center rounded-lg border text-lg transition-colors",
-                      emoji === e ? "border-brand bg-brand/10" : "border-border hover:border-brand/40",
+                      "grid h-8 w-8 place-items-center rounded-md border text-[15px] transition-colors",
+                      emoji === e ? "border-ink-3 bg-surface-3" : "border-border hover:bg-surface-2",
                     )}
                   >
                     {e}
@@ -166,9 +168,10 @@ function PackBuilder() {
                   <button
                     key={c}
                     onClick={() => setColor(c)}
+                    aria-pressed={color === c}
                     className={clsx(
-                      "h-8 w-8 rounded-full border-2",
-                      color === c ? "border-ink" : "border-transparent",
+                      "h-6 w-6 rounded-full ring-offset-2 ring-offset-surface",
+                      color === c && "ring-2 ring-ink-2",
                     )}
                     style={{ background: c }}
                     aria-label={c}
@@ -191,14 +194,16 @@ function PackBuilder() {
       {step === 1 && (
         <div className="space-y-4">
           {agents.map((a, i) => (
-            <div key={i} className="space-y-3 rounded-xl border border-border p-4">
+            <div key={i} className="space-y-3 rounded-lg border border-border p-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-3">
-                  Agent {i + 1}
+                <span className="flex items-center gap-2 text-[13px] font-medium">
+                  <Avatar emoji={a.emoji || "🤖"} size={22} className="rounded-md" />
+                  {a.name.trim() || `Agent ${i + 1}`}
                 </span>
                 {agents.length > 1 && (
                   <button
-                    className="btn-ghost p-1.5 text-ink-3 hover:text-danger"
+                    aria-label={`Remove agent ${i + 1}`}
+                    className="btn-ghost h-7 w-7 px-0 text-ink-3 hover:text-danger"
                     onClick={() => setAgents((list) => list.filter((_, j) => j !== i))}
                   >
                     <Icon name="trash" size={15} />
@@ -247,7 +252,7 @@ function PackBuilder() {
               </div>
               <Field label="System prompt">
                 <textarea
-                  className="input min-h-[80px] resize-y font-mono text-[0.82rem]"
+                  className="input min-h-[80px] resize-y font-mono text-xs"
                   value={a.systemPrompt}
                   onChange={(e) => patchAgent(i, { systemPrompt: e.target.value })}
                 />
@@ -262,15 +267,16 @@ function PackBuilder() {
 
       {step === 2 && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-xl border border-border p-4">
-            <span className="grid h-12 w-12 place-items-center rounded-xl text-2xl" style={{ background: `${color}22` }}>
-              {emoji}
-            </span>
-            <div className="flex-1">
-              <div className="font-semibold">{name}</div>
-              <div className="text-sm text-ink-2">{desc || "No description."}</div>
+          <div className="flex items-center gap-3 rounded-lg border border-border p-4">
+            <Avatar emoji={emoji} size={36} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
+                <span className="truncate text-[13px] font-semibold">{name}</span>
+              </div>
+              <div className="text-xs text-ink-3">{desc || "No description."}</div>
             </div>
-            <div className="flex gap-1.5">
+            <div className="flex flex-wrap justify-end gap-1.5">
               {tags
                 .split(",")
                 .map((t) => t.trim())
@@ -280,18 +286,18 @@ function PackBuilder() {
                 ))}
             </div>
           </div>
-          <div className="space-y-2">
+          <ul className="divide-y divide-border rounded-lg border border-border">
             {validAgents.map((a, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-lg border border-border px-3.5 py-2.5">
-                <span className="text-xl">{a.emoji}</span>
-                <div className="flex-1">
-                  <div className="text-sm font-medium">{a.name}</div>
-                  <div className="text-xs text-ink-3">{a.role || "Assistant"}</div>
+              <li key={i} className="flex items-center gap-3 px-4 py-2.5">
+                <Avatar emoji={a.emoji} size={28} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[13px] font-medium">{a.name}</div>
+                  <div className="truncate text-xs text-ink-3">{a.role || "Assistant"}</div>
                 </div>
-                <Badge>{MODELS.find((m) => m.id === a.model)?.label}</Badge>
-              </div>
+                <span className="text-[11px] text-ink-3">{MODELS.find((m) => m.id === a.model)?.label}</span>
+              </li>
             ))}
-          </div>
+          </ul>
           <p className="text-xs text-ink-3">
             The GAP is created locally. You can keep editing it in the pack editor afterwards — and export or publish
             whenever it's ready.
@@ -323,37 +329,36 @@ function InstalledPacks() {
   const navigate = useNavigate();
 
   return (
-    <div className="space-y-3">
-      <h2 className="font-semibold">
-        Installed packs <span className="text-sm font-normal text-ink-3">({gaps.length})</span>
-      </h2>
+    <Card className="p-0">
+      <div className="px-5 pt-4">
+        <CardHeader title="Installed packs" hint={`${gaps.length} GAP${gaps.length === 1 ? "" : "s"} · open one to edit agents, MCP servers and the raw manifest`} />
+      </div>
       {gaps.length === 0 ? (
-        <EmptyState icon="grid" title="Nothing installed" body="Build one above or install from the Marketplace." />
+        <div className="border-t border-border">
+          <EmptyState icon="grid" title="Nothing installed" body="Build one above or install from the Marketplace." />
+        </div>
       ) : (
-        <div className="space-y-2">
+        <ul className="divide-y divide-border border-t border-border">
           {gaps.map((g) => (
-            <div key={g.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5">
-              <span
-                className="grid h-10 w-10 place-items-center rounded-lg text-xl"
-                style={{ background: `${g.color}22` }}
-              >
-                {g.emoji}
-              </span>
+            <li key={g.id} className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-surface-2/50">
+              <Avatar emoji={g.emoji} size={30} />
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium">{g.name}</div>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: g.color }} />
+                  <span className="truncate text-[13px] font-medium">{g.name}</span>
+                </div>
                 <div className="truncate text-xs text-ink-3">
-                  v{g.version} · {g.agents.length} agent{g.agents.length === 1 ? "" : "s"} · updated{" "}
-                  {relativeTime(g.updatedAt)}
+                  v{g.version} · {g.agents.length} agent{g.agents.length === 1 ? "" : "s"} · updated {relativeTime(g.updatedAt)}
                 </div>
               </div>
-              <Badge tone="brand">{g.source}</Badge>
-              <Button variant="primary" icon="edit" onClick={() => navigate(`/workshop/${g.id}`)}>
+              <Badge tone={g.source === "local" ? "neutral" : "brand"}>{g.source}</Badge>
+              <Button icon="edit" onClick={() => navigate(`/workshop/${g.id}`)}>
                 Edit
               </Button>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
-    </div>
+    </Card>
   );
 }

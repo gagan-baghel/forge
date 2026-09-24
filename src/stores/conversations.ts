@@ -1,13 +1,15 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
-import type { ChatMessage, Conversation } from "@/types/domain";
+import type { ChatMessage, Conversation, ConversationOrigin } from "@/types/domain";
 
 interface ConversationStore {
   conversations: Conversation[];
   /** Get (or lazily create) the active conversation id for an agent. */
   ensureConversation: (agentId: string) => string;
-  newConversation: (agentId: string) => string;
+  newConversation: (agentId: string, origin?: ConversationOrigin) => string;
+  /** The live thread for a phone chat: its latest conversation, or a new one. */
+  conversationFor: (agentId: string, origin: ConversationOrigin) => string;
   listForAgent: (agentId: string) => Conversation[];
   get: (id: string) => Conversation | undefined;
   appendMessage: (convId: string, msg: ChatMessage) => void;
@@ -23,16 +25,18 @@ export const useConversations = create<ConversationStore>()(
       conversations: [],
 
       ensureConversation: (agentId) => {
-        const existing = get().conversations.find((c) => c.agentId === agentId);
+        // The in-app chat opens on a desk conversation, not a phone thread.
+        const existing = get().conversations.find((c) => c.agentId === agentId && !c.origin);
         if (existing) return existing.id;
         return get().newConversation(agentId);
       },
 
-      newConversation: (agentId) => {
+      newConversation: (agentId, origin) => {
         const id = nanoid(10);
         const conv: Conversation = {
           id,
           agentId,
+          ...(origin ? { origin } : {}),
           title: "New chat",
           messages: [],
           createdAt: Date.now(),
@@ -40,6 +44,13 @@ export const useConversations = create<ConversationStore>()(
         };
         set((s) => ({ conversations: [conv, ...s.conversations] }));
         return id;
+      },
+
+      conversationFor: (agentId, origin) => {
+        const latest = get()
+          .conversations.filter((c) => c.agentId === agentId && c.origin?.key === origin.key)
+          .sort((a, b) => b.createdAt - a.createdAt)[0];
+        return latest?.id ?? get().newConversation(agentId, origin);
       },
 
       listForAgent: (agentId) =>
