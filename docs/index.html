@@ -87,8 +87,66 @@
   .meta { margin-top: 18px; font: 400 12.5px/1.6 var(--mono); color: var(--ink-3); }
   .meta span + span::before { content: "·"; margin: 0 8px; }
 
+  /* --------------------------- Feature dial ------------------------ */
+  /* Rotation is a registered property so the dial and every upright label
+     animate from the same value. */
+  @property --rot { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
+  .hero-top { position: relative; overflow-x: clip; }
+  .hero-copy { position: relative; z-index: 2; }
+  .hero-copy > * { max-width: 560px; }
+  .wheel {
+    --R: clamp(330px, 31vw, 440px);
+    --L: 200px; /* room left of the ring for labels — the fade mask clips anything outside this box */
+    position: absolute; z-index: 1; right: 0; top: 50%;
+    width: calc(var(--R) + var(--L)); height: calc(var(--R) * 2); transform: translateY(-50%);
+    /* The dial dissolves above and below instead of ending in a hard arc. */
+    -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
+            mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent);
+  }
+  .dial {
+    position: absolute; left: var(--L); top: 0; width: calc(var(--R) * 2); height: calc(var(--R) * 2);
+    border-radius: 50%; border: 1px solid var(--border-strong);
+    transition: --rot .9s cubic-bezier(.65, 0, .25, 1);
+  }
+  .ticks {
+    position: absolute; inset: 0; border-radius: 50%; transform: rotate(var(--rot));
+    background: repeating-conic-gradient(var(--border-strong) 0 .35deg, transparent .35deg 5deg);
+    -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 12px), #000 calc(100% - 12px));
+            mask: radial-gradient(closest-side, transparent calc(100% - 12px), #000 calc(100% - 12px));
+  }
+  .ring.inner { position: absolute; inset: 24%; border-radius: 50%; border: 1px dashed var(--border); }
+  .notch { position: absolute; left: calc(var(--L) - 10px); top: 50%; width: 34px; height: 2px; background: var(--ember); transform: translateY(-50%); z-index: 2; }
+  .spoke {
+    position: absolute; left: 50%; top: 50%; width: 0; height: 0;
+    transform: rotate(calc(var(--a) + var(--rot))) translateX(calc(-1 * var(--R))) rotate(calc(-1 * (var(--a) + var(--rot))));
+  }
+  .spoke .pip { position: absolute; width: 9px; height: 9px; left: -4.5px; top: -4.5px; border-radius: 50%; background: var(--bg); border: 1.5px solid var(--border-strong); transition: background .4s, border-color .4s, transform .4s; }
+  .spoke button {
+    position: absolute; right: 18px; top: 0; transform: translateY(-50%);
+    background: none; border: 0; padding: 4px 2px; cursor: pointer; white-space: nowrap;
+    font: 500 13px/1.2 var(--sans); color: var(--ink-3); opacity: 0; transition: opacity .5s, color .4s, font-size .4s;
+  }
+  .spoke button:hover { color: var(--ink); }
+  .spoke[data-d="0"] button { opacity: 1; color: var(--ink); font-size: 16px; font-weight: 600; }
+  .spoke[data-d="0"] .pip { background: var(--ember); border-color: var(--ember); transform: scale(1.3); }
+  .spoke[data-d="1"] button { opacity: .6; }
+  .spoke[data-d="2"] button { opacity: .22; }
+  .readout-panel {
+    position: absolute; top: 50%; left: calc(var(--L) + 56px); right: 32px; transform: translateY(-50%);
+    transition: opacity .35s ease;
+  }
+  .readout-panel.swap { opacity: 0; }
+  .rp-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .rp-count { font-size: 11.5px; color: var(--ember); letter-spacing: .04em; }
+  .rp-pause { background: none; border: 1px solid var(--border); border-radius: 3px; color: var(--ink-3); font: 500 10px/1 var(--mono); padding: 4px 6px; cursor: pointer; letter-spacing: .06em; text-transform: uppercase; }
+  .rp-pause:hover { color: var(--ink); border-color: var(--border-strong); }
+  .readout-panel h3 { margin: 0 0 8px; font-size: clamp(20px, 1.9vw, 26px); letter-spacing: -.02em; line-height: 1.15; font-weight: 600; max-width: 15ch; }
+  .readout-panel p { margin: 0; color: var(--ink-2); font-size: 15px; max-width: 30ch; text-wrap: pretty; }
+  @media (max-width: 1199px) { .wheel { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .dial, .spoke button, .spoke .pip, .readout-panel { transition: none; } }
+
   /* --------------------------- App window -------------------------- */
-  .shot { margin-top: 64px; position: relative; }
+  .shot { margin-top: 64px; position: relative; z-index: 3; }
   .window { border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; background: var(--bg); box-shadow: 0 40px 80px -40px rgb(0 0 0 / .6); }
   .titlebar { height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
   .titlebar i { width: 11px; height: 11px; border-radius: 50%; background: var(--surface-3); display: block; }
@@ -291,7 +349,8 @@
 <main id="top">
   <!-- ============================== Hero ============================== -->
   <div class="hero">
-    <div class="wrap">
+    <div class="hero-top">
+    <div class="wrap hero-copy">
       <a class="eyebrow" href="https://github.com/gagan-baghel/forge/releases/latest"><b>●</b> <span data-version-label>Forge 1.0</span> — redesigned, with in-app updates</a>
       <h1>Your agents.<br>Your machine.<br><span class="dim">No middleman.</span></h1>
       <p class="lede">Forge is a desktop workspace for building, running and sharing AI agents. It runs on the Claude Code subscription you already have, and everything — chats, keys, documents, memory — stays on your Mac.</p>
@@ -300,7 +359,26 @@
         <a class="btn btn-lg" href="https://github.com/gagan-baghel/forge"><svg width="17" height="17"><use href="#gh"/></svg>View the source</a>
       </div>
       <div class="meta"><span data-version>Latest release</span><span>macOS 10.15+</span><span>Intel &amp; Apple Silicon</span><span>No account</span></div>
+    </div>
 
+    <!-- Feature dial: half a wheel at the right edge of the screen. It turns one
+         notch at a time; the feature at the ember marker is described inside.
+         Built by the script at the bottom; decorative without it. -->
+    <div class="wheel" id="wheel" role="region" aria-label="Forge highlights">
+      <div class="dial" id="dial">
+        <div class="ticks" aria-hidden="true"></div>
+        <div class="ring inner" aria-hidden="true"></div>
+      </div>
+      <div class="notch" aria-hidden="true"></div>
+      <div class="readout-panel">
+        <div class="rp-top"><span class="rp-count mono" id="rp-count">01 / 08</span><button class="rp-pause" id="rp-pause" type="button" aria-label="Pause the highlights">pause</button></div>
+        <h3 id="rp-title"></h3>
+        <p id="rp-text"></p>
+      </div>
+    </div>
+    </div>
+
+    <div class="wrap">
       <!-- A faithful rendition of the Workbench — HTML, so it's sharp at any size. -->
       <div class="shot reveal" aria-label="The Forge workbench">
         <div class="window" role="img" aria-label="Forge's Workbench: a status readout, a table of agents, setup steps and recent runs">
@@ -562,6 +640,88 @@
       }
     })
     .catch(() => {});
+
+  // Feature dial. One notch every few seconds; hover, keyboard focus or the
+  // pause button stops it, and it never moves on its own for reduced motion.
+  (function () {
+    const FEATURES = [
+      ["Computer access", "Shell, files and clicks — every action asks first and shows exactly what it will do."],
+      ["Documents & PDFs", "Drop in PDFs and notes; the passages that matter reach the agent before it answers."],
+      ["Memory", "Facts an agent keeps across conversations. Write them yourself, or approve what it saves."],
+      ["Phone remote", "Message your Mac from Telegram or Discord. Machine actions wait for your OK."],
+      ["Shareable packs", "Agents, skills and knowledge in one .gap file. Send it; they install it."],
+      ["Schedules", "Cron for agents: a morning digest or a Friday report, with nobody watching."],
+      ["Web & Python", "Search that reads whole pages, and a Python sandbox for data and charts."],
+      ["In-app updates", "New versions arrive as one button. Signed, verified, installed, restarted."],
+    ];
+    const wheel = document.getElementById("wheel");
+    const dial = document.getElementById("dial");
+    if (!wheel || getComputedStyle(wheel).display === "none") return;
+    const panel = wheel.querySelector(".readout-panel");
+    const count = document.getElementById("rp-count");
+    const title = document.getElementById("rp-title");
+    const text = document.getElementById("rp-text");
+    const pauseBtn = document.getElementById("rp-pause");
+    const N = FEATURES.length, STEP = 360 / N;
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const spokes = FEATURES.map(([name], i) => {
+      const s = document.createElement("div");
+      s.className = "spoke";
+      s.style.setProperty("--a", `${i * STEP}deg`);
+      s.innerHTML = `<span class="pip"></span><button type="button"></button>`;
+      const b = s.querySelector("button");
+      b.textContent = name;
+      b.addEventListener("click", () => go(i, true));
+      dial.appendChild(s);
+      return s;
+    });
+
+    let pos = 0; // cumulative notches turned; only ever grows or shrinks by the shortest way
+    const active = () => ((pos % N) + N) % N;
+    function render(animateText) {
+      const k = active();
+      dial.style.setProperty("--rot", `${-pos * STEP}deg`);
+      spokes.forEach((s, i) => {
+        const d = Math.abs(i - k), dist = Math.min(d, N - d);
+        s.dataset.d = String(dist);
+        const b = s.querySelector("button");
+        b.setAttribute("aria-pressed", String(dist === 0));
+        b.tabIndex = dist <= 2 ? 0 : -1; // only what's visible is reachable
+      });
+      const fill = () => {
+        count.textContent = `${String(k + 1).padStart(2, "0")} / ${String(N).padStart(2, "0")}`;
+        title.textContent = FEATURES[k][0];
+        text.textContent = FEATURES[k][1];
+        panel.classList.remove("swap");
+      };
+      if (animateText && !still) { panel.classList.add("swap"); setTimeout(fill, 300); } else fill();
+    }
+    function go(i, byUser) {
+      let d = (i - active() + N) % N;
+      if (d > N / 2) d -= N;
+      pos += d;
+      if (byUser) setPaused(true);
+      render(true);
+    }
+
+    let paused = still, hovering = false;
+    function setPaused(p) {
+      paused = p;
+      pauseBtn.textContent = p ? "play" : "pause";
+      pauseBtn.setAttribute("aria-label", p ? "Play the highlights" : "Pause the highlights");
+    }
+    setPaused(paused);
+    pauseBtn.addEventListener("click", () => setPaused(!paused));
+    wheel.addEventListener("mouseenter", () => (hovering = true));
+    wheel.addEventListener("mouseleave", () => (hovering = false));
+    wheel.addEventListener("focusin", () => (hovering = true));
+    wheel.addEventListener("focusout", () => (hovering = false));
+    setInterval(() => {
+      if (!paused && !hovering && !document.hidden) { pos += 1; render(true); }
+    }, 3400);
+    render(false);
+  })();
 
   // Sections fade in once. Adding .js arms the hidden state, so the page
   // still renders if anything below throws.
