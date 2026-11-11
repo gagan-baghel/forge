@@ -37,6 +37,25 @@ jobs:
         with:
           workspaces: src-tauri
 
+      # Apple signing only when its secrets exist. An unset secret still
+      # arrives as an empty variable, and the bundler then tries to import an
+      # empty certificate and fails the whole build.
+      - name: Use Apple signing if configured
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -n "${!v}" ]; then
+              { echo "$v<<__END__"; echo "${!v}"; echo "__END__"; } >> "$GITHUB_ENV"
+            fi
+          done
+          if [ -z "$APPLE_CERTIFICATE" ]; then echo "No Apple certificate: building unsigned."; fi
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -45,15 +64,7 @@ jobs:
           # Without the secret the build fails rather than ship unsigned updates.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
-          # Unset until there is an Apple Developer account: the build still
-          # succeeds, it just ships unsigned. Fill these secrets in and the
-          # same workflow starts signing and notarising with no edit here.
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Apple signing variables, when configured, come from the step above.
           # The DMG bundler's cosmetic icon-positioning step drives Finder over
           # AppleScript and fails on a headless runner. Same DMG without it.
           CI: true

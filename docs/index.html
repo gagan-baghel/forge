@@ -4,560 +4,572 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Forge — a local-first workspace for AI agents</title>
-<meta name="description" content="Build, run and share AI agents on your own Mac. No account, no cloud, no telemetry. Free download.">
-<meta property="og:title" content="Forge">
-<meta property="og:description" content="Build, run and share AI agents. Entirely on your own machine.">
+<meta name="description" content="Build, run and share AI agents on your own Mac. Runs on your Claude Code subscription. No account, no cloud, no telemetry. Free download.">
+<meta property="og:title" content="Forge — your agents, your machine">
+<meta property="og:description" content="A desktop workspace for building, running and sharing AI agents. Everything stays on your Mac.">
 <meta property="og:type" content="website">
-<meta name="theme-color" content="#0f1017">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%236d5bff'/><text x='16' y='23' font-size='18' font-family='system-ui' font-weight='700' fill='white' text-anchor='middle'>F</text></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#11100e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='1' y='1' width='22' height='22' rx='4' fill='%23ece7de'/%3E%3Cpath d='M6 9.5h10.5l-2 2.5v3.5h-6v-3.5L6 9.5zM7.5 18h9' stroke='%2311100e' stroke-width='1.6' stroke-linejoin='round' stroke-linecap='round' fill='none'/%3E%3Crect x='17' y='4.5' width='2.6' height='2.6' fill='%23e86a30'/%3E%3C/svg%3E">
+<link rel="preload" href="fonts/plex-sans-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/plex-sans-600.woff2" as="font" type="font/woff2" crossorigin>
 <style>
-:root{
-  --bg:15 16 23; --surface:22 24 33; --surface-2:30 33 45; --border:44 48 64;
-  --ink:233 236 245; --ink-2:168 175 196; --ink-3:110 118 140;
-  --brand:109 91 255; --brand-2:142 124 255; --accent:255 209 102;
-  --success:64 201 142; --warn:240 180 70;
-  --sans:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
-  --mono:ui-monospace,"SF Mono",Menlo,monospace;
-  --maxw:1120px;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{
-  margin:0;background:rgb(var(--bg));color:rgb(var(--ink));
-  font:16px/1.65 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:hidden;
-}
-a{color:inherit;text-decoration:none}
-.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
-.eyebrow{
-  font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
-  color:rgb(var(--ink-3));margin:0 0 14px;
-}
-h2{font-size:clamp(28px,4vw,40px);line-height:1.12;letter-spacing:-.03em;margin:0 0 12px;font-weight:600}
-.lede{margin:0;color:rgb(var(--ink-2));font-size:17px;max-width:56ch}
-section{padding:clamp(64px,9vw,110px) 0}
-.rule{height:1px;background:linear-gradient(90deg,transparent,rgb(var(--border)),transparent)}
+  /* Same type and palette as the app. Fonts ship with the page: no CDN. */
+  @font-face { font-family: "IBM Plex Sans"; font-weight: 400; font-display: swap; src: url(fonts/plex-sans-400.woff2) format("woff2"); }
+  @font-face { font-family: "IBM Plex Sans"; font-weight: 500; font-display: swap; src: url(fonts/plex-sans-500.woff2) format("woff2"); }
+  @font-face { font-family: "IBM Plex Sans"; font-weight: 600; font-display: swap; src: url(fonts/plex-sans-600.woff2) format("woff2"); }
+  @font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-display: swap; src: url(fonts/plex-mono-400.woff2) format("woff2"); }
+  @font-face { font-family: "IBM Plex Mono"; font-weight: 500; font-display: swap; src: url(fonts/plex-mono-500.woff2) format("woff2"); }
 
-nav{
-  position:sticky;top:0;z-index:50;
-  background:rgb(var(--bg)/.72);backdrop-filter:blur(14px);
-  border-bottom:1px solid transparent;transition:border-color .2s,background .2s;
-}
-nav.stuck{border-bottom-color:rgb(var(--border));background:rgb(var(--bg)/.9)}
-.nav-in{display:flex;align-items:center;gap:26px;height:62px;max-width:var(--maxw);margin:0 auto;padding:0 24px}
-.logo{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.01em}
-.logo i{
-  display:grid;place-items:center;width:27px;height:27px;border-radius:9px;font-style:normal;
-  background:linear-gradient(150deg,rgb(var(--brand)),rgb(var(--brand-2)));color:#fff;font-size:14px;font-weight:700;
-}
-.nav-links{display:flex;gap:22px;margin-left:14px}
-.nav-links a{font-size:14.5px;color:rgb(var(--ink-2));transition:color .15s}
-.nav-links a:hover{color:rgb(var(--ink))}
-.nav-right{margin-left:auto;display:flex;align-items:center;gap:16px}
-.ghost{font-size:14.5px;color:rgb(var(--ink-2))}
-.ghost:hover{color:rgb(var(--ink))}
-@media(max-width:760px){.nav-links{display:none}}
+  :root {
+    --bg: #11100e; --surface: #171614; --surface-2: #1f1d1a; --surface-3: #2a2723;
+    --border: #2d2a26; --border-strong: #423e38;
+    --ink: #ece7de; --ink-2: #aaa398; --ink-3: #787269;
+    --ember: #e86a30; --ember-2: #f48e5c;
+    --sage: #78b076; --ochre: #d8aa46; --slate: #6b8fa8;
+    --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --wrap: 1120px; --gutter: 24px;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f3ed; --surface: #fcfaf6; --surface-2: #f0ece5; --surface-3: #e6e1d8;
+      --border: #dfd9cf; --border-strong: #cbc4b8;
+      --ink: #1c1a17; --ink-2: #56514a; --ink-3: #847d73;
+      --ember: #c24e18; --ember-2: #aa400e;
+      color-scheme: light;
+    }
+  }
+  @media (max-width: 640px) { :root { --gutter: 16px; } }
 
-.btn{
-  display:inline-flex;align-items:center;gap:9px;padding:13px 24px;border-radius:12px;
-  background:rgb(var(--brand));color:#fff;font-size:15.5px;font-weight:600;letter-spacing:-.01em;
-  transition:background .15s,transform .15s,box-shadow .15s;
-  box-shadow:0 1px 0 rgb(255 255 255/.14) inset,0 10px 30px rgb(var(--brand)/.28);
-}
-.btn:hover{background:rgb(var(--brand-2));transform:translateY(-1px)}
-.btn:active{transform:translateY(0)}
-.btn:focus-visible{outline:2px solid rgb(var(--brand-2));outline-offset:3px}
-.btn.sm{padding:9px 17px;font-size:14px;box-shadow:0 1px 0 rgb(255 255 255/.14) inset}
-.btn.lg{padding:16px 30px;font-size:17px}
-.btn-2{
-  display:inline-flex;align-items:center;gap:8px;padding:16px 24px;border-radius:12px;
-  border:1px solid rgb(var(--border));color:rgb(var(--ink-2));font-size:16px;font-weight:500;
-  transition:border-color .15s,color .15s,background .15s;
-}
-.btn-2:hover{border-color:rgb(var(--ink-3));color:rgb(var(--ink));background:rgb(var(--surface))}
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 400 16px/1.55 var(--sans); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+  a { color: inherit; }
+  ::selection { background: color-mix(in srgb, var(--ember) 30%, transparent); }
+  :focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; border-radius: 3px; }
+  .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 var(--gutter); }
+  .mono { font-family: var(--mono); white-space: nowrap; }
+  .label { font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 
-header{position:relative;padding:clamp(56px,8vw,92px) 0 0;text-align:center;overflow:hidden}
-header::before{
-  content:"";position:absolute;inset:-320px 0 auto 0;height:760px;pointer-events:none;
-  background:radial-gradient(ellipse 60% 52% at 50% 42%,rgb(var(--brand)/.26),transparent 68%);
-}
-header::after{
-  content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
-  background-image:linear-gradient(rgb(var(--border)/.5) 1px,transparent 1px),linear-gradient(90deg,rgb(var(--border)/.5) 1px,transparent 1px);
-  background-size:58px 58px;
-  mask-image:radial-gradient(ellipse 62% 46% at 50% 26%,#000,transparent 72%);
-  -webkit-mask-image:radial-gradient(ellipse 62% 46% at 50% 26%,#000,transparent 72%);
-}
-header .wrap{position:relative;z-index:1}
-.badge{
-  display:inline-flex;align-items:center;gap:9px;margin-bottom:26px;padding:6px 14px 6px 8px;
-  border:1px solid rgb(var(--border));border-radius:999px;background:rgb(var(--surface)/.7);
-  font-size:13px;color:rgb(var(--ink-2));
-}
-.badge b{
-  padding:2px 8px;border-radius:999px;background:rgb(var(--brand)/.18);color:rgb(var(--brand-2));
-  font-size:11px;font-weight:600;letter-spacing:.04em;
-}
-h1{
-  margin:0 auto 20px;max-width:17ch;font-weight:600;
-  font-size:clamp(42px,7vw,72px);line-height:1.04;letter-spacing:-.04em;
-}
-/* Each sentence wraps as a unit, so the line never breaks after "No". */
-h1 span{display:inline-block}
-h1 em{
-  font-style:normal;
-  background:linear-gradient(100deg,rgb(var(--brand-2)),rgb(var(--accent)));
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-}
-.sub{margin:0 auto 36px;max-width:50ch;font-size:clamp(17px,2.2vw,20px);line-height:1.55;color:rgb(var(--ink-2))}
-.actions{display:flex;flex-wrap:wrap;gap:13px;justify-content:center;align-items:center}
-.fine{margin:16px 0 0;font-size:13.5px;color:rgb(var(--ink-3))}
-.fine b{color:rgb(var(--ink-2));font-weight:500}
+  /* ------------------------------ Nav ------------------------------ */
+  .nav { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 92%, transparent); border-bottom: 1px solid transparent; transition: border-color .2s; }
+  .nav.stuck { border-bottom-color: var(--border); }
+  .nav .wrap { display: flex; align-items: center; gap: 28px; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; text-decoration: none; letter-spacing: -.01em; }
+  .nav-links { display: flex; gap: 24px; margin-left: 8px; }
+  .nav-links a { color: var(--ink-2); text-decoration: none; font-size: 14px; }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  @media (max-width: 720px) { .nav-links, .nav-gh { display: none; } }
 
-.shot-wrap{position:relative;margin-top:clamp(48px,7vw,80px)}
-.shot-wrap::before{
-  content:"";position:absolute;left:50%;top:-6%;translate:-50% 0;width:78%;height:56%;
-  background:radial-gradient(ellipse at center,rgb(var(--brand)/.34),transparent 70%);
-  filter:blur(52px);pointer-events:none;
-}
-.shot{
-  position:relative;max-width:1060px;margin:0 auto;text-align:left;
-  border:1px solid rgb(var(--border));border-radius:15px 15px 0 0;overflow:hidden;
-  background:rgb(var(--bg));
-  box-shadow:0 1px 0 rgb(255 255 255/.06) inset,0 50px 110px -20px rgb(0 0 0/.75);
-}
-.bar{display:flex;align-items:center;gap:8px;padding:11px 15px;background:rgb(var(--surface));border-bottom:1px solid rgb(var(--border))}
-.bar i{width:11px;height:11px;border-radius:50%;background:#3a3f52}
-.bar i:nth-child(1){background:#ff5f57}.bar i:nth-child(2){background:#febc2e}.bar i:nth-child(3){background:#28c840}
-.bar span{margin-left:auto;font-size:10.5px;color:rgb(var(--ink-3));letter-spacing:.02em}
-.app{display:grid;grid-template-columns:180px 1fr;font-size:11.5px}
-.side{border-right:1px solid rgb(var(--border));background:rgb(var(--surface));padding:14px 11px}
-.brandrow{display:flex;align-items:center;gap:8px;margin-bottom:15px}
-.brandrow i{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;font-style:normal;background:linear-gradient(150deg,rgb(var(--brand)),rgb(var(--brand-2)));color:#fff;font-size:12px;font-weight:700}
-.brandrow b{font-size:12.5px;display:block;line-height:1.3}
-.brandrow small{color:rgb(var(--ink-3));font-size:7.5px;letter-spacing:.15em}
-.grp{color:rgb(var(--ink-3));font-size:8.5px;letter-spacing:.14em;margin:14px 0 6px 7px}
-.itm{display:flex;align-items:center;gap:9px;padding:5px 8px;border-radius:7px;color:rgb(var(--ink-2))}
-.itm.on{background:rgb(var(--brand)/.14);color:rgb(var(--ink))}
-.itm i{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.5;flex:none}
-.main{padding:17px 19px}
-.mhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}
-.mhead b{font-size:14.5px;display:block;letter-spacing:-.01em}
-.mhead small{color:rgb(var(--ink-3))}
-.chip{padding:5px 11px;border-radius:8px;border:1px solid rgb(var(--border));color:rgb(var(--ink-2));font-size:10px;white-space:nowrap}
-.chip.p{background:rgb(var(--brand));border-color:transparent;color:#fff}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:11px}
-.stat{border:1px solid rgb(var(--border));border-radius:11px;background:rgb(var(--surface));padding:12px 13px}
-.stat b{font-size:18px;display:block;letter-spacing:-.025em;line-height:1.3}
-.stat small{color:rgb(var(--ink-3));font-size:9.5px}
-.panes{display:grid;grid-template-columns:1.55fr 1fr;gap:10px}
-.pane{border:1px solid rgb(var(--border));border-radius:11px;background:rgb(var(--surface));padding:13px 14px;min-height:120px}
-.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.ph b{font-size:11.5px}.ph span{color:rgb(var(--brand-2));font-size:9.5px}
-.arow{display:flex;align-items:center;gap:10px;padding:6px 0}
-.av{width:21px;height:21px;border-radius:50%;background:rgb(var(--surface-2));border:1px solid rgb(var(--border));flex:none}
-.arow b{font-size:11px;display:block;line-height:1.35}
-.arow small{color:rgb(var(--ink-3));font-size:9.5px}
-.tag{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:9.5px;color:rgb(var(--ink-2))}
-.tag i{width:5px;height:5px;border-radius:50%;background:rgb(var(--success))}
-.tag.b i{background:rgb(var(--brand-2))}
-.spark{display:flex;align-items:flex-end;gap:3px;height:52px;margin-top:6px}
-.spark span{flex:1;border-radius:2px 2px 0 0;background:linear-gradient(180deg,rgb(var(--brand)/.85),rgb(var(--brand)/.25))}
-.pane.tall{margin-top:10px;min-height:0}
-.lrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgb(var(--border))}
-.lrow:first-of-type{border-top:0}
-.lrow b{font-size:10.5px;font-weight:500}
-.lrow small{color:rgb(var(--ink-3));font-size:9.5px}
-.lrow .when{margin-left:auto;color:rgb(var(--ink-3));font-size:9.5px}
-.badge-ok{padding:2px 7px;border-radius:5px;font-size:9px;background:rgb(var(--success)/.14);color:rgb(var(--success))}
-.badge-run{padding:2px 7px;border-radius:5px;font-size:9px;background:rgb(var(--brand)/.16);color:rgb(var(--brand-2))}
-@media(max-width:820px){.side{display:none}.app{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.panes{grid-template-columns:1fr}}
+  /* ----------------------------- Buttons --------------------------- */
+  .btn { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 5px; font: 500 14px/1 var(--sans); text-decoration: none; border: 1px solid var(--border); color: var(--ink); background: var(--surface); transition: border-color .15s, background .15s, transform .15s; white-space: nowrap; }
+  .btn:hover { border-color: var(--border-strong); background: var(--surface-2); }
+  .btn-primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .btn-primary:hover { background: var(--ink); opacity: .9; }
+  .btn-lg { height: 48px; padding: 0 22px; font-size: 15px; }
+  .btn-sm { height: 34px; padding: 0 12px; font-size: 13px; }
+  .btn svg { flex: none; }
 
-.pillars{display:grid;gap:26px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-.pillar h3{margin:14px 0 7px;font-size:17px;font-weight:600;letter-spacing:-.01em}
-.pillar p{margin:0;color:rgb(var(--ink-2));font-size:15px}
-.ico{
-  display:grid;place-items:center;width:38px;height:38px;border-radius:11px;
-  background:rgb(var(--brand)/.13);border:1px solid rgb(var(--brand)/.22);color:rgb(var(--brand-2));
-}
+  /* ------------------------------ Hero ----------------------------- */
+  .hero { padding: 88px 0 56px; }
+  .eyebrow { display: inline-block; font: 500 12px/1.5 var(--mono); color: var(--ink-2); border: 1px solid var(--border); border-radius: 4px; padding: 7px 10px; margin-bottom: 28px; text-decoration: none; }
+  .eyebrow b { color: var(--ember); font-weight: 500; margin-right: 6px; }
+  h1 { font-size: clamp(40px, 6.4vw, 76px); line-height: 1.02; letter-spacing: -.035em; font-weight: 600; margin: 0; max-width: 13ch; }
+  h1 .dim { color: var(--ink-3); }
+  .lede { font-size: clamp(17px, 1.6vw, 19px); color: var(--ink-2); max-width: 54ch; margin: 24px 0 36px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .meta { margin-top: 18px; font: 400 12.5px/1.6 var(--mono); color: var(--ink-3); }
+  .meta span + span::before { content: "·"; margin: 0 8px; }
 
-.bento{display:grid;gap:14px;grid-template-columns:repeat(6,1fr);margin-top:44px}
-.tile{
-  position:relative;grid-column:span 2;padding:24px;border-radius:17px;overflow:hidden;
-  border:1px solid rgb(var(--border));background:rgb(var(--surface));
-  transition:border-color .2s,transform .2s;
-}
-.tile::before{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,rgb(255 255 255/.09),transparent)}
-.tile:hover{border-color:rgb(var(--ink-3)/.55);transform:translateY(-2px)}
-.tile.wide{grid-column:span 3}
-.tile.hero-tile{grid-column:span 6}
-.tile h3{margin:0 0 8px;font-size:16.5px;font-weight:600;letter-spacing:-.01em}
-.tile p{margin:0;color:rgb(var(--ink-2));font-size:14.5px}
-.tile .kicker{font-size:11.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:rgb(var(--brand-2));display:block;margin-bottom:11px}
-.demo{margin-top:18px;border:1px solid rgb(var(--border));border-radius:11px;background:rgb(var(--bg));padding:13px;font-size:12px}
-.demo .line{display:flex;align-items:center;gap:9px;padding:5px 0;color:rgb(var(--ink-2))}
-.demo .line i{width:15px;height:15px;border-radius:5px;background:rgb(var(--surface-2));flex:none}
-.demo code{font-family:var(--mono);font-size:11.5px;color:rgb(var(--accent))}
-.approve{display:flex;gap:7px;margin-top:11px}
-.approve span{padding:5px 12px;border-radius:8px;font-size:11px;border:1px solid rgb(var(--border));color:rgb(var(--ink-2))}
-.approve span.no{background:rgb(var(--surface-2));color:rgb(var(--ink))}
-@media(max-width:900px){.bento{grid-template-columns:repeat(2,1fr)}.tile,.tile.wide{grid-column:span 1}.tile.hero-tile{grid-column:span 2}}
-@media(max-width:560px){.bento{grid-template-columns:1fr}.tile.hero-tile{grid-column:span 1}}
+  /* --------------------------- App window -------------------------- */
+  .shot { margin-top: 64px; position: relative; }
+  .window { border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; background: var(--bg); box-shadow: 0 40px 80px -40px rgb(0 0 0 / .6); }
+  .titlebar { height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .titlebar i { width: 11px; height: 11px; border-radius: 50%; background: var(--surface-3); display: block; }
+  .titlebar span { margin: 0 auto; font: 500 11.5px var(--mono); color: var(--ink-3); transform: translateX(-24px); }
+  .app { display: grid; grid-template-columns: 196px 1fr; min-height: 470px; font-size: 13px; }
+  .side { border-right: 1px solid var(--border); padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
+  .side .search { height: 28px; border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center; padding: 0 8px; color: var(--ink-3); font-size: 12px; margin-bottom: 10px; justify-content: space-between; }
+  .side .search kbd { font: 10px var(--mono); border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; }
+  .side .sec { margin: 12px 8px 4px; font: 500 9.5px var(--mono); letter-spacing: .08em; color: var(--ink-3); }
+  .side a { display: flex; align-items: center; gap: 9px; height: 27px; padding: 0 8px; border-radius: 4px; color: var(--ink-2); text-decoration: none; position: relative; }
+  .side a svg { color: var(--ink-3); }
+  .side a.on { background: color-mix(in srgb, var(--surface-2) 75%, transparent); color: var(--ink); font-weight: 500; }
+  .side a.on svg { color: var(--ember); }
+  .side a.on::before { content: ""; position: absolute; left: -10px; top: 6px; bottom: 6px; width: 2px; background: var(--ember); }
+  .side a em { margin-left: auto; font: normal 10px var(--mono); color: var(--ink-3); }
+  .side .grow { flex: 1; }
+  .side .runtime { border: 1px solid var(--border); border-radius: 4px; padding: 7px 8px; display: flex; gap: 8px; align-items: center; font-size: 11.5px; color: var(--ink-2); }
+  .side .runtime > div { min-width: 0; }
+  .side .runtime small { display: block; font: 9.5px var(--mono); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex: none; }
+  .main { min-width: 0; }
+  .mhead { height: 58px; border-bottom: 1px solid var(--border); padding: 0 22px; display: flex; align-items: center; justify-content: space-between; }
+  .mhead b { display: block; font-size: 15.5px; letter-spacing: -.01em; }
+  .mhead small { color: var(--ink-3); font-size: 11.5px; }
+  .mhead .acts { display: flex; gap: 6px; }
+  .chip-btn { height: 26px; padding: 0 10px; border: 1px solid var(--border); border-radius: 4px; display: inline-flex; align-items: center; font-size: 11.5px; color: var(--ink); background: var(--surface); }
+  .chip-btn.solid { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .mbody { padding: 18px 22px; display: grid; gap: 22px; }
+  .readout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .readout > div { background: var(--surface); padding: 12px 14px; }
+  .readout .n { font: 400 22px/1 var(--mono); margin: 9px 0 6px; letter-spacing: -.02em; }
+  .readout small { color: var(--ink-3); font-size: 11px; }
+  .readout small.warn { color: var(--ochre); }
+  .cols { display: grid; grid-template-columns: 1fr 228px; gap: 26px; }
+  .h2row { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--border); padding-bottom: 7px; margin-bottom: 4px; font-weight: 600; font-size: 12.5px; }
+  .h2row span { font-weight: 400; color: var(--ink-3); font-size: 11px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font: 500 9.5px var(--mono); letter-spacing: .08em; color: var(--ink-3); padding: 6px 0; text-transform: uppercase; }
+  td { border-top: 1px solid var(--border); padding: 8px 0; vertical-align: middle; }
+  .who { display: flex; gap: 10px; align-items: center; }
+  .who small { display: block; color: var(--ink-3); font-size: 11px; }
+  .mark { width: 24px; height: 24px; border-radius: 4px; display: grid; place-items: center; font: 500 9px var(--mono); flex: none; }
+  .m-ember { color: #d9703a; background: color-mix(in srgb, #d9703a 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, #d9703a 32%, transparent); }
+  .m-sage { color: #7fa36b; background: color-mix(in srgb, #7fa36b 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, #7fa36b 32%, transparent); }
+  .m-ochre { color: #c49a3c; background: color-mix(in srgb, #c49a3c 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, #c49a3c 32%, transparent); }
+  .model { font: 11px var(--mono); color: var(--ink-2); }
+  .state { font: 10.5px var(--mono); color: var(--ink-3); display: inline-flex; gap: 6px; align-items: center; }
+  .runs li { list-style: none; display: flex; gap: 9px; padding: 7px 0; border-top: 1px solid var(--border); }
+  .runs li:first-child { border-top: 0; }
+  .runs ul { margin: 0; padding: 0; }
+  .runs .dot { margin-top: 6px; }
+  .runs small { display: block; font: 9.5px var(--mono); color: var(--ink-3); }
+  .runs p { margin: 0; font-size: 12px; }
+  .steps li { list-style: none; display: flex; gap: 10px; padding: 4px 0; font-size: 12px; color: var(--ink-2); }
+  .steps ol { margin: 0 0 16px; padding: 0; }
+  .steps b { font: 400 10.5px var(--mono); color: var(--ink-3); width: 16px; }
+  .steps .done b { color: var(--sage); } .steps .done { color: var(--ink-3); }
+  @media (max-width: 900px) { .app { grid-template-columns: 1fr; } .side { display: none; } .cols { grid-template-columns: 1fr; } .runs-col { display: none; } }
+  @media (max-width: 560px) { .readout { grid-template-columns: repeat(2, 1fr); } .hide-sm { display: none; } .mhead .acts { display: none; } }
 
-.steps{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));margin-top:44px;counter-reset:s}
-.step{counter-increment:s;position:relative;padding-top:20px;border-top:1px solid rgb(var(--border))}
-.step::before{
-  content:"0" counter(s);font-family:var(--mono);font-size:12px;letter-spacing:.06em;
-  color:rgb(var(--brand-2));display:block;margin-bottom:11px;
-}
-.step h3{margin:0 0 6px;font-size:16px;font-weight:600}
-.step p{margin:0;color:rgb(var(--ink-2));font-size:14.5px}
+  /* --------------------------- Sections ---------------------------- */
+  section { padding: 96px 0; }
+  .rule { border-top: 1px solid var(--border); }
+  h2 { font-size: clamp(30px, 3.8vw, 44px); line-height: 1.08; letter-spacing: -.03em; font-weight: 600; margin: 14px 0 0; max-width: 24ch; text-wrap: balance; }
+  h3, h4, .lede, .sub { text-wrap: pretty; }
+  .sub { color: var(--ink-2); font-size: 17px; max-width: 56ch; margin: 16px 0 0; }
 
-.faq{margin-top:40px;border-top:1px solid rgb(var(--border))}
-details{border-bottom:1px solid rgb(var(--border))}
-summary{
-  display:flex;align-items:center;gap:16px;padding:20px 0;cursor:pointer;list-style:none;
-  font-size:16.5px;font-weight:500;letter-spacing:-.01em;
-}
-summary::-webkit-details-marker{display:none}
-summary::after{
-  content:"";margin-left:auto;width:9px;height:9px;flex:none;
-  border-right:1.6px solid rgb(var(--ink-3));border-bottom:1.6px solid rgb(var(--ink-3));
-  rotate:45deg;transition:rotate .2s;
-}
-details[open] summary::after{rotate:-135deg}
-summary:hover{color:rgb(var(--brand-2))}
-details p{margin:0 0 20px;color:rgb(var(--ink-2));font-size:15px;max-width:72ch}
-details p:last-child{margin-bottom:22px}
-kbd{padding:2px 7px;border-radius:6px;font:500 13px/1.5 var(--sans);background:rgb(var(--surface-2));border:1px solid rgb(var(--border));color:rgb(var(--ink))}
+  .principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; padding-top: 72px; padding-bottom: 72px; }
+  .principles h3 { font-size: 18px; letter-spacing: -.01em; margin: 14px 0 8px; font-weight: 600; }
+  .principles p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .principles > div { border-top: 1px solid var(--border-strong); padding-top: 18px; }
+  @media (max-width: 820px) { .principles { grid-template-columns: 1fr; gap: 28px; } }
 
-.close-cta{
-  position:relative;overflow:hidden;text-align:center;padding:clamp(52px,7vw,76px) 24px;
-  border:1px solid rgb(var(--border));border-radius:22px;background:rgb(var(--surface));
-}
-.close-cta::before{
-  content:"";position:absolute;inset:auto 0 -60% 0;height:340px;pointer-events:none;
-  background:radial-gradient(ellipse 50% 60% at 50% 100%,rgb(var(--brand)/.3),transparent 70%);
-}
-.close-cta > *{position:relative}
-.close-cta h2{margin-bottom:14px}
-.close-cta p{margin:0 auto 30px;max-width:44ch;color:rgb(var(--ink-2))}
+  .feature { display: grid; grid-template-columns: 1fr 1.1fr; gap: 64px; align-items: center; padding: 56px 0; border-top: 1px solid var(--border); }
+  .feature:first-of-type { margin-top: 56px; }
+  .feature h3 { font-size: 26px; letter-spacing: -.02em; line-height: 1.15; margin: 12px 0 12px; font-weight: 600; }
+  .feature p { color: var(--ink-2); margin: 0 0 12px; font-size: 16px; }
+  .feature ul { margin: 16px 0 0; padding: 0; list-style: none; }
+  .feature li { padding: 7px 0 7px 22px; position: relative; color: var(--ink-2); font-size: 15px; border-top: 1px solid var(--border); }
+  .feature li::before { content: ""; position: absolute; left: 2px; top: 16px; width: 8px; height: 1.5px; background: var(--ember); }
+  .feature.flip .copy { order: 2; }
+  @media (max-width: 860px) { .feature { grid-template-columns: 1fr; gap: 28px; } .feature.flip .copy { order: 0; } }
 
-footer{border-top:1px solid rgb(var(--border));padding:44px 0 60px;margin-top:clamp(64px,9vw,110px)}
-.f-in{display:flex;flex-wrap:wrap;gap:26px;justify-content:space-between;align-items:center}
-.f-in p{margin:6px 0 0;color:rgb(var(--ink-3));font-size:13.5px}
-.f-links{display:flex;flex-wrap:wrap;gap:22px;font-size:14px;color:rgb(var(--ink-2))}
-.f-links a:hover{color:rgb(var(--ink))}
+  /* vignettes: small pieces of the real UI */
+  .vig { border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); overflow: hidden; font-size: 13.5px; }
+  .vig .vh { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; }
+  .vig .vh span { font: 400 11px var(--mono); color: var(--ink-3); }
+  .vig .row { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-top: 1px solid var(--border); }
+  .vig .row:first-of-type { border-top: 0; }
+  .vig .row small { display: block; font: 10.5px var(--mono); color: var(--ink-3); }
+  .vig .grow { flex: 1; min-width: 0; }
+  .ftype { font: 500 9.5px var(--mono); color: var(--ink-3); border: 1px solid var(--border); border-radius: 3px; padding: 3px 5px; width: 38px; text-align: center; flex: none; }
+  .ftype.pdf { color: var(--ember-2); border-color: color-mix(in srgb, var(--ember) 40%, transparent); }
+  .pending { background: color-mix(in srgb, var(--ochre) 6%, transparent); }
+  .mini { height: 26px; padding: 0 10px; border-radius: 4px; border: 1px solid var(--border); font: 500 12px var(--sans); display: inline-flex; align-items: center; color: var(--ink-2); background: var(--surface); }
+  .mini.solid { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .toggle { width: 30px; height: 17px; border-radius: 4px; background: var(--ember); position: relative; flex: none; }
+  .toggle::after { content: ""; position: absolute; right: 2px; top: 2px; width: 13px; height: 13px; border-radius: 3px; background: #fff; }
+  .toggle.off { background: var(--surface-3); } .toggle.off::after { right: auto; left: 2px; }
 
-/* Only hide sections once JS has confirmed it can un-hide them again. A script
-   error or an observer that never fires would otherwise leave a blank page. */
-.js .reveal{opacity:0;transform:translateY(14px);transition:opacity .6s cubic-bezier(.2,.7,.3,1),transform .6s cubic-bezier(.2,.7,.3,1)}
-.js .reveal.in{opacity:1;transform:none}
-@media(prefers-reduced-motion:reduce){
-  html{scroll-behavior:auto}
-  .js .reveal{opacity:1;transform:none;transition:none}
-  .btn:hover,.tile:hover{transform:none}
-}
+  .approve { padding: 18px; }
+  .approve .q { display: flex; gap: 12px; align-items: flex-start; }
+  .approve .q p { margin: 0; font-weight: 600; }
+  .approve .q small { color: var(--ink-3); font-size: 12.5px; }
+  .approve code { display: block; margin: 14px 0; padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; font: 13px var(--mono); color: var(--ink); overflow-x: auto; white-space: pre; }
+  .approve code .p { color: var(--ember); }
+  .approve .acts { display: flex; gap: 8px; justify-content: flex-end; }
+
+  .phone { max-width: 340px; margin: 0 auto; border: 1px solid var(--border-strong); border-radius: 26px; padding: 14px; background: var(--surface); }
+  .phone .bar { display: flex; align-items: center; gap: 10px; padding: 6px 6px 12px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13.5px; }
+  .phone .bar small { display: block; font: 10px var(--mono); color: var(--sage); font-weight: 400; }
+  .chat { display: flex; flex-direction: column; gap: 8px; padding: 14px 4px 4px; font-size: 13.5px; }
+  .b { max-width: 85%; padding: 8px 11px; border-radius: 12px; line-height: 1.4; }
+  .b.me { align-self: flex-end; background: var(--ink); color: var(--bg); border-bottom-right-radius: 3px; }
+  .b.it { align-self: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-bottom-left-radius: 3px; }
+  .b.ask { align-self: flex-start; background: var(--surface-2); border: 1px solid color-mix(in srgb, var(--ember) 40%, var(--border)); }
+  .b.ask code { font: 12px var(--mono); color: var(--ember-2); }
+  .b .btns { display: flex; gap: 6px; margin-top: 8px; }
+  .b .btns span { flex: 1; text-align: center; font-size: 11.5px; border: 1px solid var(--border-strong); border-radius: 6px; padding: 5px 0; }
+
+  .more { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 40px; margin-top: 64px; }
+  .more > div { border-top: 1px solid var(--border); padding: 22px 0 26px; }
+  .more h4 { margin: 10px 0 6px; font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+  .more p { margin: 0; color: var(--ink-2); font-size: 14.5px; }
+  @media (max-width: 860px) { .more { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .more { grid-template-columns: 1fr; } }
+
+  /* ------------------------------ Install -------------------------- */
+  .install { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 56px; counter-reset: step; }
+  .install > div { border-top: 1px solid var(--border-strong); padding-top: 18px; }
+  .install .num { font: 500 12px var(--mono); color: var(--ember); }
+  .install h3 { margin: 12px 0 6px; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+  .install p { margin: 0; color: var(--ink-2); font-size: 15px; }
+  .after { margin-top: 48px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 24px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  .after p { margin: 0; color: var(--ink-2); max-width: 60ch; font-size: 15px; }
+  .after b { color: var(--ink); font-weight: 600; }
+  @media (max-width: 820px) { .install { grid-template-columns: 1fr; gap: 28px; } }
+
+  /* -------------------------------- FAQ ---------------------------- */
+  .faq { margin-top: 48px; max-width: 820px; }
+  details { border-top: 1px solid var(--border); }
+  details:last-child { border-bottom: 1px solid var(--border); }
+  summary { list-style: none; cursor: pointer; padding: 20px 36px 20px 0; font-weight: 600; font-size: 17px; letter-spacing: -.01em; position: relative; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; position: absolute; right: 4px; top: 16px; font: 400 22px var(--mono); color: var(--ink-3); transition: transform .2s; }
+  details[open] summary::after { transform: rotate(45deg); }
+  details .a { padding: 0 0 22px; color: var(--ink-2); font-size: 15.5px; max-width: 68ch; }
+  details .a p { margin: 0 0 12px; }
+  details .a b { color: var(--ink); font-weight: 600; }
+  kbd, .k { font: 12.5px var(--mono); background: var(--surface-2); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; color: var(--ink); }
+
+  /* -------------------------------- End ---------------------------- */
+  .closer { text-align: left; padding: 112px 0; }
+  .closer h2 { max-width: 22ch; }
+  footer { border-top: 1px solid var(--border); padding: 32px 0 48px; color: var(--ink-3); font-size: 13.5px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: center; justify-content: space-between; }
+  footer nav { display: flex; gap: 22px; }
+  footer a { text-decoration: none; } footer a:hover { color: var(--ink); }
+
+  /* Fade in once; only when JS is on, and never for reduced motion. */
+  .js .reveal { opacity: 0; transform: translateY(12px); transition: opacity .6s ease, transform .6s ease; }
+  .js .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .js .reveal { opacity: 1; transform: none; transition: none; } html { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
 
-<nav id="nav">
-  <div class="nav-in">
-    <a class="logo" href="#top"><i>F</i>Forge</a>
-    <div class="nav-links">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mark" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="4" fill="var(--ink)"/><path d="M6 9.5h10.5l-2 2.5v3.5h-6v-3.5L6 9.5zM7.5 18h9" stroke="var(--bg)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" fill="none"/><rect x="17" y="4.5" width="2.6" height="2.6" fill="var(--ember)"/></symbol>
+  <symbol id="apple" viewBox="0 0 24 24"><path fill="currentColor" d="M16.4 12.6c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.3 1.2 9.7.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8s1.9.8 3.2.8c1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8 0 0-2.5-1-2.5-3.8zM14 5.3c.7-.8 1.1-1.9 1-3-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1 3 1.1.1 2.2-.6 2.9-1.5z"/></symbol>
+  <symbol id="gh" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.4 1.1 2.9.8.1-.6.4-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .6 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-act" viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 18h2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-term" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m7 9 3 3-3 3M12 15h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+</svg>
+
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Forge home"><svg width="24" height="24"><use href="#mark"/></svg>Forge</a>
+    <nav class="nav-links" aria-label="Sections">
       <a href="#features">Features</a>
       <a href="#install">Install</a>
       <a href="#faq">FAQ</a>
-    </div>
+    </nav>
     <div class="nav-right">
-      <a class="ghost" href="https://github.com/gagan-baghel/forge">GitHub</a>
-      <a class="btn sm" href="https://github.com/gagan-baghel/forge/releases/latest">Download</a>
-    </div>
-  </div>
-</nav>
-
-<header id="top">
-  <div class="wrap">
-    <span class="badge"><b>NEW</b> Runs on your Claude Code subscription — $0 metered</span>
-    <h1><span>Your agents.</span> <span>Your machine.</span> <span><em>No middleman.</em></span></h1>
-    <p class="sub">
-      Forge is a desktop workspace for building, running and sharing AI agents.
-      Everything — chats, keys, memory — stays on your Mac.
-    </p>
-    <div class="actions">
-      <a class="btn lg" href="https://github.com/gagan-baghel/forge/releases/latest">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></svg>
-        Download for macOS
-      </a>
-      <a class="btn-2" href="https://github.com/gagan-baghel/forge">View the source</a>
-    </div>
-    <p class="fine"><b>Free and open source.</b> macOS 10.15+ · Intel &amp; Apple Silicon · no account needed</p>
-
-    <div class="shot-wrap">
-      <div class="shot" role="img" aria-label="The Forge workspace: a sidebar listing GAPs, agents, brains, schedules and a terminal, beside a dashboard showing installed packs, agent count, total runs, all-time spend and an agent roster.">
-        <div class="bar" aria-hidden="true"><i></i><i></i><i></i><span>Forge — Home</span></div>
-        <div class="app" aria-hidden="true">
-          <div class="side">
-            <div class="brandrow"><i>F</i><span><b>Forge</b><small>AGENT WORKSPACE</small></span></div>
-            <div class="grp">WORKSPACE</div>
-            <div class="itm on"><i></i>Home</div>
-            <div class="itm"><i></i>GAPs</div>
-            <div class="itm"><i></i>Agents</div>
-            <div class="itm"><i></i>Brains</div>
-            <div class="itm"><i></i>Channels</div>
-            <div class="itm"><i></i>Architect</div>
-            <div class="grp">BUILD</div>
-            <div class="itm"><i></i>Workshop</div>
-            <div class="itm"><i></i>Marketplace</div>
-            <div class="itm"><i></i>Knowledge</div>
-            <div class="itm"><i></i>Memory</div>
-            <div class="itm"><i></i>Schedules</div>
-            <div class="itm"><i></i>Terminal</div>
-            <div class="grp">INSIGHTS</div>
-            <div class="itm"><i></i>Runs</div>
-            <div class="itm"><i></i>Observability</div>
-          </div>
-          <div class="main">
-            <div class="mhead">
-              <span><b>Welcome back</b><small>Your local agent workspace</small></span>
-              <span style="display:flex;gap:7px"><span class="chip">Marketplace</span><span class="chip p">+ New GAP</span></span>
-            </div>
-            <div class="stats">
-              <div class="stat"><b>4</b><small>GAPs installed</small></div>
-              <div class="stat"><b>7</b><small>Agents</small></div>
-              <div class="stat"><b>128</b><small>Total runs</small></div>
-              <div class="stat"><b>$0.00</b><small>Spend (all-time)</small></div>
-            </div>
-            <div class="panes">
-              <div class="pane">
-                <div class="ph"><b>Agent roster</b><span>View all</span></div>
-                <div class="arow"><span class="av"></span><span><b>Scout</b><small>Research assistant</small></span><span class="tag"><i></i>live</span></div>
-                <div class="arow"><span class="av"></span><span><b>Smith</b><small>Pair programmer</small></span><span class="tag b"><i></i>ready</span></div>
-                <div class="arow"><span class="av"></span><span><b>Ledger</b><small>Weekly reporting</small></span><span class="tag b"><i></i>scheduled</span></div>
-              </div>
-              <div class="pane">
-                <div class="ph"><b>Runs this week</b><span>All runs</span></div>
-                <div class="spark">
-                  <span style="height:34%"></span><span style="height:56%"></span><span style="height:42%"></span>
-                  <span style="height:78%"></span><span style="height:61%"></span><span style="height:92%"></span>
-                  <span style="height:47%"></span>
-                </div>
-              </div>
-            </div>
-            <div class="pane tall">
-              <div class="ph"><b>Recent activity</b><span>All runs</span></div>
-              <div class="lrow"><span class="badge-ok">done</span><span><b>Scout</b> <small>— weekly competitor sweep</small></span><span class="when">2m ago</span></div>
-              <div class="lrow"><span class="badge-run">running</span><span><b>Smith</b> <small>— refactor the parser module</small></span><span class="when">now</span></div>
-              <div class="lrow"><span class="badge-ok">done</span><span><b>Ledger</b> <small>— Friday spend summary</small></span><span class="when">1h ago</span></div>
-              <div class="lrow"><span class="badge-ok">done</span><span><b>Scout</b> <small>— summarise inbox threads</small></span><span class="when">3h ago</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <a class="btn btn-sm nav-gh" href="https://github.com/gagan-baghel/forge"><svg width="15" height="15"><use href="#gh"/></svg>Source</a>
+      <a class="btn btn-sm btn-primary" href="https://github.com/gagan-baghel/forge/releases/latest" data-download>Download</a>
     </div>
   </div>
 </header>
 
-<main>
+<main id="top">
+  <!-- ============================== Hero ============================== -->
+  <div class="hero">
+    <div class="wrap">
+      <a class="eyebrow" href="https://github.com/gagan-baghel/forge/releases/latest"><b>●</b> <span data-version-label>Forge 1.0</span> — redesigned, with in-app updates</a>
+      <h1>Your agents.<br>Your machine.<br><span class="dim">No middleman.</span></h1>
+      <p class="lede">Forge is a desktop workspace for building, running and sharing AI agents. It runs on the Claude Code subscription you already have, and everything — chats, keys, documents, memory — stays on your Mac.</p>
+      <div class="cta">
+        <a class="btn btn-lg btn-primary" href="https://github.com/gagan-baghel/forge/releases/latest" data-download><svg width="17" height="17"><use href="#apple"/></svg>Download for macOS</a>
+        <a class="btn btn-lg" href="https://github.com/gagan-baghel/forge"><svg width="17" height="17"><use href="#gh"/></svg>View the source</a>
+      </div>
+      <div class="meta"><span data-version>Latest release</span><span>macOS 10.15+</span><span>Intel &amp; Apple Silicon</span><span>No account</span></div>
 
-  <section class="wrap reveal">
-    <div class="pillars">
-      <div class="pillar">
-        <div class="ico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6.5v5c0 5 3.4 8.7 8 9.5 4.6-.8 8-4.5 8-9.5v-5Z"/></svg></div>
-        <h3>Nothing leaves your device</h3>
-        <p>Agents, chats, keys and memory live in local storage. No account, no hosted backend, no telemetry, no sync you didn't ask for.</p>
-      </div>
-      <div class="pillar">
-        <div class="ico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7Z"/></svg></div>
-        <h3>Costs you nothing to run</h3>
-        <p>Forge drives the Claude Code CLI already on your machine, on the subscription you already pay for. Nothing metered. Bring an API key instead if you prefer.</p>
-      </div>
-      <div class="pillar">
-        <div class="ico" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16v13H4z"/><path d="M9 7V4h6v3"/><path d="M4 12h16"/></svg></div>
-        <h3>Agents you can hand to someone</h3>
-        <p>A GAP packs agents together with their skills, knowledge, connectors and config into one file. Export it, send it, they install it.</p>
+      <!-- A faithful rendition of the Workbench — HTML, so it's sharp at any size. -->
+      <div class="shot reveal" aria-label="The Forge workbench">
+        <div class="window" role="img" aria-label="Forge's Workbench: a status readout, a table of agents, setup steps and recent runs">
+          <div class="titlebar" aria-hidden="true"><i></i><i></i><i></i><span>Forge</span></div>
+          <div class="app" aria-hidden="true">
+            <aside class="side">
+              <div class="search">Search <kbd>⌘K</kbd></div>
+              <a class="on"><svg width="14" height="14"><use href="#i-home"/></svg>Workbench</a>
+              <a><svg width="14" height="14"><use href="#i-user"/></svg>Agents<em>3</em></a>
+              <a><svg width="14" height="14"><use href="#i-grid"/></svg>Packs</a>
+              <a><svg width="14" height="14"><use href="#i-book"/></svg>Knowledge</a>
+              <div class="sec">RUN</div>
+              <a><svg width="14" height="14"><use href="#i-clock"/></svg>Schedules</a>
+              <a><svg width="14" height="14"><use href="#i-act"/></svg>Activity</a>
+              <a><svg width="14" height="14"><use href="#i-phone"/></svg>Remote</a>
+              <div class="sec">TOOLS</div>
+              <a><svg width="14" height="14"><use href="#i-plug"/></svg>Integrations</a>
+              <a><svg width="14" height="14"><use href="#i-term"/></svg>Terminal</a>
+              <div class="grow"></div>
+              <a><svg width="14" height="14"><use href="#i-gear"/></svg>Settings</a>
+              <div class="runtime"><span class="dot" style="background:var(--sage)"></span><div>Claude Code<small>subscription · not metered</small></div></div>
+            </aside>
+            <div class="main">
+              <div class="mhead">
+                <div><b>Gagan's workbench</b><small>Wednesday 11 November</small></div>
+                <div class="acts"><span class="chip-btn">Marketplace</span><span class="chip-btn solid">+ New pack</span></div>
+              </div>
+              <div class="mbody">
+                <div class="readout">
+                  <div><span class="label">Agents</span><div class="n">3</div><small>in 2 packs</small></div>
+                  <div><span class="label">On your phone</span><div class="n">1</div><small class="warn">1 waiting for you</small></div>
+                  <div><span class="label">Runs · 24h</span><div class="n">42</div><small>no failures</small></div>
+                  <div><span class="label">Spend · month</span><div class="n">$0.00</div><small>on subscription</small></div>
+                </div>
+                <div class="cols">
+                  <div>
+                    <div class="h2row">Agents <span>All agents →</span></div>
+                    <table>
+                      <thead><tr><th>Agent</th><th class="hide-sm">Model</th><th style="text-align:right">State</th></tr></thead>
+                      <tbody>
+                        <tr><td><div class="who"><span class="mark m-ember">SC</span><div>Scout<small>Research assistant · Research Lab</small></div></div></td><td class="model hide-sm">Opus 5.5</td><td style="text-align:right"><span class="state"><span class="dot" style="background:var(--sage)"></span>live</span></td></tr>
+                        <tr><td><div class="who"><span class="mark m-sage">SM</span><div>Smith<small>Pair programmer · Code Forge</small></div></div></td><td class="model hide-sm">Sonnet 5.5</td><td style="text-align:right"><span class="state"><span class="dot" style="background:var(--ember)"></span>ready</span></td></tr>
+                        <tr><td><div class="who"><span class="mark m-ochre">LE</span><div>Ledger<small>Finance analyst · Finance Desk</small></div></div></td><td class="model hide-sm">Haiku 5.5</td><td style="text-align:right"><span class="state"><span class="dot" style="background:var(--sage)"></span>live</span></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="runs-col">
+                    <div class="h2row">Recent runs <span>All runs →</span></div>
+                    <div class="runs"><ul>
+                      <li><span class="dot" style="background:var(--sage)"></span><div><p>Weekly competitor sweep</p><small>Scout · schedule · 2m ago</small></div></li>
+                      <li><span class="dot" style="background:var(--ember)"></span><div><p>Refactor the parser module</p><small>Smith · chat · now</small></div></li>
+                      <li><span class="dot" style="background:var(--sage)"></span><div><p>Friday spend summary</p><small>Ledger · phone · 1h ago</small></div></li>
+                    </ul></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <div class="wrap"><div class="rule"></div></div>
+  <!-- =========================== Principles =========================== -->
+  <div class="wrap principles reveal">
+    <div>
+      <span class="label">01 · Local</span>
+      <h3>Nothing leaves your Mac</h3>
+      <p>Agents, chats, keys, documents and memory live on this device. No account, no hosted backend, no telemetry.</p>
+    </div>
+    <div>
+      <span class="label">02 · Free to run</span>
+      <h3>Costs you nothing extra</h3>
+      <p>Forge drives the Claude Code already on your machine, on the subscription you pay for anyway. Prefer an API key? That works too.</p>
+    </div>
+    <div>
+      <span class="label">03 · Shareable</span>
+      <h3>Agents you can hand over</h3>
+      <p>A pack bundles agents with their skills, knowledge and setup into one <span class="mono">.gap</span> file. Send it; they install it.</p>
+    </div>
+  </div>
 
-  <section class="wrap reveal" id="features">
-    <p class="eyebrow">What's inside</p>
-    <h2>A workspace, not a chat box</h2>
-    <p class="lede">Agents here are things you build, version, schedule and keep running — not a tab you leave open.</p>
+  <!-- ============================ Features ============================ -->
+  <section id="features" class="rule">
+    <div class="wrap">
+      <span class="label">What's inside</span>
+      <h2>A workspace, not a chat box.</h2>
+      <p class="sub">Agents here are things you build, give tools to, schedule and keep running — not a tab you leave open.</p>
 
-    <div class="bento">
-      <div class="tile hero-tile">
-        <span class="kicker">Computer access</span>
-        <h3>Let an agent touch the machine, on a leash</h3>
-        <p>Opt in per agent and it gets a shell and file writes, scoped to your home folder. Every single call stops for approval and shows the exact command. Denial is the default, credential folders are blocked outright, and anything running unattended always says no.</p>
-        <div class="demo">
-          <div class="line"><i></i>Scout wants to run <code>git status --short</code></div>
-          <div class="approve"><span>Allow once</span><span class="no">Deny</span></div>
+      <div class="feature reveal">
+        <div class="copy">
+          <span class="label">Computer access</span>
+          <h3>Let an agent use the machine. On a leash.</h3>
+          <p>Turn it on per agent and it can run commands, write files, take screenshots and click — every action stops and shows you exactly what it's about to do.</p>
+          <ul>
+            <li>Deny is the default; nothing runs unasked</li>
+            <li>Scoped to your home folder; <span class="mono">.ssh</span>, <span class="mono">.aws</span> and other key folders are blocked outright</li>
+            <li>Text from web pages and files can't quietly steer it — those turns get a louder warning</li>
+          </ul>
+        </div>
+        <div class="vig approve" role="img" aria-label="An approval prompt: Scout wants to run git status">
+          <div class="q"><span class="mark m-ember">SC</span><div><p>Scout wants to run a command</p><small>in ~/code/forge · asks every time</small></div></div>
+          <code><span class="p">$</span> git status --short &amp;&amp; pnpm test</code>
+          <div class="acts"><span class="mini">Deny</span><span class="mini solid">Allow once</span></div>
         </div>
       </div>
 
-      <div class="tile wide">
-        <span class="kicker">Brains</span>
-        <h3>Detachable minds</h3>
-        <p>A brain carries its own persona, model settings, knowledge and memory pool. Attach it to any agent, move it to another, keep the memory. New facts wait in a queue until you approve them.</p>
+      <div class="feature flip reveal">
+        <div class="copy">
+          <span class="label">Knowledge</span>
+          <h3>Agents that know your stuff — and remember.</h3>
+          <p>Drop in PDFs, notes and exports. Before every answer Forge finds the passages that matter and hands them over, using a search model that runs on your Mac.</p>
+          <p>Memory is the other half: short facts an agent keeps across conversations. Write them yourself, or let the agent save them — with your OK first, if you like.</p>
+        </div>
+        <div class="vig" role="img" aria-label="An agent's knowledge: three documents and two memories, one waiting for approval">
+          <div class="vh">Documents <span>3 · read locally</span></div>
+          <div class="row"><span class="ftype pdf">PDF</span><div class="grow">Refund policy 2026<small>184 KB · 12 pages</small></div></div>
+          <div class="row"><span class="ftype">MD</span><div class="grow">Support playbook<small>9.2 KB</small></div></div>
+          <div class="row"><span class="ftype">CSV</span><div class="grow">Q3 orders export<small>61 KB</small></div></div>
+          <div class="vh" style="border-top:1px solid var(--border)">Memory <span>2 kept · 1 waiting</span></div>
+          <div class="row"><div class="grow">Gagan prefers short answers with sources.</div><span class="toggle" title="Agent saves its own memories"></span></div>
+          <div class="row pending"><div class="grow">Refunds over $500 need a manager.<small>proposed by Scout · just now</small></div><span class="mini">Discard</span><span class="mini solid">Keep</span></div>
+        </div>
       </div>
 
-      <div class="tile wide">
-        <span class="kicker">Workshop</span>
-        <h3>Build a pack properly</h3>
-        <p>A wizard for the quick version, a full editor when you need it: identity, agents, MCP servers, environment variables, and a raw-manifest escape hatch when the UI is in your way.</p>
+      <div class="feature reveal">
+        <div class="copy">
+          <span class="label">Remote</span>
+          <h3>Message your Mac from your phone.</h3>
+          <p>Connect an agent to a Telegram or Discord bot, pair your phone with a one-time code, and ask for things from anywhere. Anything that touches the machine asks your phone first.</p>
+          <ul>
+            <li>Only paired phones get answers; everyone else is logged and refused</li>
+            <li>Approve once, allow for 15 minutes, or <span class="mono">/lock</span> it all down</li>
+          </ul>
+        </div>
+        <div class="phone" role="img" aria-label="A Telegram chat: the agent asks to run a command and waits for approval">
+          <div class="bar"><span class="mark m-ember">SC</span><div>Scout<small>● online · on your Mac</small></div></div>
+          <div class="chat">
+            <div class="b me">find last week's invoice PDF and send it to me</div>
+            <div class="b ask">🔐 Run a command on your computer?<br><code>mdfind -onlyin ~/Documents "invoice"</code><div class="btns"><span>Approve</span><span>15 min</span><span>Deny</span></div></div>
+            <div class="b it">Found <b>Invoice-0412.pdf</b> — sending it now.</div>
+          </div>
+        </div>
       </div>
 
-      <div class="tile">
-        <span class="kicker">Knowledge</span>
-        <h3>Local retrieval</h3>
-        <p>Per-agent documents with semantic search. The embedding model runs on your machine.</p>
-      </div>
-      <div class="tile">
-        <span class="kicker">Schedules</span>
-        <h3>Cron for agents</h3>
-        <p>Give an agent a routine and it runs without you sitting there watching it.</p>
-      </div>
-      <div class="tile">
-        <span class="kicker">Runs</span>
-        <h3>Every run counted</h3>
-        <p>Token and cost accounting on every run, so a surprise shows up as a number, early.</p>
-      </div>
-    </div>
-  </section>
-
-  <div class="wrap"><div class="rule"></div></div>
-
-  <section class="wrap reveal" id="install">
-    <p class="eyebrow">Getting started</p>
-    <h2>Three steps, no terminal</h2>
-    <p class="lede">You do not need Node, Rust, a package manager, or any idea what those are.</p>
-    <div class="steps">
-      <div class="step">
-        <h3>Download the DMG</h3>
-        <p>One universal build for both Intel and Apple Silicon Macs.</p>
-      </div>
-      <div class="step">
-        <h3>Drag it to Applications</h3>
-        <p>The usual macOS install. Open the disk image, drag the Forge icon across.</p>
-      </div>
-      <div class="step">
-        <h3>Open it and pick a runtime</h3>
-        <p>Point Forge at Claude Code, or paste an API key. That is the entire setup.</p>
+      <div class="more reveal">
+        <div><span class="label">Packs</span><h4>Build once, share as a file</h4><p>A step-by-step builder, or describe what you want and the Architect designs the pack. Export it as <span class="mono">.gap</span> or a share code.</p></div>
+        <div><span class="label">Skills</span><h4>Real tools, not a demo</h4><p>Web search that reads whole pages, a Python sandbox, files, HTTP, memory, MCP servers, GitHub, Slack and Notion.</p></div>
+        <div><span class="label">Schedules</span><h4>Cron for agents</h4><p>Give an agent a routine — a morning digest, a Friday report — and it runs without you watching. Results can go to your phone.</p></div>
+        <div><span class="label">Activity</span><h4>Every run counted</h4><p>Tokens and cost on every run, so a surprise shows up as a number, early. On the subscription it's simply $0.</p></div>
+        <div><span class="label">Models</span><h4>The current Claude family</h4><p>Opus 5.5, Sonnet 5.5, Haiku 5.5 and Fable 5.1 — pick per agent, or let it follow your default.</p></div>
+        <div><span class="label">Updates</span><h4>Stays current on its own</h4><p>New versions show up as an Update button. One click, signature checked, restart — done.</p></div>
       </div>
     </div>
   </section>
 
-  <div class="wrap"><div class="rule"></div></div>
-
-  <section class="wrap reveal" id="faq">
-    <p class="eyebrow">Questions</p>
-    <h2>The honest answers</h2>
-
-    <div class="faq">
-      <details open>
-        <summary>macOS says Forge is damaged. Is it?</summary>
-        <p>
-          No. You will see <em>"Forge is damaged and can't be opened"</em> or <em>"cannot be
-          opened because Apple cannot check it for malicious software."</em> macOS shows that for
-          any app whose developer hasn't paid Apple's yearly signing fee — it is a statement about
-          the paperwork, not about the app.
-        </p>
-        <p>
-          To get past it once: try to open Forge and let it be blocked, then go to
-          <kbd>System Settings</kbd> → <kbd>Privacy &amp; Security</kbd>, scroll to the bottom and
-          click <kbd>Open Anyway</kbd>. You won't be asked again. If you would rather not, the
-          source is on GitHub and you can build it yourself.
-        </p>
-      </details>
-      <details>
-        <summary>Does my data go anywhere?</summary>
-        <p>
-          Your agents, chats, keys and memory are stored on your Mac and nowhere else. There is no
-          account and no server behind Forge to send them to. Two things do use the network,
-          because of what they are: the actual conversation with Claude, and a one-time ~25 MB
-          download of the local search model the first time you use semantic knowledge search.
-          Offline, search quietly falls back to keyword matching.
-        </p>
-      </details>
-      <details>
-        <summary>What does it cost?</summary>
-        <p>
-          Forge is free and open source. If you point it at Claude Code it runs on the subscription
-          you already have and meters nothing. If you use an API key instead, you pay Anthropic
-          directly for tokens — Forge shows you the running total either way.
-        </p>
-      </details>
-      <details>
-        <summary>Windows or Linux?</summary>
-        <p>
-          Not yet. Forge is built on Tauri, which targets all three, so the ports are possible —
-          they just aren't built or tested. macOS is what ships today.
-        </p>
-      </details>
-      <details>
-        <summary>Can I get my data out?</summary>
-        <p>
-          Yes. Settings exports everything to a single JSON file, and imports it back on another
-          machine. Credentials are deliberately stripped from the export, so a backup you share
-          can't leak your API key. There is also a one-click wipe that leaves nothing behind.
-        </p>
-      </details>
+  <!-- ============================= Install ============================ -->
+  <section id="install" class="rule">
+    <div class="wrap">
+      <span class="label">Getting started</span>
+      <h2>Three steps. No terminal.</h2>
+      <p class="sub">You don't need Node, Rust, a package manager, or any idea what those are.</p>
+      <div class="install reveal">
+        <div><span class="num">01</span><h3>Download</h3><p>One universal build for Intel and Apple Silicon Macs.</p></div>
+        <div><span class="num">02</span><h3>Drag to Applications</h3><p>The usual Mac install: open the disk image, drag Forge across.</p></div>
+        <div><span class="num">03</span><h3>Open and pick a runtime</h3><p>Point Forge at Claude Code, or paste an API key. That's the whole setup.</p></div>
+      </div>
+      <div class="after reveal">
+        <p><b>After that, it updates itself.</b> When a new version is out, an Update button appears in the sidebar — one click installs it and restarts.</p>
+        <a class="btn btn-primary" href="https://github.com/gagan-baghel/forge/releases/latest" data-download><svg width="16" height="16"><use href="#apple"/></svg>Download for macOS</a>
+      </div>
     </div>
   </section>
 
-  <section class="wrap reveal">
-    <div class="close-cta">
-      <h2>Bring your agents home</h2>
-      <p>Free, open source, and yours after one download.</p>
-      <a class="btn lg" href="https://github.com/gagan-baghel/forge/releases/latest">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/></svg>
-        Download for macOS
-      </a>
-      <p class="fine">macOS 10.15+ · Intel &amp; Apple Silicon</p>
+  <!-- =============================== FAQ ============================== -->
+  <section id="faq" class="rule">
+    <div class="wrap">
+      <span class="label">Questions</span>
+      <h2>The honest answers.</h2>
+      <div class="faq">
+        <details>
+          <summary>macOS says Forge is damaged. Is it?</summary>
+          <div class="a">
+            <p>No. You may see <i>"Forge is damaged and can't be opened"</i> or <i>"Apple cannot check it for malicious software."</i> macOS says that about any app whose developer hasn't paid Apple's yearly signing fee — it's about the paperwork, not the app.</p>
+            <p>To get past it once: open Forge and let it be blocked, then go to <b>System Settings → Privacy &amp; Security</b>, scroll down and click <b>Open Anyway</b>. You won't be asked again — and updates install without it.</p>
+          </div>
+        </details>
+        <details>
+          <summary>Does my data go anywhere?</summary>
+          <div class="a">
+            <p>Your agents, chats, keys, documents and memory stay on your Mac. There's no account and no Forge server to send them to.</p>
+            <p>Three things use the network, because of what they are: the conversation with Claude itself, a one-time ~33 MB download of the local search model, and a check for new Forge versions on GitHub. Offline, search falls back to keyword matching.</p>
+          </div>
+        </details>
+        <details>
+          <summary>What does it cost?</summary>
+          <div class="a"><p>Forge is free. Pointed at Claude Code, it runs on the subscription you already have and meters nothing. With an API key you pay Anthropic directly for tokens — Forge shows the running total either way.</p></div>
+        </details>
+        <details>
+          <summary>How do updates work?</summary>
+          <div class="a"><p>Forge checks for a new release when it opens and every few hours. When there is one, an <b>Update</b> button appears; it downloads the new version, checks it was signed by the project, installs it and restarts. Builds without a valid signature are refused.</p></div>
+        </details>
+        <details>
+          <summary>Can someone send me a pack that does something nasty?</summary>
+          <div class="a"><p>Imported packs arrive scrubbed: no bot tokens, no paired phones, no remote control, and every MCP server switched off until you've looked at it. Anything that touches your machine still asks first.</p></div>
+        </details>
+        <details>
+          <summary>Windows or Linux?</summary>
+          <div class="a"><p>Not yet. Forge is built on Tauri, which supports both, so it's a matter of when — not a rewrite. Until then you can build it yourself from the source.</p></div>
+        </details>
+      </div>
     </div>
   </section>
 
+  <!-- ============================== Closer ============================ -->
+  <section class="rule closer">
+    <div class="wrap">
+      <span class="label">Forge</span>
+      <h2>Build agents that work for you — on your own machine.</h2>
+      <div class="cta" style="margin-top:32px">
+        <a class="btn btn-lg btn-primary" href="https://github.com/gagan-baghel/forge/releases/latest" data-download><svg width="17" height="17"><use href="#apple"/></svg>Download for macOS</a>
+        <a class="btn btn-lg" href="https://github.com/gagan-baghel/forge/releases">All releases</a>
+      </div>
+      <div class="meta"><span data-version>Latest release</span><span>Free</span><span>Source on GitHub</span></div>
+    </div>
+  </section>
 </main>
 
 <footer>
-  <div class="wrap f-in">
-    <div>
-      <a class="logo" href="#top"><i>F</i>Forge</a>
-      <p>A local-first workspace for AI agents.</p>
-    </div>
-    <div class="f-links">
-      <a href="#features">Features</a>
-      <a href="#install">Install</a>
-      <a href="#faq">FAQ</a>
-      <a href="https://github.com/gagan-baghel/forge">GitHub</a>
-      <a href="https://github.com/gagan-baghel/forge/releases/latest">Releases</a>
-    </div>
+  <div class="wrap">
+    <a class="brand" href="#top"><svg width="20" height="20"><use href="#mark"/></svg>Forge</a>
+    <nav aria-label="Footer">
+      <a href="https://github.com/gagan-baghel/forge">Source</a>
+      <a href="https://github.com/gagan-baghel/forge/releases">Releases</a>
+      <a href="https://github.com/gagan-baghel/forge/issues">Report an issue</a>
+    </nav>
   </div>
 </footer>
 
 <script>
-  // Hairline under the nav appears only once the page has moved.
+  // Hairline under the nav once the page has moved.
   const nav = document.getElementById("nav");
-  const onScroll = () => nav.classList.toggle("stuck", window.scrollY > 8);
+  const onScroll = () => nav.classList.toggle("stuck", scrollY > 8);
   onScroll();
   addEventListener("scroll", onScroll, { passive: true });
 
-  // Sections fade in once. Adding .js is what arms the hidden state at all, so
-  // the page still renders if anything below this line throws.
+  // Download buttons go straight to the newest DMG with its real version.
+  // If GitHub can't be reached they keep pointing at the Releases page.
+  fetch("https://api.github.com/repos/gagan-baghel/forge/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((rel) => {
+      if (!rel) return;
+      const dmg = (rel.assets || []).find((a) => /\.dmg$/i.test(a.name));
+      if (dmg) document.querySelectorAll("[data-download]").forEach((a) => (a.href = dmg.browser_download_url));
+      const v = String(rel.tag_name || "").replace(/^v/, "");
+      if (v) {
+        document.querySelectorAll("[data-version]").forEach((el) => (el.textContent = `Version ${v}`));
+        document.querySelectorAll("[data-version-label]").forEach((el) => (el.textContent = `Forge ${v}`));
+      }
+    })
+    .catch(() => {});
+
+  // Sections fade in once. Adding .js arms the hidden state, so the page
+  // still renders if anything below throws.
   document.documentElement.classList.add("js");
   const io = new IntersectionObserver((entries) => {
-    for (const e of entries) {
-      if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
-    }
-  }, { rootMargin: "0px 0px -12% 0px" });
+    for (const e of entries) if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+  }, { rootMargin: "0px 0px -10% 0px" });
   document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
 </script>
-
 </body>
 </html>

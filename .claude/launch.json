@@ -1,6 +1,7 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "forge-web", "runtimeExecutable": "pnpm", "runtimeArgs": ["dev"], "port": 1620 }
+    { "name": "forge-web", "runtimeExecutable": "pnpm", "runtimeArgs": ["dev"], "port": 1620 },
+    { "name": "forge-site", "runtimeExecutable": "python3", "runtimeArgs": ["-m", "http.server", "4180", "--directory", "docs"], "port": 4180 }
   ]
 }
