@@ -107,6 +107,8 @@
           "path": "$HOME/.config/gcloud/**"
         }
       ]
-    }
+    },
+    "updater:default",
+    "process:allow-restart"
   ]
 }

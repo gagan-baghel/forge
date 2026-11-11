@@ -21,7 +21,8 @@ round-trips to a single `.gap` file.
   export, version and share.
 - **Real desktop app.** Built on Tauri 2 (Rust + a web UI), so it's small, fast
   and native, with a true terminal PTY built in.
-- **Self-contained.** One installer, no update server, no account, no telemetry.
+- **Self-contained.** One installer, no account, no telemetry. Updates come
+  straight from this repo's GitHub Releases — no server of our own.
 
 ## Install
 
@@ -34,6 +35,36 @@ round-trips to a single `.gap` file.
 
 Every tagged version is built by CI and attached to a release automatically
 (`.github/workflows/release.yml`), so there is nothing to build by hand.
+
+### Updates
+
+Forge checks for a new release on launch and every six hours. When one is
+out, an **Update** button appears at the bottom of the sidebar (and in
+Settings); one click downloads it, checks its signature, installs and
+restarts. Updates are signed: an installed Forge refuses any build not signed
+with the project's key.
+
+Copies older than 1.0 have no updater — install 1.0 from Releases once by
+hand, and every later version arrives in-app.
+
+## Release a new version
+
+```bash
+pnpm release          # 1.0.0 → 1.0.1  (or: pnpm release minor / major)
+```
+
+That bumps the version, tags it and pushes. CI builds the universal app,
+signs the update, and publishes it with a `latest.json` feed; installed copies
+pick it up within six hours, or immediately from **Settings → Check for
+updates**.
+
+One-time setup: the signing key lives at `~/.tauri/forge-updater.key` (keep
+it secret and backed up — without it you can't ship updates to existing
+installs). CI needs it as a repository secret:
+
+```bash
+gh secret set TAURI_SIGNING_PRIVATE_KEY < ~/.tauri/forge-updater.key
+```
 
 ### The first-launch warning
 
@@ -209,15 +240,16 @@ passes `--skip-jenkins` to the bundler, which skips the cosmetic step; the
 resulting DMG is functionally identical, just without custom icon positions.
 
 Bundles land in `src-tauri/target/release/bundle/`. Forge is a self-contained
-application: there is no update server, no license check and no telemetry. Build
-it once and hand the installer over.
+application: no license check and no telemetry. Local builds don't need the
+update-signing key; only the CI release build signs update archives.
 
-Two things still need the network at runtime, because they are inherent to what
+Three things use the network at runtime, because they are inherent to what
 the app does rather than to how it ships:
 
 - **Talking to Claude**, via the API or the local Claude Code CLI.
+- **Update checks** against this repo's GitHub Releases.
 - **Semantic knowledge search**, which downloads its embedding model
-  (~25 MB, `Xenova/all-MiniLM-L6-v2`) once on first use and caches it. Until
+  (~33 MB, `Xenova/bge-small-en-v1.5`) once on first use and caches it. Until
   then — and on a machine that stays offline — retrieval falls back to the
   built-in keyword search automatically. Nothing errors.
 

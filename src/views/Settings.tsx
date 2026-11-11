@@ -14,6 +14,8 @@ import { useConversations } from "@/stores/conversations";
 import { useRuns } from "@/stores/runs";
 import { syncKeepAwake } from "@/lib/channelRuntime";
 import { MODELS, type ThemeName } from "@/types/domain";
+import { isDesktop } from "@/lib/platform";
+import { useUpdate } from "@/stores/update";
 
 const APP_VERSION = __APP_VERSION__;
 
@@ -74,6 +76,7 @@ export function SettingsView() {
       <PageHeader
         title="Settings"
         subtitle={`Forge ${APP_VERSION} — local-first, everything here lives on this device`}
+        actions={isDesktop() ? <UpdateCheck /> : undefined}
       />
       <PageBody className="max-w-3xl space-y-6">
         {/* API */}
@@ -420,6 +423,26 @@ function DataStats() {
           <div className="mt-0.5 text-lg font-semibold tabular-nums">{n as number}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Manual "is there a newer Forge?" — the same check the app runs on its own. */
+function UpdateCheck() {
+  const { status, version, error, check, install } = useUpdate();
+  if (status === "available" || status === "downloading")
+    return (
+      <Button variant="primary" icon="download" disabled={status === "downloading"} onClick={() => void install()}>
+        {status === "downloading" ? "Updating…" : `Update to v${version}`}
+      </Button>
+    );
+  return (
+    <div className="flex items-center gap-3">
+      {status === "current" && <span className="text-xs text-ink-3">You're on the latest version</span>}
+      {status === "error" && <span className="max-w-[260px] truncate text-xs text-danger" title={error}>Couldn't check: {error}</span>}
+      <Button icon="download" disabled={status === "checking"} onClick={() => void check()}>
+        {status === "checking" ? "Checking…" : "Check for updates"}
+      </Button>
     </div>
   );
 }

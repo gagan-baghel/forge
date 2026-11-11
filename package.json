@@ -4,7 +4,7 @@
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
-  "description": "Forge — a local-first desktop workspace for building, running and sharing AI agents as GAPs (Global Agent Packs).",
+  "description": "Forge \u2014 a local-first desktop workspace for building, running and sharing AI agents as GAPs (Global Agent Packs).",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -13,7 +13,8 @@
     "desktop": "tauri dev",
     "desktop:build": "tauri build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "release": "bash scripts/release.sh"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
@@ -22,6 +23,8 @@
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-dialog": "^2.8.4",
     "@tauri-apps/plugin-fs": "^2.7.1",
+    "@tauri-apps/plugin-process": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.14.1",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "clsx": "2.1.1",

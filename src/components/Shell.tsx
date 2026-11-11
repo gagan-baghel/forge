@@ -7,6 +7,7 @@ import { useGaps } from "@/stores/gaps";
 import { useSettings } from "@/stores/settings";
 import { useChannelRuntime } from "@/stores/channelRuntime";
 import { isDesktop, platformName } from "@/lib/platform";
+import { useUpdate } from "@/stores/update";
 
 interface NavItem {
   label: string;
@@ -151,9 +152,31 @@ function Sidebar() {
       </nav>
       <div className="space-y-px border-t border-border p-3">
         <NavRow item={{ label: "Settings", to: "/settings", icon: "settings" }} />
+        <UpdateButton />
         <RuntimeCard />
       </div>
     </aside>
+  );
+}
+
+/** Shown only when a newer release is out: one click updates and restarts. */
+function UpdateButton() {
+  const { status, version, progress, error, install } = useUpdate();
+  if (status !== "available" && status !== "downloading") return null;
+  const busy = status === "downloading";
+  return (
+    <div className="mt-1">
+      <button
+        onClick={() => void install()}
+        disabled={busy}
+        className="flex w-full items-center gap-2 rounded-md bg-brand px-2.5 py-2 text-left text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-80"
+      >
+        <Icon name="download" size={14} />
+        <span className="flex-1 truncate">{busy ? `Updating… ${progress !== undefined ? `${progress}%` : ""}` : `Update to v${version}`}</span>
+        {!busy && <span className="font-mono text-[10px] opacity-80">restart</span>}
+      </button>
+      {error && <p className="mt-1 px-1 text-[11px] text-danger">{error}</p>}
+    </div>
   );
 }
 

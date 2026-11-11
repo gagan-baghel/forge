@@ -1,10 +1,12 @@
-# Tag a version, get a downloadable DMG.
+# Ship a release — installed copies of Forge offer it as an in-app update:
 #
-#   pnpm version patch && git push --follow-tags
+#   pnpm release            (patch: 1.0.0 → 1.0.1; or pnpm release minor)
 #
 # Builds a universal (Intel + Apple Silicon) bundle and attaches it to a
 # GitHub Release, so installing Forge is "download, drag, open" for someone
-# who does not have Node, pnpm or Rust and never will.
+# who does not have Node, pnpm or Rust and never will. The release also
+# carries a signed update archive and latest.json, which is what the app's
+# updater reads (plugins.updater in tauri.conf.json).
 name: Release
 
 on:
@@ -38,6 +40,11 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the update archive. Installed apps refuse any update that
+          # isn't signed with this key, so a forged release can't install.
+          # Without the secret the build fails rather than ship unsigned updates.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
           # Unset until there is an Apple Developer account: the build still
           # succeeds, it just ships unsigned. Fill these secrets in and the
           # same workflow starts signing and notarising with no edit here.
@@ -51,7 +58,11 @@ jobs:
           # AppleScript and fails on a headless runner. Same DMG without it.
           CI: true
         with:
-          args: --target universal-apple-darwin
+          # Update archives are signed only here: a local build has no key and
+          # shouldn't need one.
+          args: --target universal-apple-darwin --config '{"bundle":{"createUpdaterArtifacts":true}}'
           tagName: ${{ github.ref_name }}
           releaseName: Forge ${{ github.ref_name }}
           releaseDraft: false
+          # latest.json is the update feed installed apps poll.
+          includeUpdaterJson: true

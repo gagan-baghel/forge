@@ -19,6 +19,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        // Self-update from GitHub Releases: signed builds only (see tauri.conf.json).
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(PtyState::default())
         .manage(ClaudeCodeState::default())
         .manage(ChannelState::default())

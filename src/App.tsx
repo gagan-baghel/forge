@@ -5,6 +5,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Spinner } from "./components/ui";
 import { useSettings } from "./stores/settings";
 import { startScheduler } from "./lib/scheduler";
+import { startUpdateChecks } from "./stores/update";
 import { initChannelListener, resumeChannels, syncKeepAwake } from "./lib/channelRuntime";
 
 import { HomeView } from "./views/Home";
@@ -76,6 +77,9 @@ export function App() {
     void initChannelListener().then(resumeChannels);
     return stop;
   }, [onboarded]);
+
+  // Looks for a newer signed release; the sidebar offers it when there is one.
+  useEffect(() => startUpdateChecks(), []);
 
   const keepAwake = useSettings((s) => s.keepAwake);
   useEffect(() => syncKeepAwake(), [keepAwake]);
