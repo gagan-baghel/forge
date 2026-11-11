@@ -10,7 +10,7 @@ function agent(partial: Partial<Agent>): Agent {
     role: "r",
     emoji: "🤖",
     systemPrompt: "",
-    model: "claude-opus-5",
+    model: "claude-opus-5-5",
     temperature: 0.7,
     maxTokens: 256,
     status: "ready",
@@ -33,7 +33,7 @@ describe("buildTools", () => {
   it("falls back to the original web_search tool on models that predate the new one", () => {
     const { defs } = buildTools(
       agent({
-        model: "claude-haiku-4-5",
+        model: "claude-haiku-5-5",
         skills: [{ id: "s", name: "Web", kind: "web_search", description: "", enabled: true }],
       }),
     );
@@ -52,7 +52,7 @@ describe("buildTools", () => {
     const names = defs.map((d) => (d as any).name);
     expect(names).toContain("http_request");
     expect(names).toContain("remember");
-    expect(names).toContain("recall");
+    expect(names).not.toContain("recall");
     expect(typeof executors["http_request"]).toBe("function");
   });
 

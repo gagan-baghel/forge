@@ -98,7 +98,7 @@ export function Chat({ agent }: { agent: Agent }) {
         >
           {messages.length === 0 ? (
             <div className="mx-auto mt-16 flex max-w-sm flex-col items-center text-center">
-              <Avatar emoji={agent.emoji} size={40} />
+              <Avatar name={agent.name} size={40} />
               <h3 className="mt-3 text-[15px] font-semibold">{agent.name}</h3>
               <p className="mt-0.5 text-[13px] text-ink-3">{agent.role}</p>
               {conv?.origin && (
@@ -128,7 +128,7 @@ export function Chat({ agent }: { agent: Agent }) {
                   </div>
                 ) : (
                   <div key={m.id} className="flex gap-3">
-                    <Avatar emoji={agent.emoji} size={24} className="mt-0.5 rounded-md" />
+                    <Avatar name={agent.name} size={24} className="mt-0.5 rounded-md" />
                     <div className="min-w-0 flex-1 text-[13px] leading-relaxed">
                       {m.toolCalls && m.toolCalls.length > 0 && (
                         <div className="mb-2 overflow-hidden rounded-md border border-border">

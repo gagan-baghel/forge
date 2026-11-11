@@ -27,7 +27,7 @@ export function SettingsView() {
   const resetAll = async () => {
     const ok = await confirm({
       title: "Clear all my data?",
-      body: "Every GAP, agent, chat and run on this device is deleted, and your stored credentials are cleared. This cannot be undone.",
+      body: "Every pack, agent, chat and run on this device is deleted, and your stored credentials are cleared. This cannot be undone.",
       confirmLabel: "Clear everything",
     });
     if (!ok) return;
@@ -242,9 +242,9 @@ const THEMES: { id: ThemeName; label: string }[] = [
 
 /** A tiny preview chip of each theme's surface. */
 function ThemeSwatch({ theme }: { theme: ThemeName }) {
-  const dark = "linear-gradient(135deg, #1b1b1f 0 100%)";
-  const light = "linear-gradient(135deg, #f4f4f5 0 100%)";
-  const bg = theme === "dusk" ? dark : theme === "paper" ? light : "linear-gradient(135deg, #f4f4f5 0 50%, #1b1b1f 50% 100%)";
+  const dark = "linear-gradient(135deg, #11100e 0 100%)";
+  const light = "linear-gradient(135deg, #f6f3ed 0 100%)";
+  const bg = theme === "dusk" ? dark : theme === "paper" ? light : "linear-gradient(135deg, #f6f3ed 0 50%, #11100e 50% 100%)";
   return <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-border-strong" style={{ background: bg }} />;
 }
 
@@ -410,7 +410,7 @@ function DataStats() {
   return (
     <div className="grid grid-cols-4 divide-x divide-border rounded-lg border border-border">
       {[
-        ["GAPs", gaps],
+        ["Packs", gaps],
         ["Agents", agents],
         ["Chats", convs],
         ["Runs", runs],

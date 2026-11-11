@@ -46,7 +46,7 @@ describe("buildCliBridgeTools", () => {
   it("bridges only what the CLI lacks natively", () => {
     const { defs, executors } = buildCliBridgeTools(agent);
     const names = Object.keys(executors).sort();
-    expect(names).toEqual(["click", "press_key", "recall", "remember", "screenshot", "scroll", "send_file", "type_text"]);
+    expect(names).toEqual(["click", "press_key", "remember", "screenshot", "scroll", "send_file", "type_text"]);
     // Defs match executors; no server-side tool (web_search) sneaks in.
     expect(defs.map((d) => d.name).sort()).toEqual(names);
   });

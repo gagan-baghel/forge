@@ -14,7 +14,7 @@ beforeEach(() => localStorage.clear());
 describe("adaptive thinking + effort", () => {
   it("sends adaptive thinking and an effort level on Claude 5 models", async () => {
     const spy = mockStreamingFetch([textTurn("ok")]);
-    await streamChat({ ...base, model: "claude-opus-5", messages: msgs }, { onText: () => {} });
+    await streamChat({ ...base, model: "claude-opus-5-5", messages: msgs }, { onText: () => {} });
 
     const body = bodyOf(spy);
     expect(body.thinking).toEqual({ type: "adaptive" });
@@ -23,21 +23,31 @@ describe("adaptive thinking + effort", () => {
     expect(body.thinking.budget_tokens).toBeUndefined();
   });
 
-  it("sends neither on Haiku 4.5, which predates both", async () => {
+  it("sends adaptive thinking on Haiku 5.5 too, and never temperature", async () => {
     const spy = mockStreamingFetch([textTurn("ok")]);
-    await streamChat({ ...base, model: "claude-haiku-4-5", messages: msgs }, { onText: () => {} });
+    await streamChat({ ...base, model: "claude-haiku-5-5", messages: msgs }, { onText: () => {} });
+
+    const body = bodyOf(spy);
+    expect(body.thinking).toEqual({ type: "adaptive" });
+    // Haiku 5.5 defaults to medium effort; we always send ours explicitly.
+    expect(body.output_config.effort).toBe("high");
+    expect(body.temperature).toBeUndefined();
+  });
+
+  it("sends nothing optional for an unknown model id", async () => {
+    const spy = mockStreamingFetch([textTurn("ok")]);
+    await streamChat({ ...base, model: "some-unknown-model" as any, messages: msgs }, { onText: () => {} });
 
     const body = bodyOf(spy);
     expect(body.thinking).toBeUndefined();
     expect(body.output_config).toBeUndefined();
-    // ...but Haiku still accepts temperature.
-    expect(body.temperature).toBe(0.7);
+    expect(body.temperature).toBeUndefined();
   });
 
   it("applies to the tool-use path too", async () => {
     const spy = mockStreamingFetch([textTurn("ok")]);
     await streamMessage(
-      { ...base, model: "claude-opus-5", messages: [{ role: "user", content: "hi" }] as any },
+      { ...base, model: "claude-opus-5-5", messages: [{ role: "user", content: "hi" }] as any },
       { onText: () => {} },
     );
     expect(bodyOf(spy).output_config.effort).toBe("high");
@@ -49,7 +59,7 @@ describe("structured outputs", () => {
     const spy = mockStreamingFetch([textTurn("ok")]);
     const schema = { type: "object", properties: { a: { type: "string" } } };
     await streamChat(
-      { ...base, model: "claude-opus-5", messages: msgs, outputConfig: { format: { type: "json_schema", schema } } },
+      { ...base, model: "claude-opus-5-5", messages: msgs, outputConfig: { format: { type: "json_schema", schema } } },
       { onText: () => {} },
     );
 
@@ -63,7 +73,7 @@ describe("structured outputs", () => {
   it("carries a schema even on a model with no effort support", async () => {
     const spy = mockStreamingFetch([textTurn("ok")]);
     await streamChat(
-      { ...base, model: "claude-haiku-4-5", messages: msgs, outputConfig: { format: { type: "json_schema", schema: {} } } },
+      { ...base, model: "some-unknown-model" as any, messages: msgs, outputConfig: { format: { type: "json_schema", schema: {} } } },
       { onText: () => {} },
     );
     const oc = bodyOf(spy).output_config;
@@ -74,17 +84,19 @@ describe("structured outputs", () => {
 
 describe("model routing", () => {
   it("routes mechanical work to the cheap model", () => {
-    expect(routeModel("utility", "claude-opus-5")).toBe(UTILITY_MODEL);
+    expect(routeModel("utility", "claude-opus-5-5")).toBe(UTILITY_MODEL);
   });
 
   it("never downgrades the model the user chose for real reasoning", () => {
-    expect(routeModel("reasoning", "claude-opus-5")).toBe("claude-opus-5");
-    expect(routeModel("reasoning", "claude-fable-5")).toBe("claude-fable-5");
+    expect(routeModel("reasoning", "claude-opus-5-5")).toBe("claude-opus-5-5");
+    expect(routeModel("reasoning", "claude-fable-5-1")).toBe("claude-fable-5-1");
   });
 
   it("knows which models take adaptive thinking", () => {
-    expect(supportsAdaptiveThinking("claude-opus-5")).toBe(true);
-    expect(supportsAdaptiveThinking("claude-sonnet-5")).toBe(true);
-    expect(supportsAdaptiveThinking("claude-haiku-4-5")).toBe(false);
+    expect(supportsAdaptiveThinking("claude-opus-5-5")).toBe(true);
+    expect(supportsAdaptiveThinking("claude-sonnet-5-5")).toBe(true);
+    expect(supportsAdaptiveThinking("claude-haiku-5-5")).toBe(true);
+    expect(supportsAdaptiveThinking("claude-fable-5-1")).toBe(true);
+    expect(supportsAdaptiveThinking("some-unknown-model")).toBe(false);
   });
 });

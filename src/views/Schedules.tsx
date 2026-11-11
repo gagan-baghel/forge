@@ -6,7 +6,7 @@ import { Icon } from "@/components/Icon";
 import { useRoutines } from "@/stores/routines";
 import { useGaps } from "@/stores/gaps";
 import { runRoutineNow } from "@/lib/scheduler";
-import { nextRun } from "@/lib/cron";
+import { isValidCron, nextRun } from "@/lib/cron";
 import { relativeTime } from "@/lib/format";
 import type { Routine } from "@/types/domain";
 import { useDialog } from "@/components/Confirm";
@@ -57,7 +57,7 @@ export function SchedulesView() {
 
   const save = () => {
     const agent = agents.find((a) => a.id === agentId);
-    if (!name.trim() || !agent) return;
+    if (!name.trim() || !agent || !isValidCron(cron)) return;
     if (editing) {
       update(editing.id, {
         name: name.trim(),
@@ -181,7 +181,10 @@ export function SchedulesView() {
               ))}
             </select>
           </Field>
-          <Field label="Schedule">
+          <Field
+            label="Schedule"
+            hint={isValidCron(cron) ? undefined : "Not a valid cron expression: five fields — minute hour day month weekday."}
+          >
             <div className="mb-2 flex flex-wrap gap-1.5">
               {PRESETS.map((p) => (
                 <button
@@ -194,14 +197,19 @@ export function SchedulesView() {
                 </button>
               ))}
             </div>
-            <input className="input font-mono" value={cron} onChange={(e) => setCron(e.target.value)} />
+            <input
+              className="input font-mono"
+              value={cron}
+              aria-invalid={!isValidCron(cron)}
+              onChange={(e) => setCron(e.target.value)}
+            />
           </Field>
           <Field label="Prompt">
             <textarea className="input min-h-[90px] resize-y" value={prompt} placeholder="What should the agent do each run?" onChange={(e) => setPrompt(e.target.value)} />
           </Field>
           <div className="flex justify-end gap-2 pt-1">
             <Button onClick={() => setOpen(false)}>Cancel</Button>
-            <Button variant="primary" onClick={save} disabled={!name.trim()}>
+            <Button variant="primary" onClick={save} disabled={!name.trim() || !isValidCron(cron)}>
               {editing ? "Save changes" : "Create routine"}
             </Button>
           </div>

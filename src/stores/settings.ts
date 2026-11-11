@@ -21,7 +21,7 @@ const STORE_KEY = "forge.settings";
 const initial: Settings = {
   apiKey: "",
   ccToken: "",
-  defaultModel: "claude-opus-5",
+  defaultModel: "claude-opus-5-5",
   // Forge runs on the local Claude Code daemon by default — no connect step.
   runtime: "claude-code",
   theme: "dusk",

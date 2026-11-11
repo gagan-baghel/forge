@@ -3,7 +3,17 @@ import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { DialogProvider } from "./components/Confirm";
+// Bundled, not fetched: the desktop app works offline and calls no font CDN.
+import "@fontsource/ibm-plex-sans/400.css";
+import "@fontsource/ibm-plex-sans/500.css";
+import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
 import "./styles/globals.css";
+import { foldBrainsIntoAgents } from "./lib/foldBrains";
+
+// Stores hydrate synchronously from localStorage, so this sees the saved data.
+foldBrainsIntoAgents();
 
 function mount() {
   ReactDOM.createRoot(document.getElementById("root")!).render(

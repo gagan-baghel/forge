@@ -63,7 +63,10 @@ every build with no code change; the warning then disappears entirely.
 
 ## Develop
 
+Needs Node 22.19+ (`.nvmrc` pins 24) and pnpm 10.
+
 ```bash
+nvm use
 pnpm install
 
 # Web build (fastest iteration, runs in a browser at http://localhost:1620)
@@ -79,13 +82,13 @@ Add your Claude API key during onboarding or in **Settings → Claude API**.
 
 ```
 src/
-  views/        screens (Home, GAPs, Agents, Brains, Workshop, Memory, …)
+  views/        screens (Workbench, Agents, Packs, Knowledge, Activity, …)
   components/    Shell, UI primitives, Markdown, icons
-  stores/        Zustand stores (gaps, brains, memory, conversations, runs, …)
+  stores/        Zustand stores (gaps, memory, conversations, runs, …)
   lib/           Claude client, Claude Code runtime, MCP config, knowledge,
                  .gap import/export, seed
   hooks/         useChat / useClaudeCode orchestration
-  types/         domain model (Gap, Agent, Brain, McpServer, …)
+  types/         domain model (Gap, Agent, McpServer, …)
 src-tauri/       Rust shell: Claude Code bridge (detect / install / run),
                  Forge tool bridge (loopback MCP server), Telegram/Discord
                  bots, desktop control, PTY terminal, HTTP proxy
@@ -93,39 +96,50 @@ src-tauri/       Rust shell: Claude Code bridge (detect / install / run),
 
 ## Features
 
-- **GAPs** — create, edit, import/export `.gap`, share codes, install from
-  Marketplace
-- **Workshop** — pack builder wizard plus a deep pack editor: identity,
-  agents, MCP servers, environment variables, raw-manifest escape hatch
-- **Agents** — chat (streaming, tool-use loop), system prompt, model &
-  sampling, skills, per-agent knowledge (local semantic RAG), connectors,
-  channels, run logs
-- **Brains** — detachable minds: persona, model overrides, knowledge and
-  shared memory, attachable to any agent and movable between them; an
-  optional learning queue holds new facts until you approve them
+One home for each idea: a **pack** holds **agents**; an agent owns its
+model, prompt, skills, **knowledge** (documents + memory), connections and
+remote channels. Nothing overrides an agent from somewhere else.
+
+- **Workbench** — what's live, what ran, what it cost, and what's left to set up
+- **Agents** — chat (streaming, tool-use loop), setup (prompt, model,
+  runtime), skills, knowledge, connections, remote channels and activity
+- **Packs** — one page per pack: its agents, details, MCP servers,
+  environment, sharing (`.gap` file or share code) and a raw-JSON escape
+  hatch. New packs come from the step-by-step builder or the **Architect**
+  (describe a goal, Claude designs the pack); ready-made ones from the
+  **Marketplace**
+- **Knowledge** — *Documents* agents read before answering (PDF, text,
+  Markdown, CSV, JSON — read on this machine, matched with local semantic
+  search) and *Memory*, the short facts an agent keeps across conversations.
+  Add either by hand; agents with the Memory skill also save facts
+  themselves, optionally waiting for your OK. The relevant ones reach the
+  agent before every answer
+- **Skills** — web search and full-page reading, JavaScript and a Python
+  sandbox, file browsing and reading, HTTP, memory, and **Computer**: an
+  opt-in skill giving `run_shell`, `write_file`, `send_file` and desktop
+  control (`screenshot`, `click`, `type_text`, `press_key`, `scroll`). Every
+  machine action asks first, showing the exact command, path or keystrokes;
+  denial is the default. File access is scoped to `$HOME` with credential
+  folders (`.ssh`, `.aws`, `.gnupg`, gcloud) blocked outright
 - **Claude Code runtime** — in-built bridge to the local CLI: auto-detect or
   in-app install, $0 API cost, pack MCP servers + env mounted per turn
-- **Computer** — an opt-in per-agent skill giving it `run_shell`,
-  `write_file`, `send_file` and desktop control (`screenshot`, `click`,
-  `type_text`, `press_key`, `scroll`). Every call asks first, showing the exact
-  command, path or keystrokes; denial is the default. File access is scoped to
-  `$HOME` with credential folders (`.ssh`, `.aws`, `.gnupg`, gcloud) blocked
-  outright
 - **Remote** — message any agent from your phone over Telegram or Discord and
   have it work on this Mac (see below)
-- **Memory** — workspace-wide browser over every agent's memory and every
-  shared brain pool, with search and inline review
-- **Architect** — describe a goal, Claude designs a GAP you can install
-- **Marketplace** — browse and install community GAPs
-- **Schedules** — cron routines per agent
-- **Runs & Observability** — token/cost accounting, spend charts
+- **Schedules** — cron routines per agent; minutes missed while the window
+  was throttled are caught up
+- **Activity** — every run with token and cost accounting, plus spend and
+  reliability over time
 - **Terminal** — a real shell (desktop only)
-- **Settings** — BYOK key, default model, theme, price overrides, data reset
+- **Settings** — runtime, API key, default model, theme, price overrides,
+  backup and reset
+
+Packs you import from someone else arrive with channels, tokens and paired
+phones stripped and every MCP server switched off until you've reviewed it.
 
 ## Remote control from your phone
 
 Connect an agent to a Telegram or Discord bot (**Remote → Connect an agent**,
-or the agent's Channels tab), pair your phone, and message it from anywhere —
+or the agent's Remote tab), pair your phone, and message it from anywhere —
 "find the invoice PDF from last week and send it to me", "run the test suite
 and tell me what failed", "open Figma and screenshot the dashboard".
 

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "./Icon";
 import { useGaps } from "@/stores/gaps";
-import { useBrains } from "@/stores/brains";
 import { useSettings } from "@/stores/settings";
 
 interface Command {
@@ -24,7 +23,6 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const gaps = useGaps((s) => s.gaps);
-  const brains = useBrains((s) => s.brains);
   const setTheme = useSettings((s) => s.setTheme);
   const theme = useSettings((s) => s.theme);
 
@@ -61,26 +59,24 @@ export function CommandPalette() {
       setOpen(false);
     };
     const nav: Command[] = [
-      { id: "home", label: "Home", icon: "home", run: go("/") },
-      { id: "gaps", label: "GAPs", icon: "grid", run: go("/gaps") },
+      { id: "home", label: "Workbench", icon: "home", run: go("/") },
       { id: "agents", label: "Agents", icon: "agents", run: go("/agents") },
-      { id: "brains", label: "Brains", icon: "brain", run: go("/brains") },
-      { id: "workshop", label: "Workshop", icon: "hammer", run: go("/workshop") },
-      { id: "remote", label: "Remote", icon: "phone", run: go("/remote") },
-      { id: "architect", label: "Architect", icon: "spark", run: go("/architect") },
+      { id: "gaps", label: "Packs", icon: "grid", run: go("/gaps") },
       { id: "marketplace", label: "Marketplace", icon: "store", run: go("/marketplace") },
-      { id: "knowledge", label: "Knowledge", icon: "book", run: go("/knowledge") },
-      { id: "memory", label: "Memory", icon: "memory", run: go("/memory") },
+      { id: "workshop", label: "Build a pack", icon: "hammer", run: go("/workshop") },
+      { id: "architect", label: "Describe a pack to the Architect", icon: "spark", run: go("/architect") },
+      { id: "knowledge", label: "Knowledge · documents", icon: "book", run: go("/knowledge") },
+      { id: "memory", label: "Knowledge · memory", icon: "memory", run: go("/memory") },
       { id: "schedules", label: "Schedules", icon: "clock", run: go("/schedules") },
-      { id: "terminal", label: "Terminal", icon: "terminal", run: go("/terminal") },
-      { id: "runs", label: "Runs", icon: "activity", run: go("/runs") },
-      { id: "observability", label: "Observability", icon: "chart", run: go("/observability") },
+      { id: "runs", label: "Activity · runs", icon: "activity", run: go("/runs") },
+      { id: "observability", label: "Activity · insights", icon: "chart", run: go("/observability") },
+      { id: "remote", label: "Remote", icon: "phone", run: go("/remote") },
       { id: "integrations", label: "Integrations", icon: "plug", run: go("/integrations") },
-      { id: "team", label: "Team", icon: "user", run: go("/team") },
+      { id: "terminal", label: "Terminal", icon: "terminal", run: go("/terminal") },
       { id: "settings", label: "Settings", icon: "settings", run: go("/settings") },
     ];
     const actions: Command[] = [
-      { id: "new-gap", label: "Create new GAP", icon: "plus", run: go("/gaps") },
+      { id: "new-gap", label: "New pack", icon: "plus", run: go("/workshop") },
       {
         id: "theme",
         label: `Switch to ${theme === "dusk" ? "Paper (light)" : "Dusk (dark)"} theme`,
@@ -103,19 +99,12 @@ export function CommandPalette() {
     const gapCmds: Command[] = gaps.map((g) => ({
       id: `gap-${g.id}`,
       label: g.name,
-      hint: "GAP",
+      hint: "Pack",
       icon: "grid",
       run: go(`/gaps/${g.id}`),
     }));
-    const brainCmds: Command[] = brains.map((b) => ({
-      id: `brain-${b.id}`,
-      label: b.name,
-      hint: "Brain",
-      icon: "brain",
-      run: go(`/brains/${b.id}`),
-    }));
-    return [...nav, ...actions, ...agents, ...gapCmds, ...brainCmds];
-  }, [gaps, brains, navigate, theme, setTheme]);
+    return [...nav, ...actions, ...agents, ...gapCmds];
+  }, [gaps, navigate, theme, setTheme]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();

@@ -253,9 +253,29 @@ export interface ToolUse {
 }
 
 export type ApiContent =
-  | { type: "text"; text: string }
+  | { type: "text"; text: string; citations?: unknown[] }
   | { type: "tool_use"; id: string; name: string; input: unknown }
-  | { type: "tool_result"; tool_use_id: string; content: string | ToolResultBlock[]; is_error?: boolean };
+  | { type: "tool_result"; tool_use_id: string; content: string | ToolResultBlock[]; is_error?: boolean }
+  | PassthroughBlock;
+
+/**
+ * Blocks the app never reads but must send back byte-for-byte: thinking (its
+ * signature binds it to this exact conversation), and server-tool calls and
+ * results (web search, web fetch, code execution). Dropping or rewriting them
+ * loses the model's reasoning mid-loop and can 400 on newer accounts.
+ */
+export type PassthroughBlock = {
+  type:
+    | "thinking"
+    | "redacted_thinking"
+    | "server_tool_use"
+    | "web_search_tool_result"
+    | "web_fetch_tool_result"
+    | "code_execution_tool_result"
+    | "bash_code_execution_tool_result"
+    | "text_editor_code_execution_tool_result";
+  [key: string]: unknown;
+};
 
 /** Rich tool-result content: text plus images (a screenshot, say). */
 export type ToolResultBlock =
@@ -275,6 +295,8 @@ export interface MessageRequest {
   temperature: number;
   maxTokens: number;
   tools?: AnyTool[];
+  /** Code-execution container to reuse, so files and state survive between steps. */
+  container?: string;
 }
 
 export interface MessageResult {
@@ -284,6 +306,8 @@ export interface MessageResult {
   stopReason: string | null;
   inputTokens: number;
   outputTokens: number;
+  /** Code-execution container this turn ran in, if any. */
+  container?: string;
 }
 
 /**
@@ -313,6 +337,7 @@ export async function streamMessage(req: MessageRequest, cb: StreamCallbacks): P
       stream: true,
       output_config: supportsAdaptiveThinking(req.model) ? { effort: DEFAULT_EFFORT } : undefined,
       tools: req.tools && req.tools.length ? req.tools : undefined,
+      container: req.container,
       messages: req.messages,
     },
     req.apiKey,
@@ -323,43 +348,55 @@ export async function streamMessage(req: MessageRequest, cb: StreamCallbacks): P
   let inputTokens = 0;
   let outputTokens = 0;
   let stopReason: string | null = null;
+  let container: string | undefined;
 
-  // Track content blocks by index so we can assemble text + tool_use in order.
-  const blocks: Record<number, ApiContent & { _partialJson?: string }> = {};
+  // Every block is kept exactly as streamed, by index, so the turn can be sent
+  // back verbatim. Only `_partialJson` is ours, and it is removed on stop.
+  const blocks: Record<number, Record<string, any>> = {};
 
   for await (const json of sseEvents(res.body!)) {
     switch (json.type) {
       case "message_start":
         inputTokens = json.message?.usage?.input_tokens ?? inputTokens;
+        container = json.message?.container?.id ?? container;
         break;
       case "content_block_start": {
-        const idx = json.index as number;
         const b = json.content_block;
-        if (b?.type === "tool_use") {
-          blocks[idx] = { type: "tool_use", id: b.id, name: b.name, input: {}, _partialJson: "" };
-        } else if (b?.type === "text") {
-          blocks[idx] = { type: "text", text: "" };
-        }
+        if (!b?.type) break;
+        const blk: Record<string, any> = { ...b };
+        // Tool inputs arrive as JSON fragments; the start event's `{}` is a placeholder.
+        if (b.type === "tool_use" || b.type === "server_tool_use") blk._partialJson = "";
+        blocks[json.index as number] = blk;
         break;
       }
       case "content_block_delta": {
-        const idx = json.index as number;
+        const blk = blocks[json.index as number];
         const d = json.delta;
-        if (d?.type === "text_delta") {
-          text += d.text;
-          const blk = blocks[idx];
-          if (blk && blk.type === "text") blk.text += d.text;
-          cb.onText(d.text);
-        } else if (d?.type === "input_json_delta") {
-          const blk = blocks[idx];
-          if (blk && blk.type === "tool_use") blk._partialJson = (blk._partialJson ?? "") + d.partial_json;
+        if (!blk || !d) break;
+        switch (d.type) {
+          case "text_delta":
+            text += d.text;
+            blk.text = (blk.text ?? "") + d.text;
+            cb.onText(d.text);
+            break;
+          case "citations_delta":
+            (blk.citations ??= []).push(d.citation);
+            break;
+          case "thinking_delta":
+            blk.thinking = (blk.thinking ?? "") + d.thinking;
+            break;
+          case "signature_delta":
+            blk.signature = d.signature;
+            break;
+          case "input_json_delta":
+            blk._partialJson = (blk._partialJson ?? "") + d.partial_json;
+            break;
         }
         break;
       }
       case "content_block_stop": {
-        const idx = json.index as number;
-        const blk = blocks[idx];
-        if (blk && blk.type === "tool_use") {
+        const blk = blocks[json.index as number];
+        if (blk && "_partialJson" in blk) {
           try {
             blk.input = blk._partialJson ? JSON.parse(blk._partialJson) : {};
           } catch {
@@ -372,26 +409,23 @@ export async function streamMessage(req: MessageRequest, cb: StreamCallbacks): P
       case "message_delta":
         outputTokens = json.usage?.output_tokens ?? outputTokens;
         stopReason = json.delta?.stop_reason ?? stopReason;
+        container = json.delta?.container?.id ?? container;
         break;
     }
   }
 
   cb.onUsage?.({ inputTokens, outputTokens });
 
-  const content: ApiContent[] = Object.keys(blocks)
+  const content = Object.keys(blocks)
     .map(Number)
     .sort((a, b) => a - b)
-    .map((i) => {
-      const b = blocks[i];
-      if (b.type === "tool_use") return { type: "tool_use", id: b.id, name: b.name, input: b.input };
-      return { type: "text", text: (b as any).text };
-    });
+    .map((i) => blocks[i] as ApiContent);
 
   const toolUses: ToolUse[] = content
     .filter((c): c is Extract<ApiContent, { type: "tool_use" }> => c.type === "tool_use")
     .map((c) => ({ id: c.id, name: c.name, input: (c.input ?? {}) as Record<string, unknown> }));
 
-  return { text, content, toolUses, stopReason, inputTokens, outputTokens };
+  return { text, content, toolUses, stopReason, inputTokens, outputTokens, container };
 }
 
 function toApiMessages(messages: ChatMessage[]) {

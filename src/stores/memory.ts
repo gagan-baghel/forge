@@ -4,7 +4,7 @@ import { nanoid } from "nanoid";
 
 export interface MemoryNote {
   id: string;
-  /** Owner key: an agent id, or `brain:<id>` for a shared brain pool. */
+  /** The agent this memory belongs to. */
   agentId: string;
   text: string;
   createdAt: number;

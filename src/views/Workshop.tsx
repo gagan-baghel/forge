@@ -2,13 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { PageBody, PageHeader } from "@/components/Shell";
-import { Avatar, Button, Card, CardHeader, Badge, EmptyState, Field } from "@/components/ui";
+import { Avatar, Button, Card, CardHeader, Badge, Field } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 import { MODELS, type ModelId } from "@/types/domain";
-import { relativeTime } from "@/lib/format";
 
-const COLORS = ["#6688FF", "#34C77C", "#EAB308", "#EF5350", "#FF8A4C", "#8B8B96"];
+const COLORS = ["#D9703A", "#C49A3C", "#7FA36B", "#6B8FA8", "#A8738F", "#B5654F"];
 const EMOJIS = ["📦", "🔬", "⚒️", "🎧", "✍️", "📈", "🤖", "🚀", "🧠", "💡"];
 
 interface DraftAgent {
@@ -23,25 +22,20 @@ const blankAgent = (): DraftAgent => ({
   name: "",
   role: "",
   emoji: "🤖",
-  model: "claude-opus-5",
+  model: "claude-opus-5-5",
   systemPrompt: "You are a helpful assistant.",
 });
 
 /**
- * Workshop — the pack authoring workspace. The builder walks you from a blank
- * page to a working GAP (identity → agents → review); every installed GAP is
- * listed below with a jump into the full pack editor.
+ * New pack — the builder walks you from a blank page to a working pack
+ * (identity → agents → review), then opens it on its pack page.
  */
 export function WorkshopView() {
   return (
     <div>
-      <PageHeader
-        title="Workshop"
-        subtitle="Author GAPs from scratch and edit every part of the ones you have."
-      />
+      <PageHeader back={{ to: "/gaps", label: "Packs" }} title="New pack" subtitle="From a blank page to a working pack in three steps." />
       <PageBody className="max-w-3xl space-y-6">
         <PackBuilder />
-        <InstalledPacks />
       </PageBody>
     </div>
   );
@@ -59,7 +53,8 @@ function PackBuilder() {
   const [step, setStep] = useState<Step>(0);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
-  const [emoji, setEmoji] = useState(EMOJIS[0]);
+  // Marks are monograms of the name now; the field stays for older packs.
+  const emoji = EMOJIS[0];
   const [color, setColor] = useState(COLORS[0]);
   const [tags, setTags] = useState("");
   const [agents, setAgents] = useState<DraftAgent[]>([blankAgent()]);
@@ -87,14 +82,14 @@ function PackBuilder() {
         systemPrompt: a.systemPrompt,
       });
     }
-    navigate(`/workshop/${gap.id}`);
+    navigate(`/gaps/${gap.id}`);
   };
 
   return (
     <Card className="space-y-5">
       <CardHeader
         title="Pack builder"
-        hint="From a blank page to a working GAP in three steps."
+        hint="From a blank page to a working pack in three steps."
         action={
           <ol className="flex items-center gap-1">
             {STEPS.map((label, i) => (
@@ -144,24 +139,6 @@ function PackBuilder() {
             />
           </Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Emoji">
-              <div className="flex flex-wrap gap-1.5">
-                {EMOJIS.map((e) => (
-                  <button
-                    key={e}
-                    onClick={() => setEmoji(e)}
-                    aria-label={`Emoji ${e}`}
-                    aria-pressed={emoji === e}
-                    className={clsx(
-                      "grid h-8 w-8 place-items-center rounded-md border text-[15px] transition-colors",
-                      emoji === e ? "border-ink-3 bg-surface-3" : "border-border hover:bg-surface-2",
-                    )}
-                  >
-                    {e}
-                  </button>
-                ))}
-              </div>
-            </Field>
             <Field label="Color">
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 {COLORS.map((c) => (
@@ -197,7 +174,7 @@ function PackBuilder() {
             <div key={i} className="space-y-3 rounded-lg border border-border p-4">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-[13px] font-medium">
-                  <Avatar emoji={a.emoji || "🤖"} size={22} className="rounded-md" />
+                  <Avatar name={a.name || `Agent ${i + 1}`} size={22} className="rounded-md" />
                   {a.name.trim() || `Agent ${i + 1}`}
                 </span>
                 {agents.length > 1 && (
@@ -210,14 +187,7 @@ function PackBuilder() {
                   </button>
                 )}
               </div>
-              <div className="grid grid-cols-[64px_1fr_1fr] gap-3">
-                <Field label="Emoji">
-                  <input
-                    className="input text-center"
-                    value={a.emoji}
-                    onChange={(e) => patchAgent(i, { emoji: e.target.value })}
-                  />
-                </Field>
+              <div className="grid grid-cols-2 gap-3">
                 <Field label="Name">
                   <input
                     className="input"
@@ -268,7 +238,7 @@ function PackBuilder() {
       {step === 2 && (
         <div className="space-y-4">
           <div className="flex items-center gap-3 rounded-lg border border-border p-4">
-            <Avatar emoji={emoji} size={36} />
+            <Avatar name={name} tint={color} size={36} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
@@ -289,7 +259,7 @@ function PackBuilder() {
           <ul className="divide-y divide-border rounded-lg border border-border">
             {validAgents.map((a, i) => (
               <li key={i} className="flex items-center gap-3 px-4 py-2.5">
-                <Avatar emoji={a.emoji} size={28} />
+                <Avatar name={a.name} size={28} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[13px] font-medium">{a.name}</div>
                   <div className="truncate text-xs text-ink-3">{a.role || "Assistant"}</div>
@@ -319,46 +289,6 @@ function PackBuilder() {
           </Button>
         )}
       </div>
-    </Card>
-  );
-}
-
-/* ---------------------------- Installed packs --------------------------- */
-function InstalledPacks() {
-  const gaps = useGaps((s) => s.gaps);
-  const navigate = useNavigate();
-
-  return (
-    <Card className="p-0">
-      <div className="px-5 pt-4">
-        <CardHeader title="Installed packs" hint={`${gaps.length} GAP${gaps.length === 1 ? "" : "s"} · open one to edit agents, MCP servers and the raw manifest`} />
-      </div>
-      {gaps.length === 0 ? (
-        <div className="border-t border-border">
-          <EmptyState icon="grid" title="Nothing installed" body="Build one above or install from the Marketplace." />
-        </div>
-      ) : (
-        <ul className="divide-y divide-border border-t border-border">
-          {gaps.map((g) => (
-            <li key={g.id} className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-surface-2/50">
-              <Avatar emoji={g.emoji} size={30} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: g.color }} />
-                  <span className="truncate text-[13px] font-medium">{g.name}</span>
-                </div>
-                <div className="truncate text-xs text-ink-3">
-                  v{g.version} · {g.agents.length} agent{g.agents.length === 1 ? "" : "s"} · updated {relativeTime(g.updatedAt)}
-                </div>
-              </div>
-              <Badge tone={g.source === "local" ? "neutral" : "brand"}>{g.source}</Badge>
-              <Button icon="edit" onClick={() => navigate(`/workshop/${g.id}`)}>
-                Edit
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
     </Card>
   );
 }

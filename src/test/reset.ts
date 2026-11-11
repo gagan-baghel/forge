@@ -4,7 +4,6 @@ import { useRuns } from "@/stores/runs";
 import { useSettings } from "@/stores/settings";
 import { useMemory } from "@/stores/memory";
 import { useRoutines } from "@/stores/routines";
-import { useBrains } from "@/stores/brains";
 
 /** Reset all persisted Zustand stores to a clean slate between tests. */
 export function resetStores() {
@@ -13,11 +12,10 @@ export function resetStores() {
   useRuns.setState({ runs: [] });
   useMemory.setState({ notes: [] });
   useRoutines.setState({ routines: [] });
-  useBrains.setState({ brains: [] });
   useSettings.setState({
     apiKey: "",
     ccToken: "",
-    defaultModel: "claude-opus-5",
+    defaultModel: "claude-opus-5-5",
     runtime: "api",
     theme: "dusk",
     userName: "",

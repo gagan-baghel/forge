@@ -31,7 +31,7 @@ export function AgentsView() {
     <div>
       <PageHeader
         title="Agents"
-        subtitle="Every agent across your installed GAPs"
+        subtitle="Every agent in your packs"
         actions={
           <Button variant="primary" icon="plus" onClick={() => navigate("/gaps")}>
             New agent
@@ -45,7 +45,7 @@ export function AgentsView() {
             <input className="input pl-8" placeholder="Search agents…" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <select className="input w-auto" value={gapFilter} onChange={(e) => setGapFilter(e.target.value)}>
-            <option value="">All GAPs</option>
+            <option value="">All packs</option>
             {gaps.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -70,7 +70,7 @@ export function AgentsView() {
             <EmptyState
               icon="agents"
               title={q || gapFilter || statusFilter ? "No matching agents" : "No agents yet"}
-              body={q || gapFilter || statusFilter ? "Try different search or filters." : "Create a GAP and add agents to it."}
+              body={q || gapFilter || statusFilter ? "Try different search or filters." : "Create a pack and add agents to it."}
               action={
                 !q && !gapFilter && !statusFilter && (
                   <Button variant="primary" icon="store" onClick={() => navigate("/marketplace")}>
@@ -87,7 +87,7 @@ export function AgentsView() {
                     onClick={() => navigate(`/agents/${agent.id}`)}
                     className="flex w-full items-center gap-3 px-5 py-2.5 text-left transition-colors hover:bg-surface-2/50"
                   >
-                    <Avatar emoji={agent.emoji} size={30} />
+                    <Avatar name={agent.name} size={30} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13px] font-medium">{agent.name}</div>
                       <div className="truncate text-xs text-ink-3">{agent.role}</div>

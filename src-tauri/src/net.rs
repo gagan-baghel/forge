@@ -40,15 +40,17 @@ pub async fn http_fetch(
             Err(ureq::Error::Status(code, resp)) => (code, resp.into_reader()),
             Err(e) => return Err(format!("request failed: {e}")),
         };
-        let mut text = String::new();
-        let _ = reader
+        // Bytes, then lossy decode: read_to_string fails outright on one
+        // invalid UTF-8 byte, which used to return an empty body as success.
+        let mut bytes = Vec::new();
+        reader
             .take(2_000_000)
-            .read_to_string(&mut text)
-            .map_err(|e| e.to_string());
+            .read_to_end(&mut bytes)
+            .map_err(|e| format!("reading response failed: {e}"))?;
         Ok(HttpResponse {
             status,
             ok: (200..300).contains(&status),
-            body: text,
+            body: String::from_utf8_lossy(&bytes).into_owned(),
         })
     })
     .await

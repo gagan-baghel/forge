@@ -1,19 +1,17 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import clsx from "clsx";
-import { PageBody, PageHeader } from "@/components/Shell";
-import { Avatar, Button, Card, Badge, EmptyState } from "@/components/ui";
+import { PageBody, PageHeader, TABS } from "@/components/Shell";
+import { Avatar, Button, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useMemory, type MemoryNote } from "@/stores/memory";
 import { useGaps } from "@/stores/gaps";
-import { useBrains } from "@/stores/brains";
 import { relativeTime } from "@/lib/format";
 import { useDialog } from "@/components/Confirm";
+import { AddMemoryButton } from "@/components/AddKnowledge";
 
 interface Pool {
   key: string;
   title: string;
-  emoji: string;
   subtitle: string;
   /** Where the pool's owner is edited. */
   href: string;
@@ -23,8 +21,7 @@ interface Pool {
 /**
  * Memory — the workspace-wide long-term memory browser (everything the
  * `remember` skill has saved). One section per owner: each agent's private
- * memory and each brain's shared pool. Pending learning-queue items can be
- * approved or rejected inline.
+ * memory. Facts waiting for approval are listed first.
  */
 export function MemoryView() {
   const { confirm } = useDialog();
@@ -34,28 +31,15 @@ export function MemoryView() {
   const reject = useMemory((s) => s.reject);
   const clearAgent = useMemory((s) => s.clearAgent);
   const gaps = useGaps((s) => s.gaps);
-  const brains = useBrains((s) => s.brains);
   const [query, setQuery] = useState("");
 
   const pools = useMemo<Pool[]>(() => {
     const out: Pool[] = [];
-    for (const brain of brains) {
-      if (!brain.sharedMemory) continue;
-      out.push({
-        key: `brain:${brain.id}`,
-        title: brain.name,
-        emoji: brain.emoji,
-        subtitle: "shared brain pool",
-        href: `/brains/${brain.id}`,
-        notes: [],
-      });
-    }
     for (const gap of gaps) {
       for (const agent of gap.agents) {
         out.push({
           key: agent.id,
           title: agent.name,
-          emoji: agent.emoji,
           subtitle: `${agent.role} · ${gap.name}`,
           href: `/agents/${agent.id}`,
           notes: [],
@@ -69,11 +53,10 @@ export function MemoryView() {
       const pool = byKey.get(n.agentId);
       if (pool) pool.notes.push(n);
       else {
-        // Orphaned owner (agent/brain deleted) — still show so it can be cleaned up.
+        // Orphaned owner (agent deleted) — still show so it can be cleaned up.
         const orphan: Pool = {
           key: n.agentId,
           title: "(removed owner)",
-          emoji: "🗑",
           subtitle: n.agentId,
           href: "/memory",
           notes: [n],
@@ -84,121 +67,127 @@ export function MemoryView() {
     }
     // Pools with content first, then alphabetical.
     return out.sort((a, b) => b.notes.length - a.notes.length || a.title.localeCompare(b.title));
-  }, [notes, gaps, brains, query]);
+  }, [notes, gaps, query]);
 
   const total = notes.length;
-  const pendingTotal = notes.filter((n) => n.status === "pending").length;
-  const bytes = notes.reduce((a, n) => a + n.text.length, 0);
-
-  const visible = pools.filter((p) => p.notes.length > 0 || !query);
+  const titleFor = new Map(pools.map((p) => [p.key, p.title]));
+  // Waiting-for-approval items come first, on their own: they need a decision.
+  const pending = pools.flatMap((p) => p.notes.filter((n) => n.status === "pending"));
+  // Only owners that actually remember something; an "Empty." row per agent was noise.
+  const visible = pools
+    .map((p) => ({ ...p, notes: p.notes.filter((n) => n.status !== "pending") }))
+    .filter((p) => p.notes.length > 0);
 
   return (
     <div>
       <PageHeader
-        title="Memory"
-        subtitle="Everything your agents remember — private per agent, or pooled through a shared brain."
+        title="Knowledge"
+        tabs={TABS.knowledge}
+        subtitle="Facts your agents keep across conversations"
         actions={
-          <div className="flex items-center gap-2 text-xs tabular-nums text-ink-3">
-            {pendingTotal > 0 && <Badge tone="warn">{pendingTotal} pending review</Badge>}
-            <span>
-              {total} memories · {(bytes / 1024).toFixed(1)} KB
-            </span>
-          </div>
+          <>
+            {total > 0 && <span className="num text-xs text-ink-3">{total} saved</span>}
+            <AddMemoryButton />
+          </>
         }
       />
 
-      <PageBody className="max-w-3xl space-y-4">
-        <div className="relative">
-          <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
-          <input
-            className="input h-9 pl-8"
-            placeholder="Search all memories…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
+      <PageBody className="max-w-3xl space-y-8">
+        {total > 0 && (
+          <div className="relative">
+            <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
+            <input
+              className="input h-9 pl-8"
+              placeholder="Search memories…"
+              aria-label="Search memories"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+        )}
 
         {total === 0 ? (
-          <Card className="p-0">
-            <EmptyState
-              icon="memory"
-              title="No memories yet"
-              body="Agents with the Memory skill save facts with `remember` and recall them automatically. Everything they keep shows up here."
-            />
-          </Card>
-        ) : visible.length === 0 ? (
-          <p className="py-8 text-center text-xs text-ink-3">No memories match “{query}”.</p>
+          <EmptyState
+            icon="memory"
+            title="Nothing remembered yet"
+            body="Write down what an agent should always keep in mind — your preferences, names, decisions. Agents with the Memory skill also save facts themselves as they work. The relevant ones are handed to the agent before every answer."
+            action={<AddMemoryButton label="Add your first memory" />}
+          />
         ) : (
-          visible.map((pool) => (
-            <Card key={pool.key} className="p-0">
-              <div className="flex items-center gap-3 px-4 py-3">
-                <Avatar emoji={pool.emoji} size={28} />
-                <div className="min-w-0 flex-1">
-                  <Link to={pool.href} className="text-[13px] font-medium hover:text-brand-2">
-                    {pool.title}
-                  </Link>
-                  <div className="truncate text-xs text-ink-3">{pool.subtitle}</div>
-                </div>
-                <Badge tone={pool.key.startsWith("brain:") ? "brand" : "neutral"}>
-                  {pool.notes.length} {pool.notes.length === 1 ? "memory" : "memories"}
-                </Badge>
-                {pool.notes.length > 0 && (
+          <>
+            {pending.length > 0 && (
+              <section>
+                <h2 className="mb-2 flex items-baseline justify-between border-b border-border pb-2 text-[13.5px] font-semibold">
+                  Waiting for your OK
+                  <span className="num text-[11px] font-normal text-warn">{pending.length}</span>
+                </h2>
+                <ul className="divide-y divide-border">
+                  {pending.map((n) => (
+                    <li key={n.id} className="flex items-start gap-3 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13.5px] text-ink">{n.text}</div>
+                        <div className="font-mono text-[10.5px] text-ink-3">
+                          {titleFor.get(n.agentId) ?? "removed agent"}
+                          {n.proposedBy ? ` · proposed by ${n.proposedBy}` : ""} · {relativeTime(n.createdAt)}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 gap-1.5">
+                        <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => reject(n.id)}>
+                          Discard
+                        </Button>
+                        <Button variant="primary" icon="check" className="h-7 px-2 text-xs" onClick={() => approve(n.id)}>
+                          Keep
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {visible.length === 0 && query && <p className="py-6 text-[13px] text-ink-3">No memories match “{query}”.</p>}
+
+            {visible.map((pool) => (
+              <section key={pool.key}>
+                <div className="mb-1 flex items-center gap-3 border-b border-border pb-2">
+                  <Avatar name={pool.title} size={24} />
+                  <div className="min-w-0 flex-1">
+                    <Link to={pool.href} className="text-[13.5px] font-semibold hover:text-brand-2">
+                      {pool.title}
+                    </Link>
+                    <span className="ml-2 text-xs text-ink-3">{pool.subtitle}</span>
+                  </div>
+                  <span className="num text-[11px] text-ink-3">{pool.notes.length}</span>
                   <Button
                     variant="ghost"
-                    icon="trash"
                     className="h-7 px-2 text-xs hover:text-danger"
                     onClick={async () => {
-                      if (await confirm({ title: `Clear ${pool.notes.length} memories?`, body: `Every memory stored for "${pool.title}" is deleted.`, confirmLabel: "Clear" })) clearAgent(pool.key);
+                      if (await confirm({ title: `Forget everything ${pool.title} remembers?`, body: `All ${pool.notes.length} memories are deleted. This can't be undone.`, confirmLabel: "Forget all" })) clearAgent(pool.key);
                     }}
                   >
-                    Clear
+                    Forget all
                   </Button>
-                )}
-              </div>
-              {pool.notes.length === 0 ? (
-                <p className="border-t border-border px-4 py-3 text-xs text-ink-3">Empty.</p>
-              ) : (
-                <ul className="divide-y divide-border border-t border-border">
-                  {pool.notes.map((n) => {
-                    const pending = n.status === "pending";
-                    return (
-                      <li
-                        key={n.id}
-                        className={clsx("group flex items-start gap-3 px-4 py-2.5", pending && "bg-warn/[0.04]")}
+                </div>
+                <ul className="divide-y divide-border">
+                  {pool.notes.map((n) => (
+                    <li key={n.id} className="group flex items-start gap-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13.5px] text-ink">{n.text}</div>
+                        <div className="font-mono text-[10.5px] text-ink-3">{relativeTime(n.createdAt)}</div>
+                      </div>
+                      <button
+                        className="btn-ghost h-6 px-1 text-ink-3 opacity-0 hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
+                        aria-label="Forget memory"
+                        onClick={() => removeNote(n.id)}
                       >
-                        <span className={clsx("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", pending ? "bg-warn" : "bg-ink-3/50")} />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[13px] text-ink">{n.text}</div>
-                          <div className="text-[11px] text-ink-3">
-                            {pending && `pending${n.proposedBy ? ` · by ${n.proposedBy}` : ""} · `}
-                            {relativeTime(n.createdAt)}
-                          </div>
-                        </div>
-                        {pending ? (
-                          <div className="flex shrink-0 gap-1.5">
-                            <Button icon="x" variant="ghost" className="h-7 px-2 text-xs" onClick={() => reject(n.id)}>
-                              Reject
-                            </Button>
-                            <Button variant="primary" icon="check" className="h-7 px-2 text-xs" onClick={() => approve(n.id)}>
-                              Approve
-                            </Button>
-                          </div>
-                        ) : (
-                          <button
-                            className="btn-ghost h-6 px-1 text-ink-3 opacity-0 hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
-                            aria-label="Forget memory"
-                            onClick={() => removeNote(n.id)}
-                          >
-                            <Icon name="x" size={13} />
-                          </button>
-                        )}
-                      </li>
-                    );
-                  })}
+                        <Icon name="x" size={13} />
+                      </button>
+                    </li>
+                  ))}
                 </ul>
-              )}
-            </Card>
-          ))
+              </section>
+            ))}
+          </>
         )}
       </PageBody>
     </div>

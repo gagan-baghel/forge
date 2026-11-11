@@ -2,7 +2,9 @@
  * Tool registry. Turns an agent's enabled skills and connected services into
  * real, executable tools for the Claude tool-use loop.
  *
- *  - web_search   → Anthropic's server-side web search tool (executed by the API)
+ *  - web_search + web_fetch → Anthropic's server-side search and full-page reading
+ *  - code_execution → Anthropic's server-side Python sandbox (alongside run_javascript)
+ *  - list_files   → browse a folder on the machine (desktop only)
  *  - http_request → real network call (native on desktop, fetch on web)
  *  - run_javascript → sandboxed JS execution in a Web Worker
  *  - read_file    → reads a local file (desktop only)
@@ -10,7 +12,7 @@
  *  - screenshot / click / type_text / press_key / scroll → see and drive the
  *    desktop, so a message from a phone can do what a person at the Mac could
  *  - send_file → attach a file to the channel conversation
- *  - remember / recall → persistent agent memory
+ *  - remember → saves a fact; relevant memories reach the prompt automatically
  *  - connector tools (github/slack/notion/linear/...) → real provider API calls
  */
 
@@ -19,9 +21,8 @@ import type { AnyTool, ToolDef } from "./claude";
 import { httpFetch } from "./http";
 import { isDesktop } from "./platform";
 import { approve, newTurn, type ApprovalResult, type ChannelRef, type TurnState } from "./approval";
-import { webSearchToolType } from "./aiConfig";
+import { webFetchToolType, webSearchToolType } from "./aiConfig";
 import { useMemory } from "@/stores/memory";
-import { brainFor, memoryKeyFor } from "@/stores/brains";
 
 export interface ToolContext {
   agent: Agent;
@@ -140,9 +141,49 @@ const fileTool: ClientTool = {
     try {
       const { readTextFile } = await import("@tauri-apps/plugin-fs");
       const text = await readTextFile(path);
-      return text.slice(0, 8000);
+      const LIMIT = 8000;
+      // Say when the file was cut, or the model treats a partial file as whole.
+      return text.length > LIMIT
+        ? `${text.slice(0, LIMIT)}\n\n[truncated: showing ${LIMIT} of ${text.length} characters]`
+        : text;
     } catch (e: any) {
       return `Error reading file: ${e?.message ?? e}`;
+    }
+  },
+};
+
+const listFilesTool: ClientTool = {
+  def: {
+    name: "list_files",
+    description:
+      "List the files and folders inside a directory by absolute path (desktop only), so you can find " +
+      "a file before reading it. Same scope as read_file: the user's home directory, credential folders " +
+      "blocked. The user must approve every listing.",
+    input_schema: {
+      type: "object",
+      properties: { path: { type: "string", description: "Absolute directory path" } },
+      required: ["path"],
+    },
+  },
+  run: async (input, ctx) => {
+    if (!isDesktop()) return "Error: list_files is only available in the desktop app.";
+    const path = String(input.path ?? "").trim();
+    if (!path) return "Error: no path given.";
+
+    const ok = await ask(ctx, "List a folder on your computer?", path);
+    if (ok !== "ok") return refusal(ok, "listing");
+
+    try {
+      const { readDir } = await import("@tauri-apps/plugin-fs");
+      const entries = await readDir(path);
+      if (!entries.length) return "(empty folder)";
+      const lines = entries
+        .map((e) => (e.isDirectory ? `${e.name}/` : e.name))
+        .sort((a, b) => a.localeCompare(b));
+      const shown = lines.slice(0, 500);
+      return shown.join("\n") + (lines.length > shown.length ? `\n… ${lines.length - shown.length} more` : "");
+    } catch (e: any) {
+      return `Error listing folder: ${e?.message ?? e}`;
     }
   },
 };
@@ -150,7 +191,9 @@ const fileTool: ClientTool = {
 const rememberTool: ClientTool = {
   def: {
     name: "remember",
-    description: "Save a short fact to long-term memory so you can recall it in future conversations.",
+    description:
+      "Save a short, durable fact to long-term memory — a preference, a name, a decision. Relevant memories are " +
+      "shown to you automatically before each answer, so you never need to look them up.",
     input_schema: {
       type: "object",
       properties: { text: { type: "string", description: "The fact to remember" } },
@@ -158,33 +201,18 @@ const rememberTool: ClientTool = {
     },
   },
   run: async (input, ctx) => {
-    // A brain with shared memory pools notes across every agent wearing it.
-    // A brain with the learning queue on holds facts for review instead.
-    const key = memoryKeyFor(ctx.agent);
-    if (brainFor(ctx.agent)?.reviewLearning) {
-      useMemory.getState().propose(key, String(input.text ?? ""), ctx.agent.name);
-      return "Queued for review — this fact will stick once approved in the brain's Learning list.";
+    const text = String(input.text ?? "").trim();
+    if (!text) return "Error: nothing to remember.";
+    // With review on, the user approves each fact before it counts.
+    if (ctx.agent.reviewMemory) {
+      useMemory.getState().propose(ctx.agent.id, text, ctx.agent.name);
+      return "Queued for the user's approval; it will count once they keep it.";
     }
-    useMemory.getState().remember(key, String(input.text ?? ""));
+    useMemory.getState().remember(ctx.agent.id, text);
     return "Saved to memory.";
   },
 };
 
-const recallTool: ClientTool = {
-  def: {
-    name: "recall",
-    description: "Search your long-term memory for facts relevant to a query.",
-    input_schema: {
-      type: "object",
-      properties: { query: { type: "string", description: "What to look up" } },
-      required: ["query"],
-    },
-  },
-  run: async (input, ctx) => {
-    const hits = useMemory.getState().recall(memoryKeyFor(ctx.agent), String(input.query ?? ""));
-    return hits.length ? hits.map((h) => `- ${h.text}`).join("\n") : "No relevant memories.";
-  },
-};
 
 /* --------------------------- Connector tools -------------------------- */
 
@@ -587,8 +615,8 @@ const scrollTool: ClientTool = {
 const SKILL_TOOLS: Record<string, ClientTool[]> = {
   http: [httpTool],
   code: [jsTool],
-  files: [fileTool],
-  memory: [rememberTool, recallTool],
+  files: [fileTool, listFilesTool],
+  memory: [rememberTool],
   computer: [shellTool, writeFileTool, sendFileTool, screenshotTool, clickTool, typeTool, keyTool, scrollTool],
 };
 
@@ -605,15 +633,22 @@ export function buildTools(agent: Agent): AssembledTools {
   const executors: Record<string, Executor> = {};
   const client: ClientTool[] = [];
 
-  for (const skill of agent.skills) {
-    if (!skill.enabled) continue;
-    if (skill.kind === "web_search") {
-      // Server-side tool, executed by Anthropic — no client executor.
-      defs.push({ type: webSearchToolType(agent.model), name: "web_search", max_uses: 3 } as AnyTool);
-      continue;
-    }
-    for (const t of SKILL_TOOLS[skill.kind] ?? []) client.push(t);
+  const enabled = new Set(agent.skills.filter((s) => s.enabled).map((s) => s.kind));
+  const searchType = webSearchToolType(agent.model);
+
+  if (enabled.has("web_search")) {
+    // Server-side tools, executed by Anthropic — no client executor. Search
+    // finds pages; fetch reads them in full instead of working from snippets.
+    defs.push({ type: searchType, name: "web_search", max_uses: 5 } as AnyTool);
+    defs.push({ type: webFetchToolType(agent.model), name: "web_fetch", max_uses: 5, max_content_tokens: 20_000 } as AnyTool);
   }
+  // The newer web tools already run a code sandbox for filtering; declaring a
+  // second one alongside them confuses the model, so it only rides alone.
+  if (enabled.has("code") && !(enabled.has("web_search") && searchType === "web_search_20260209")) {
+    defs.push({ type: "code_execution_20260521", name: "code_execution" } as AnyTool);
+  }
+
+  for (const kind of enabled) for (const t of SKILL_TOOLS[kind] ?? []) client.push(t);
 
   client.push(...connectorTools(agent));
 
@@ -634,7 +669,7 @@ export function buildTools(agent: Agent): AssembledTools {
  * WebFetch…). Everything else an agent has — memory, connectors, send_file,
  * desktop control — reaches the CLI over the tool bridge.
  */
-const CLI_NATIVE = new Set(["run_shell", "read_file", "write_file", "http_request", "run_javascript"]);
+const CLI_NATIVE = new Set(["run_shell", "read_file", "list_files", "write_file", "http_request", "run_javascript"]);
 
 export function buildCliBridgeTools(agent: Agent): AssembledTools {
   const { defs, executors } = buildTools(agent);

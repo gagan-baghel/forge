@@ -21,14 +21,14 @@ describe("app onboarding → workspace (end to end)", () => {
     await user.click(screen.getByRole("button", { name: /Enter Forge/i }));
 
     // We are now in the workspace.
-    expect(await screen.findByText(/Good (morning|afternoon|evening), Grace/i)).toBeInTheDocument();
+    expect(await screen.findByText("Grace's workbench")).toBeInTheDocument();
     expect(useSettings.getState().onboarded).toBe(true);
   });
 
   it("opens the command palette and lists destinations", async () => {
     useSettings.setState({ onboarded: true, userName: "Grace" });
     render(<App />);
-    expect(await screen.findByText(/Good (morning|afternoon|evening), Grace/i)).toBeInTheDocument();
+    expect(await screen.findByText("Grace's workbench")).toBeInTheDocument();
 
     act(() => {
       window.dispatchEvent(new Event("forge:command-open"));

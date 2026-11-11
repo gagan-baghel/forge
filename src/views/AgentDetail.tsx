@@ -2,7 +2,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
 import { useGaps } from "@/stores/gaps";
-import { useBrains } from "@/stores/brains";
 import { useRuns } from "@/stores/runs";
 import { MODELS, type Agent, type AgentStatus, type Connector, type Skill } from "@/types/domain";
 import { Avatar, Button, Card, CardHeader, Badge, EmptyState, Field, StatusDot, Spinner, Tabs, Toggle } from "@/components/ui";
@@ -10,24 +9,27 @@ import { PageBody } from "@/components/Shell";
 import { Icon } from "@/components/Icon";
 import { Chat } from "./agent/Chat";
 import { ChannelsTab } from "./agent/ChannelsTab";
-import { PromptPlayground } from "./agent/PromptPlayground";
 import { httpFetch } from "@/lib/http";
 import { useMemory } from "@/stores/memory";
+import { AddDocumentButton, AddMemoryButton } from "@/components/AddKnowledge";
 import { fmtUsd, fmtTokens, relativeTime, fmtDuration } from "@/lib/format";
 import { useDialog } from "@/components/Confirm";
 import { supportsSampling } from "@/lib/aiConfig";
 
-type Tab = "chat" | "playground" | "config" | "skills" | "knowledge" | "memory" | "connections" | "channels" | "logs";
+/**
+ * One tab per question: talk to it, how it's set up, what it can do, what it
+ * knows (documents + memory, same split as the Knowledge page), what it's
+ * connected to, where it can be reached, and what it has done.
+ */
+type Tab = "chat" | "config" | "skills" | "knowledge" | "connections" | "channels" | "logs";
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "chat", label: "Chat", icon: "message" },
-  { id: "playground", label: "Playground", icon: "spark" },
-  { id: "config", label: "Config", icon: "settings" },
+  { id: "config", label: "Setup", icon: "settings" },
   { id: "skills", label: "Skills", icon: "bolt" },
   { id: "knowledge", label: "Knowledge", icon: "book" },
-  { id: "memory", label: "Memory", icon: "memory" },
   { id: "connections", label: "Connections", icon: "plug" },
-  { id: "channels", label: "Channels", icon: "phone" },
-  { id: "logs", label: "Logs", icon: "activity" },
+  { id: "channels", label: "Remote", icon: "phone" },
+  { id: "logs", label: "Activity", icon: "activity" },
 ];
 
 export function AgentDetailView() {
@@ -63,10 +65,10 @@ export function AgentDetailView() {
       {/* Header */}
       <div className="border-b border-border bg-bg/85 px-6 backdrop-blur" data-tauri-drag-region>
         <div className="flex min-h-[56px] items-center gap-3 py-3">
-          <button onClick={() => navigate(-1)} className="btn-ghost h-7 w-7 px-0" aria-label="Back">
+          <Link to="/agents" className="btn-ghost h-7 w-7 px-0" aria-label="Back to agents" title="Agents">
             <Icon name="chevron" size={16} className="rotate-180" />
-          </button>
-          <Avatar emoji={agent.emoji} size={32} />
+          </Link>
+          <Avatar name={agent.name} size={32} />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[15px] font-semibold tracking-tight">{agent.name}</h1>
             <div className="flex min-w-0 items-center gap-1.5 text-xs text-ink-3">
@@ -99,14 +101,12 @@ export function AgentDetailView() {
       {/* Body */}
       <div className="min-h-0 flex-1 overflow-hidden">
         {tab === "chat" && <Chat agent={agent} />}
-        {tab === "playground" && <PromptPlayground agent={agent} />}
-        {tab !== "chat" && tab !== "playground" && (
+        {tab !== "chat" && (
           <div className="h-full overflow-y-auto">
             <div className="mx-auto w-full max-w-3xl px-8 py-6">
               {tab === "config" && <ConfigTab agent={agent} />}
               {tab === "skills" && <SkillsTab agent={agent} />}
               {tab === "knowledge" && <KnowledgeTab agent={agent} />}
-              {tab === "memory" && <MemoryTab agent={agent} />}
               {tab === "connections" && <ConnectionsTab agent={agent} />}
               {tab === "channels" && <ChannelsTab agent={agent} />}
               {tab === "logs" && <LogsTab agent={agent} />}
@@ -199,7 +199,6 @@ function ConfigTab({ agent }: { agent: Agent }) {
               </select>
             </Field>
           </div>
-          <BrainField agent={agent} />
           <div className="grid grid-cols-2 gap-4">
             {/* Claude 4.7+ reject an explicit temperature, so the control would
                 be a lie on most models — say so rather than leave a dead slider. */}
@@ -255,53 +254,11 @@ function ConfigTab({ agent }: { agent: Agent }) {
   );
 }
 
-/** Attach / detach a Brain — a workspace-level, detachable mind. */
-function BrainField({ agent }: { agent: Agent }) {
-  const updateAgent = useGaps((s) => s.updateAgent);
-  const brains = useBrains((s) => s.brains);
-  const worn = brains.find((b) => b.id === agent.brainId);
-
-  return (
-    <Field
-      label="Brain"
-      hint={
-        worn
-          ? "Overrides layer on top of this agent's config; detach anytime."
-          : "Attach a detachable mind — persona, model preferences, knowledge, memory."
-      }
-    >
-      <div className="flex items-center gap-2">
-        <select
-          className="input flex-1"
-          value={agent.brainId ?? ""}
-          onChange={(e) => updateAgent(agent.id, { brainId: e.target.value || undefined })}
-        >
-          <option value="">None</option>
-          {brains.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.emoji} {b.name}
-            </option>
-          ))}
-        </select>
-        {worn ? (
-          <Link to={`/brains/${worn.id}`} className="btn-outline whitespace-nowrap">
-            Open brain
-          </Link>
-        ) : (
-          <Link to="/brains" className="btn-outline whitespace-nowrap">
-            Manage brains
-          </Link>
-        )}
-      </div>
-    </Field>
-  );
-}
-
 /* ------------------------------- Skills -------------------------------- */
 const SKILL_KINDS: { kind: Skill["kind"]; label: string; description: string }[] = [
-  { kind: "web_search", label: "Web search", description: "Look things up on the web" },
-  { kind: "code", label: "Code", description: "Reason about and generate code" },
-  { kind: "files", label: "Files", description: "Read local files" },
+  { kind: "web_search", label: "Web", description: "Search the web and read whole pages" },
+  { kind: "code", label: "Code", description: "Run JavaScript and Python — data, charts, files" },
+  { kind: "files", label: "Files", description: "Browse folders and read files — asks you first" },
   { kind: "http", label: "HTTP", description: "Call external APIs" },
   { kind: "memory", label: "Memory", description: "Remember across conversations" },
   { kind: "computer", label: "Computer", description: "Run commands and write files — asks you first, every time" },
@@ -362,83 +319,46 @@ function SkillsTab({ agent }: { agent: Agent }) {
 
 /* ----------------------------- Knowledge ------------------------------- */
 function KnowledgeTab({ agent }: { agent: Agent }) {
-  const { confirm } = useDialog();
-  const addKnowledge = useGaps((s) => s.addKnowledge);
-  const removeKnowledge = useGaps((s) => s.removeKnowledge);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-
-  const add = () => {
-    if (!title.trim() || !content.trim()) return;
-    addKnowledge(agent.id, { title: title.trim(), content: content.trim(), bytes: content.length });
-    setTitle("");
-    setContent("");
-  };
-
-  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    addKnowledge(agent.id, { title: file.name, content: text, bytes: text.length, source: "upload" });
-    e.target.value = "";
-  };
-
   return (
     <div className="space-y-6">
-      <ListCard
-        title="Knowledge base"
-        hint={`${agent.knowledge.length} document${agent.knowledge.length === 1 ? "" : "s"} · matched against each message and injected into the prompt`}
-        empty={agent.knowledge.length === 0 && "No documents yet."}
-      >
-        {agent.knowledge.map((d) => (
-          <li key={d.id} className={ROW}>
-            <Icon name="book" size={15} className="shrink-0 text-ink-3" />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[13px] font-medium">{d.title}</div>
-              <div className="text-[11px] text-ink-3">
-                {(d.bytes / 1024).toFixed(1)} KB · {relativeTime(d.addedAt)}
-              </div>
-            </div>
-            <button
-              className={ICON_BTN}
-              aria-label={`Delete document ${d.title}`}
-              onClick={async () => {
-                if (await confirm({ title: `Delete "${d.title}"?`, body: "The document is removed from this agent's knowledge. This cannot be undone." }))
-                  removeKnowledge(agent.id, d.id);
-              }}
-            >
-              <Icon name="trash" size={14} />
-            </button>
-          </li>
-        ))}
-      </ListCard>
-
-      <Card>
-        <CardHeader
-          title="Add knowledge"
-          hint="Paste text, or upload a .txt, .md, .json or .csv file."
-          action={
-            <label className="btn-outline cursor-pointer">
-              <Icon name="upload" size={15} /> Upload file
-              <input type="file" accept=".txt,.md,.json,.csv" hidden onChange={onFile} />
-            </label>
-          }
-        />
-        <div className="space-y-3">
-          <Field label="Title">
-            <input className="input" value={title} placeholder="Product FAQ" onChange={(e) => setTitle(e.target.value)} />
-          </Field>
-          <Field label="Content">
-            <textarea className="input min-h-[140px] resize-y" value={content} placeholder="Paste text…" onChange={(e) => setContent(e.target.value)} />
-          </Field>
-          <div className="flex justify-end">
-            <Button variant="primary" icon="plus" onClick={add} disabled={!title.trim() || !content.trim()}>
-              Add document
-            </Button>
-          </div>
-        </div>
-      </Card>
+      <DocumentsSection agent={agent} />
+      <MemorySection agent={agent} />
     </div>
+  );
+}
+
+function DocumentsSection({ agent }: { agent: Agent }) {
+  const { confirm } = useDialog();
+  const removeKnowledge = useGaps((s) => s.removeKnowledge);
+  return (
+    <ListCard
+      title="Documents"
+      hint="Before each answer, the passages that match the question are handed to the agent."
+      action={<AddDocumentButton agentId={agent.id} label="Add" />}
+      empty={agent.knowledge.length === 0 && "No documents yet. Add a PDF, notes or an export."}
+    >
+      {agent.knowledge.map((d) => (
+        <li key={d.id} className={ROW}>
+          <Icon name="book" size={15} className="shrink-0 text-ink-3" />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-medium">{d.title}</div>
+            <div className="num text-[11px] text-ink-3">
+              {(d.bytes / 1024).toFixed(1)} KB · {relativeTime(d.addedAt)}
+            </div>
+          </div>
+          <button
+            className={ICON_BTN}
+            aria-label={`Delete document ${d.title}`}
+            onClick={async () => {
+              if (await confirm({ title: `Delete "${d.title}"?`, body: "The document is removed from this agent's knowledge. This cannot be undone." }))
+                removeKnowledge(agent.id, d.id);
+            }}
+          >
+            <Icon name="trash" size={14} />
+          </button>
+        </li>
+      ))}
+    </ListCard>
   );
 }
 
@@ -594,92 +514,91 @@ function ConnectionsTab({ agent }: { agent: Agent }) {
 }
 
 /* ------------------------------- Memory -------------------------------- */
-function MemoryTab({ agent }: { agent: Agent }) {
+function MemorySection({ agent }: { agent: Agent }) {
   const { confirm } = useDialog();
   const notes = useMemory((s) => s.notes);
-  const remember = useMemory((s) => s.remember);
   const removeNote = useMemory((s) => s.remove);
   const clearAgent = useMemory((s) => s.clearAgent);
   const approve = useMemory((s) => s.approve);
   const reject = useMemory((s) => s.reject);
+  const updateAgent = useGaps((s) => s.updateAgent);
+  const addSkill = useGaps((s) => s.addSkill);
+  const toggleSkill = useGaps((s) => s.toggleSkill);
   const mine = notes.filter((n) => n.agentId === agent.id && n.status !== "pending");
   const pending = notes.filter((n) => n.agentId === agent.id && n.status === "pending");
-  const [text, setText] = useState("");
+
+  // "Saves memories itself" IS the Memory skill — one switch, shown here
+  // where it matters, not a second setting.
+  const skill = agent.skills.find((s) => s.kind === "memory");
+  const selfSaving = !!skill?.enabled;
+  const setSelfSaving = (on: boolean) => {
+    if (skill) toggleSkill(agent.id, skill.id);
+    else if (on) addSkill(agent.id, { name: "Memory", kind: "memory", description: "Save facts to remember", enabled: true });
+  };
 
   return (
-    <div className="space-y-6">
-      {pending.length > 0 && (
-        <Card className="border-warn/30 p-0">
-          <div className="px-5 pt-4">
-            <CardHeader title={`Waiting for review (${pending.length})`} hint="The attached brain holds new facts for approval before they stick." />
-          </div>
-          <ul className="divide-y divide-border border-t border-border">
-            {pending.map((n) => (
-              <li key={n.id} className="flex items-start gap-3 px-5 py-2.5">
-                <div className="min-w-0 flex-1 pt-1 text-[13px]">{n.text}</div>
-                <Button variant="ghost" icon="x" onClick={() => reject(n.id)}>
-                  Reject
-                </Button>
-                <Button variant="primary" icon="check" onClick={() => approve(n.id)}>
-                  Approve
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-      <ListCard
-        title={`Long-term memory (${mine.length})`}
-        hint={
-          <>
-            Facts the agent saved with the <code className="font-mono">remember</code> skill, recalled automatically.
-          </>
-        }
-        action={
-          mine.length > 0 && (
+    <ListCard
+      title="Memory"
+      hint="Short facts this agent keeps across conversations. The relevant ones are handed to it before every answer."
+      action={
+        <div className="flex items-center gap-2">
+          {mine.length > 0 && (
             <Button
-              variant="danger"
-              icon="trash"
+              variant="ghost"
+              className="hover:text-danger"
               onClick={async () => {
-                if (await confirm({ title: "Clear this agent's memory?", body: `All ${mine.length} saved fact(s) are deleted.`, confirmLabel: "Clear" }))
+                if (await confirm({ title: `Forget everything ${agent.name} remembers?`, body: `All ${mine.length} memories are deleted. This can't be undone.`, confirmLabel: "Forget all" }))
                   clearAgent(agent.id);
               }}
             >
-              Clear
+              Forget all
             </Button>
-          )
-        }
-        empty={mine.length === 0 && "No memories yet."}
-      >
-        {mine.map((n) => (
+          )}
+          <AddMemoryButton agentId={agent.id} label="Add" />
+        </div>
+      }
+    >
+      <li className="space-y-3 px-5 py-3.5">
+        <Toggle
+          checked={selfSaving}
+          onChange={setSelfSaving}
+          label="Let the agent save memories itself"
+          description="It notes preferences, names and decisions as it works."
+        />
+        <Toggle
+          checked={!!agent.reviewMemory}
+          disabled={!selfSaving}
+          onChange={(on) => updateAgent(agent.id, { reviewMemory: on })}
+          label="Ask me before keeping them"
+          description="New facts wait below until you keep or discard them."
+        />
+      </li>
+      {pending.map((n) => (
+        <li key={n.id} className={clsx(ROW, "items-start bg-warn/[0.04]")}>
+          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-warn" aria-label="Waiting for your OK" />
+          <div className="min-w-0 flex-1 text-[13px]">{n.text}</div>
+          <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => reject(n.id)}>
+            Discard
+          </Button>
+          <Button variant="primary" icon="check" className="h-7 px-2 text-xs" onClick={() => approve(n.id)}>
+            Keep
+          </Button>
+        </li>
+      ))}
+      {mine.length === 0 && pending.length === 0 ? (
+        <li className="px-5 py-5 text-center text-xs text-ink-3">Nothing remembered yet.</li>
+      ) : (
+        mine.map((n) => (
           <li key={n.id} className={clsx(ROW, "items-start")}>
-            <Icon name="memory" size={14} className="mt-0.5 shrink-0 text-ink-3" />
             <div className="min-w-0 flex-1 text-[13px]">{n.text}</div>
-            <span className="shrink-0 pt-0.5 text-[11px] text-ink-3">{relativeTime(n.createdAt)}</span>
+            <span className="num shrink-0 pt-0.5 text-[11px] text-ink-3">{relativeTime(n.createdAt)}</span>
             <button className={clsx(ICON_BTN, "-my-1")} aria-label="Forget" onClick={() => removeNote(n.id)}>
               <Icon name="x" size={14} />
             </button>
           </li>
-        ))}
-      </ListCard>
-      <Card>
-        <CardHeader title="Add a memory" />
-        <textarea className="input min-h-[80px] resize-y" placeholder="A fact for this agent to remember…" value={text} onChange={(e) => setText(e.target.value)} />
-        <div className="mt-3 flex justify-end">
-          <Button
-            variant="primary"
-            icon="plus"
-            disabled={!text.trim()}
-            onClick={() => {
-              remember(agent.id, text.trim());
-              setText("");
-            }}
-          >
-            Save memory
-          </Button>
-        </div>
-      </Card>
-    </div>
+        ))
+      )}
+    </ListCard>
   );
 }
 

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { PageBody, PageHeader } from "@/components/Shell";
+import { PageBody, PageHeader, TABS } from "@/components/Shell";
 import { Button, Card, Badge, EmptyState, StatusDot } from "@/components/ui";
 import { useRuns } from "@/stores/runs";
 import { fmtUsd, fmtTokens, relativeTime, fmtDuration } from "@/lib/format";
@@ -18,8 +18,9 @@ export function RunsView() {
   return (
     <div>
       <PageHeader
-        title="Runs"
-        subtitle="Every agent execution with token and cost accounting"
+        title="Activity"
+        tabs={TABS.activity}
+        subtitle="Every agent run, with tokens and cost"
         actions={
           runs.length > 0 && (
             <Button

@@ -60,26 +60,47 @@ export async function runRoutineNow(routineId: string): Promise<void> {
   return fireRoutine(routineId);
 }
 
-async function tick() {
-  const now = new Date();
-  const minuteStamp = Math.floor(now.getTime() / 60000) * 60000;
-  const routines = useRoutines.getState().routines;
+/** How far back a late tick looks for minutes it missed. */
+const CATCH_UP_MINUTES = 10;
+let lastChecked = 0;
 
-  for (const r of routines) {
+/**
+ * Check every minute since the last tick, not just this one: a background
+ * window's timers get throttled past a minute, and a routine due in the
+ * skipped minute used to never run. Each routine fires at most once per tick,
+ * and runs in parallel so one slow routine can't hold the others back.
+ */
+export function tick(now = new Date()): void {
+  const minute = Math.floor(now.getTime() / 60000) * 60000;
+  // The first tick after launch checks only now; catch-up covers gaps while open.
+  const from = lastChecked ? Math.max(lastChecked + 60000, minute - (CATCH_UP_MINUTES - 1) * 60000) : minute;
+  lastChecked = minute;
+
+  for (const r of useRoutines.getState().routines) {
     if (!r.enabled) continue;
-    // Skip if we already fired this minute.
-    if (r.lastRunAt && Math.floor(r.lastRunAt / 60000) * 60000 === minuteStamp) continue;
-    if (!cronMatches(r.cron, now)) continue;
-    await fireRoutine(r.id);
+    for (let m = from; m <= minute; m += 60000) {
+      // Already ran in or after this minute (Run now, or an earlier tick).
+      if (r.lastRunAt && r.lastRunAt >= m) continue;
+      if (!cronMatches(r.cron, new Date(m))) continue;
+      // fireRoutine stamps lastRunAt before its first await, so a tick that
+      // lands mid-run can't start the same routine twice.
+      void fireRoutine(r.id);
+      break;
+    }
   }
+}
+
+/** Test hook: forget the last tick. */
+export function resetScheduler(): void {
+  lastChecked = 0;
 }
 
 /** Start the scheduler loop (idempotent). */
 export function startScheduler(): () => void {
   if (timer) return () => {};
   // Align the first tick to reduce drift; then run every 30s.
-  void tick();
-  timer = setInterval(tick, 30_000);
+  tick();
+  timer = setInterval(() => tick(), 30_000);
   return () => {
     if (timer) clearInterval(timer);
     timer = null;

@@ -17,20 +17,16 @@ export type ID = string;
 
 /** Supported Claude models. Defaults to the latest, most capable Opus. */
 export type ModelId =
-  | "claude-fable-5"
-  | "claude-opus-5"
-  | "claude-sonnet-5"
-  | "claude-haiku-4-5";
+  | "claude-opus-5-5"
+  | "claude-sonnet-5-5"
+  | "claude-haiku-5-5"
+  | "claude-fable-5-1";
 
 /**
  * Everything the app needs to know about a model, in one place.
  *
- * These facts used to live in four separate collections — a catalogue here, a
- * price table in `claude.ts`, and capability sets in `aiConfig.ts` — all keyed
- * by the same ids. Adding a model meant remembering all four, and forgetting
- * one is how `temperature` kept being sent to models that reject it with a
- * 400. One row per model, and the type system makes an incomplete row a
- * compile error.
+ * One row per model, and the type system makes an incomplete row a compile
+ * error — so `temperature` can never again be sent to a model that rejects it.
  *
  * Prices are USD per million tokens, per Anthropic list pricing.
  */
@@ -39,7 +35,7 @@ export interface ModelSpec {
   label: string;
   blurb: string;
   price: { in: number; out: number };
-  /** Claude 4.7+ reject temperature/top_p/top_k with a 400. */
+  /** Whether temperature/top_p/top_k are accepted. Every current model rejects them. */
   sampling: boolean;
   /** Adaptive thinking + output_config.effort. Replaces the removed budget_tokens. */
   adaptiveThinking: boolean;
@@ -48,51 +44,52 @@ export interface ModelSpec {
 }
 
 export const MODEL_SPECS: Record<ModelId, ModelSpec> = {
-  "claude-opus-5": {
-    id: "claude-opus-5",
-    label: "Opus 5",
-    blurb: "Most capable — deep reasoning & agentic work",
-    price: { in: 5, out: 25 },
+  "claude-opus-5-5": {
+    id: "claude-opus-5-5",
+    label: "Opus 5.5",
+    blurb: "Most capable everyday model — deep reasoning & agentic work",
+    price: { in: 4, out: 20 },
     sampling: false,
     adaptiveThinking: true,
     webSearch: "web_search_20260209",
   },
-  "claude-sonnet-5": {
-    id: "claude-sonnet-5",
-    label: "Sonnet 5",
+  "claude-sonnet-5-5": {
+    id: "claude-sonnet-5-5",
+    label: "Sonnet 5.5",
     blurb: "Balanced speed and quality",
     price: { in: 2, out: 10 },
     sampling: false,
     adaptiveThinking: true,
     webSearch: "web_search_20260209",
   },
-  "claude-haiku-4-5": {
-    id: "claude-haiku-4-5",
-    label: "Haiku 4.5",
+  "claude-haiku-5-5": {
+    id: "claude-haiku-5-5",
+    label: "Haiku 5.5",
     blurb: "Fastest, lightest, cheapest",
-    price: { in: 1, out: 5 },
-    // Predates the 4.7 sampling removal, so it still honours temperature.
-    sampling: true,
-    adaptiveThinking: false,
+    // Up to 100K prompt tokens; longer prompts bill at $0.50 / $2.50.
+    price: { in: 0.1, out: 0.5 },
+    sampling: false,
+    adaptiveThinking: true,
+    // The dynamic-filtering search variant is Opus/Sonnet only.
     webSearch: "web_search_20250305",
   },
-  "claude-fable-5": {
-    id: "claude-fable-5",
-    label: "Fable 5",
+  "claude-fable-5-1": {
+    id: "claude-fable-5-1",
+    label: "Fable 5.1",
     blurb: "Hardest, long-horizon work — needs usage credits",
     price: { in: 10, out: 50 },
     sampling: false,
     adaptiveThinking: true,
-    webSearch: "web_search_20260209",
+    webSearch: "web_search_20250305",
   },
 };
 
 /** Display order for pickers. Derived, so it can never drift from the specs. */
 export const MODELS: ModelSpec[] = [
-  MODEL_SPECS["claude-opus-5"],
-  MODEL_SPECS["claude-sonnet-5"],
-  MODEL_SPECS["claude-haiku-4-5"],
-  MODEL_SPECS["claude-fable-5"],
+  MODEL_SPECS["claude-opus-5-5"],
+  MODEL_SPECS["claude-sonnet-5-5"],
+  MODEL_SPECS["claude-haiku-5-5"],
+  MODEL_SPECS["claude-fable-5-1"],
 ];
 
 /** Spec for a possibly-unknown id (a stale persisted model, say). */
@@ -102,14 +99,18 @@ export function modelSpec(id: string): ModelSpec | undefined {
 
 /**
  * Model ids that shipped in earlier builds, mapped to their replacement.
- * Persisted agents, brains and settings still carry the old strings, and a
+ * Persisted agents and settings still carry the old strings, and a
  * stale id silently prices every run at $0 and leaves the model picker blank —
  * so each store migrates through this on rehydrate.
  */
 export const MODEL_RENAMES: Record<string, ModelId> = {
-  "claude-opus-4-8": "claude-opus-5",
-  "claude-sonnet-4-6": "claude-sonnet-5",
-  "claude-haiku-4-5-20251001": "claude-haiku-4-5",
+  "claude-opus-4-8": "claude-opus-5-5",
+  "claude-opus-5": "claude-opus-5-5",
+  "claude-sonnet-4-6": "claude-sonnet-5-5",
+  "claude-sonnet-5": "claude-sonnet-5-5",
+  "claude-haiku-4-5-20251001": "claude-haiku-5-5",
+  "claude-haiku-4-5": "claude-haiku-5-5",
+  "claude-fable-5": "claude-fable-5-1",
 };
 
 /** Current id for a possibly-stale stored model id. */
@@ -207,43 +208,6 @@ export interface Channel {
   remoteControl?: boolean;
 }
 
-/**
- * A Brain is a detachable "mind" — a bundle of persona, model preferences,
- * knowledge and (optionally shared) memory that lives independently of any
- * agent. Attach one brain to any number of agents; detach and re-attach
- * freely. Agent settings stay intact — the brain layers on top.
- */
-export interface Brain {
-  id: ID;
-  name: string;
-  emoji: string;
-  description: string;
-  version: string;
-  tags: string[];
-  /** Optional overrides. When set they take precedence over the agent's own config. */
-  model?: ModelId;
-  temperature?: number;
-  maxTokens?: number;
-  /** Appended to the system prompt of every agent this brain is attached to. */
-  systemAppend: string;
-  /** Knowledge the brain carries with it; merged into retrieval wherever attached. */
-  knowledge: KnowledgeDoc[];
-  /**
-   * When true, all agents wearing this brain share one long-term memory pool
-   * (the `remember`/`recall` skills read and write the brain's memory instead
-   * of the agent's own).
-   */
-  sharedMemory: boolean;
-  /**
-   * Learning queue: when true, facts agents try to remember are held as
-   * pending until you approve them in the brain's Learning list. Rejected
-   * facts are dropped; only approved ones are recalled.
-   */
-  reviewLearning?: boolean;
-  createdAt: number;
-  updatedAt: number;
-}
-
 export interface Agent {
   id: ID;
   gapId: ID;
@@ -255,8 +219,11 @@ export interface Agent {
   model: ModelId;
   /** Per-agent runtime override; falls back to the global default when unset. */
   runtime?: RuntimeKind;
-  /** Attached Brain (detachable; see `Brain`). Unset = the agent's own config only. */
-  brainId?: ID;
+  /**
+   * Hold facts the agent saves for your OK before they count. Memories you
+   * write yourself are kept as-is.
+   */
+  reviewMemory?: boolean;
   temperature: number;
   maxTokens: number;
   status: AgentStatus;

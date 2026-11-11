@@ -3,10 +3,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
 import { nanoid } from "nanoid";
 import { Avatar, Button, Card, CardHeader, Badge, EmptyState, Field, StatusDot, Toggle } from "@/components/ui";
-import { PageBody } from "@/components/Shell";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { usePublished } from "@/stores/published";
 import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
-import { useBrains } from "@/stores/brains";
 import { downloadGap, encodeShareCode } from "@/lib/gapfile";
 import { splitArgs } from "@/lib/mcp";
 import { MODELS, type Agent, type AgentStatus, type Gap, type McpServer, type ModelId } from "@/types/domain";
@@ -14,34 +14,37 @@ import { useDialog } from "@/components/Confirm";
 
 type Section = "identity" | "agents" | "mcp" | "environment" | "advanced";
 const SECTIONS: { id: Section; label: string; icon: string }[] = [
-  { id: "identity", label: "Identity", icon: "edit" },
   { id: "agents", label: "Agents", icon: "agents" },
+  { id: "identity", label: "Details", icon: "edit" },
   { id: "mcp", label: "MCP servers", icon: "plug" },
   { id: "environment", label: "Environment", icon: "terminal" },
   { id: "advanced", label: "Advanced", icon: "settings" },
 ];
 
-const COLORS = ["#6688FF", "#34C77C", "#EAB308", "#EF5350", "#FF8A4C", "#8B8B96"];
+const COLORS = ["#D9703A", "#C49A3C", "#7FA36B", "#6B8FA8", "#A8738F", "#B5654F"];
 
 /**
- * Pack editor — the Workshop's deep-editing surface for one GAP. Everything a
- * `.gap` file carries is editable here: identity, the agents inside, and a raw
- * JSON escape hatch for anything the form doesn't surface.
+ * The pack page — the one place a pack is viewed and edited. Everything a
+ * `.gap` file carries lives here: the agents inside, details, MCP servers,
+ * environment, sharing, and a raw JSON escape hatch.
  */
 export function GapEditorView() {
   const { notify } = useDialog();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const gap = useGaps((s) => s.findGap(id));
-  const [section, setSection] = useState<Section>("identity");
+  const [section, setSection] = useState<Section>("agents");
+  const publish = usePublished((s) => s.publish);
+  const unpublish = usePublished((s) => s.unpublish);
+  const published = usePublished((s) => (gap ? s.isPublished(gap.slug) : false));
 
   if (!gap) {
     return (
       <PageBody>
         <EmptyState
           icon="grid"
-          title="GAP not found"
-          action={<Button onClick={() => navigate("/workshop")}>Back to Workshop</Button>}
+          title="Pack not found"
+          action={<Button onClick={() => navigate("/gaps")}>Back to packs</Button>}
         />
       </PageBody>
     );
@@ -49,30 +52,36 @@ export function GapEditorView() {
 
   return (
     <div className="flex h-screen flex-col">
-      <div className="flex min-h-[56px] items-center gap-3 border-b border-border px-6 py-3" data-tauri-drag-region>
-        <button onClick={() => navigate("/workshop")} className="btn-ghost h-7 w-7 px-0" aria-label="Back to Workshop">
-          <Icon name="chevron" size={16} className="rotate-180" />
-        </button>
-        <Avatar emoji={gap.emoji} size={32} />
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[15px] font-semibold tracking-tight">{gap.name}</h1>
-          <div className="truncate text-xs text-ink-3">
-            Pack editor · v{gap.version} · {gap.agents.length} agent{gap.agents.length === 1 ? "" : "s"}
-          </div>
-        </div>
-        <Button icon="download" onClick={async () => {
-              try {
-                await downloadGap(gap);
-              } catch (e) {
-                notify("Export failed", (e as Error).message);
-              }
-            }}>
-          Export .gap
-        </Button>
-        <Button icon="grid" onClick={() => navigate(`/gaps/${gap.id}`)}>
-          Open GAP page
-        </Button>
-      </div>
+      <PageHeader
+        back={{ to: "/gaps", label: "Packs" }}
+        title={gap.name}
+        subtitle={`v${gap.version} · ${gap.agents.length} agent${gap.agents.length === 1 ? "" : "s"}${gap.description ? ` · ${gap.description}` : ""}`}
+        actions={
+          <>
+            <Button
+              icon="download"
+              onClick={async () => {
+                try {
+                  await downloadGap(gap);
+                } catch (e) {
+                  notify("Export failed", (e as Error).message);
+                }
+              }}
+            >
+              Export .gap
+            </Button>
+            {published ? (
+              <Button icon="check" onClick={() => unpublish(gap.slug)} title="Remove from your Marketplace listing">
+                Published
+              </Button>
+            ) : (
+              <Button icon="store" onClick={() => publish(gap)}>
+                Publish
+              </Button>
+            )}
+          </>
+        }
+      />
 
       <div className="flex flex-1 overflow-hidden">
         <nav className="w-[184px] shrink-0 space-y-px border-r border-border p-3">
@@ -82,10 +91,10 @@ export function GapEditorView() {
               onClick={() => setSection(s.id)}
               className={clsx(
                 "flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-[13px] transition-colors",
-                section === s.id ? "bg-surface-2 font-medium text-ink" : "text-ink-2 hover:bg-surface-2/60 hover:text-ink",
+                section === s.id ? "bg-surface-2/70 font-medium text-ink" : "text-ink-2 hover:text-ink",
               )}
             >
-              <Icon name={s.icon} size={15} className={section === s.id ? "text-ink" : "text-ink-3"} />
+              <Icon name={s.icon} size={15} className={section === s.id ? "text-brand" : "text-ink-3"} />
               {s.label}
               {s.id === "agents" && <span className="ml-auto font-mono text-[10px] text-ink-3">{gap.agents.length}</span>}
               {s.id === "mcp" && (gap.mcpServers?.length ?? 0) > 0 && (
@@ -114,15 +123,8 @@ function IdentitySection({ gap }: { gap: Gap }) {
   const updateGap = useGaps((s) => s.updateGap);
   return (
     <Card className="space-y-4">
-      <CardHeader title="Identity" hint="How this pack appears in lists, the Marketplace and exported files." />
-      <div className="grid grid-cols-[80px_1fr] gap-4">
-        <Field label="Emoji">
-          <input
-            className="input text-center"
-            value={gap.emoji}
-            onChange={(e) => updateGap(gap.id, { emoji: e.target.value })}
-          />
-        </Field>
+      <CardHeader title="Details" hint="How this pack appears in lists, the Marketplace and exported files." />
+      <div className="grid grid-cols-1 gap-4">
         <Field label="Name">
           <input
             className="input"
@@ -220,7 +222,6 @@ function AgentRow({ agent, open, onToggle }: { agent: Agent; open: boolean; onTo
   const { confirm } = useDialog();
   const updateAgent = useGaps((s) => s.updateAgent);
   const deleteAgent = useGaps((s) => s.deleteAgent);
-  const brains = useBrains((s) => s.brains);
   const statuses: AgentStatus[] = ["draft", "ready", "live", "paused"];
 
   return (
@@ -230,7 +231,7 @@ function AgentRow({ agent, open, onToggle }: { agent: Agent; open: boolean; onTo
         aria-expanded={open}
         className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left transition-colors hover:bg-surface-2/50"
       >
-        <Avatar emoji={agent.emoji} size={30} />
+        <Avatar name={agent.name} size={30} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13px] font-medium">{agent.name}</div>
           <div className="truncate text-xs text-ink-3">{agent.role}</div>
@@ -244,14 +245,7 @@ function AgentRow({ agent, open, onToggle }: { agent: Agent; open: boolean; onTo
 
       {open && (
         <div className="space-y-4 border-t border-border p-4">
-          <div className="grid grid-cols-[64px_1fr_1fr] gap-3">
-            <Field label="Emoji">
-              <input
-                className="input text-center"
-                value={agent.emoji}
-                onChange={(e) => updateAgent(agent.id, { emoji: e.target.value })}
-              />
-            </Field>
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Name">
               <input
                 className="input"
@@ -290,20 +284,6 @@ function AgentRow({ agent, open, onToggle }: { agent: Agent; open: boolean; onTo
                 {statuses.map((s) => (
                   <option key={s} value={s}>
                     {s}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Brain">
-              <select
-                className="input"
-                value={agent.brainId ?? ""}
-                onChange={(e) => updateAgent(agent.id, { brainId: e.target.value || undefined })}
-              >
-                <option value="">None</option>
-                {brains.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.emoji} {b.name}
                   </option>
                 ))}
               </select>
@@ -483,7 +463,7 @@ function EnvironmentSection({ gap }: { gap: Gap }) {
   const updateGap = useGaps((s) => s.updateGap);
   return (
     <Card>
-      <CardHeader title="Environment" hint="Variables injected into this pack's Claude Code runs and its MCP servers. Stored locally with the GAP." />
+      <CardHeader title="Environment" hint="Variables injected into this pack's Claude Code runs and its MCP servers. Stored locally with the pack." />
       <EnvRows label="Variables" env={gap.env ?? {}} onChange={(env) => updateGap(gap.id, { env })} />
     </Card>
   );
@@ -585,7 +565,7 @@ function AdvancedSection({ gap }: { gap: Gap }) {
       <Card className="space-y-3">
         <CardHeader
           title="Raw manifest"
-          hint="The whole GAP as JSON — the escape hatch for anything the form doesn't surface. Saving replaces the pack."
+          hint="The whole pack as JSON — the escape hatch for anything the form doesn't surface. Saving replaces the pack."
           action={
             dirty && (
               <Button variant="primary" icon="check" onClick={save}>
@@ -636,12 +616,12 @@ function AdvancedSection({ gap }: { gap: Gap }) {
       <Card className="border-danger/25">
         <CardHeader title="Danger zone" />
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-[13px] text-ink-2">Delete this GAP and all its agents. This can't be undone.</div>
+          <div className="text-[13px] text-ink-2">Delete this pack and all its agents. This can't be undone.</div>
           <Button
             variant="danger"
             icon="trash"
             onClick={async () => {
-              if (await confirm({ title: `Delete "${gap.name}"?`, body: `This GAP and its ${gap.agents.length} agent(s), with their chats and knowledge, are deleted.` })) {
+              if (await confirm({ title: `Delete "${gap.name}"?`, body: `This pack and its ${gap.agents.length} agent(s), with their chats and knowledge, are deleted.` })) {
                 deleteGap(gap.id);
                 navigate("/workshop");
               }

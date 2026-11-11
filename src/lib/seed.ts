@@ -28,7 +28,7 @@ function agent(
     role: partial.role,
     emoji: partial.emoji,
     systemPrompt: partial.systemPrompt,
-    model: partial.model ?? "claude-opus-5",
+    model: partial.model ?? "claude-opus-5-5",
     temperature: 0.7,
     maxTokens: 2048,
     status: partial.status ?? "ready",
@@ -79,7 +79,7 @@ export function starterGaps(): Gap[] {
       name: "Research Lab",
       description: "A focused research assistant that digs into topics, cites sources and writes briefs.",
       emoji: "🔬",
-      color: "#6D5BFF",
+      color: "#D9703A",
       tags: ["research", "writing"],
       author: "forge",
       agents: [
@@ -90,7 +90,7 @@ export function starterGaps(): Gap[] {
           systemPrompt:
             "You are Scout, a meticulous research assistant. You break questions into sub-questions, reason step by step, and always distinguish what you know from what you're inferring. Prefer concise, well-structured briefs with clear takeaways.",
           skills: [
-            skill("Web search", "web_search", "Look things up on the web"),
+            skill("Web", "web_search", "Search the web and read whole pages"),
             skill("Memory", "memory", "Remember findings across the conversation"),
           ],
           status: "live",
@@ -102,7 +102,7 @@ export function starterGaps(): Gap[] {
       name: "Code Forge",
       description: "A pair-programmer that reads code, proposes diffs and explains tradeoffs.",
       emoji: "⚒️",
-      color: "#40C98E",
+      color: "#7FA36B",
       tags: ["coding", "developer"],
       author: "forge",
       agents: [
@@ -141,7 +141,7 @@ export function marketplaceCatalog(): MarketplaceListing[] {
         name: "Finance Desk",
         description: "Personal finance analyst: budgets, spend categorization and plain-English reports.",
         emoji: "💹",
-        color: "#F0B446",
+        color: "#C49A3C",
         tags: ["finance", "analysis"],
         author: "community",
         agents: [
@@ -163,7 +163,7 @@ export function marketplaceCatalog(): MarketplaceListing[] {
         name: "Support Desk",
         description: "Customer-support agent grounded in your help docs, with a friendly tone.",
         emoji: "🎧",
-        color: "#6D5BFF",
+        color: "#D9703A",
         tags: ["support", "customer"],
         author: "community",
         agents: [
@@ -185,7 +185,7 @@ export function marketplaceCatalog(): MarketplaceListing[] {
         name: "Content Studio",
         description: "A two-agent writers' room: a strategist and an editor for short-form content.",
         emoji: "✍️",
-        color: "#40C98E",
+        color: "#7FA36B",
         tags: ["content", "marketing"],
         author: "community",
         agents: [
@@ -213,7 +213,7 @@ export function marketplaceCatalog(): MarketplaceListing[] {
         name: "Data Analyst",
         description: "Explores datasets, writes queries and explains findings with charts in words.",
         emoji: "📈",
-        color: "#F0B446",
+        color: "#C49A3C",
         tags: ["data", "analysis"],
         author: "community",
         agents: [

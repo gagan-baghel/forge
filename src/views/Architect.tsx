@@ -10,7 +10,7 @@ import { buildGap } from "@/lib/seed";
 import type { Gap } from "@/types/domain";
 import { asAgentSeeds, asRecord, asString, asStringArray, extractJsonObject } from "@/lib/validate";
 
-const SYSTEM = `You are the Forge Architect. You design "GAPs" (Global Agent Packs) — bundles of AI agents.
+const SYSTEM = `You are the Forge Architect. You design "Packs" (Global Agent Packs) — bundles of AI agents.
 Given a user's goal, design 1-3 focused agents. Make each system prompt concrete, specific and
 high quality, written in second person. The response shape is enforced by the API, so spend your
 effort on the content, not the formatting.`;
@@ -73,7 +73,7 @@ function parseDraft(raw: string): Draft {
       name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
     description: asString(o.description, "description", { max: 2000, fallback: "" }),
     emoji: asString(o.emoji, "emoji", { max: 16, fallback: "📦" }),
-    color: /^#[0-9a-fA-F]{3,8}$/.test(String(o.color ?? "")) ? String(o.color) : "#6D5BFF",
+    color: /^#[0-9a-fA-F]{3,8}$/.test(String(o.color ?? "")) ? String(o.color) : "#D9703A",
     tags: asStringArray(o.tags, "tags"),
     agents: asAgentSeeds(o.agents, "agents").map((a) => ({
       name: a.name,
@@ -108,7 +108,7 @@ export function ArchitectView() {
       await streamChat(
         {
           apiKey,
-          model: "claude-opus-5",
+          model: "claude-opus-5-5",
           system: SYSTEM,
           messages: [{ id: nanoid(6), role: "user", content: goal, createdAt: Date.now() }],
           temperature: 0.7,
@@ -132,7 +132,7 @@ export function ArchitectView() {
       name: draft.name,
       description: draft.description,
       emoji: draft.emoji,
-      color: draft.color || "#6D5BFF",
+      color: draft.color || "#D9703A",
       tags: draft.tags ?? [],
       author: "architect",
       agents: draft.agents.map((a) => ({
@@ -148,10 +148,10 @@ export function ArchitectView() {
 
   return (
     <div>
-      <PageHeader title="Architect" subtitle="Describe what you want — Claude designs a GAP you can install" />
+      <PageHeader back={{ to: "/gaps", label: "Packs" }} title="Architect" subtitle="Describe what you want — Claude designs a pack you can install" />
       <PageBody className="max-w-3xl space-y-6">
         <Card className="space-y-4">
-          <Field label="What should this GAP do?">
+          <Field label="What should this pack do?">
             <textarea
               className="input min-h-[110px] resize-y leading-relaxed"
               placeholder="e.g. A research team that finds academic papers, summarizes them, and drafts a literature review."
@@ -162,7 +162,7 @@ export function ArchitectView() {
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs text-ink-3">Powered by Opus 4.8 · uses your API key</span>
             <Button variant="primary" icon={busy ? undefined : "spark"} onClick={design} disabled={busy || !goal.trim()}>
-              {busy ? <><Spinner size={14} /> Designing…</> : "Design GAP"}
+              {busy ? <><Spinner size={14} /> Designing…</> : "Design pack"}
             </Button>
           </div>
           {error && <div className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
@@ -171,7 +171,7 @@ export function ArchitectView() {
         {draft && (
           <Card className="p-0">
             <div className="flex items-start gap-3 border-b border-border px-5 py-4">
-              <Avatar emoji={draft.emoji} size={36} />
+              <Avatar name={draft.name} tint={draft.color} size={36} />
               <div className="min-w-0 flex-1">
                 <h3 className="text-[15px] font-semibold">{draft.name}</h3>
                 <p className="mt-0.5 text-[13px] text-ink-2">{draft.description}</p>
@@ -191,7 +191,7 @@ export function ArchitectView() {
               {draft.agents.map((a, i) => (
                 <li key={i} className="px-5 py-3">
                   <div className="flex items-center gap-2.5">
-                    <Avatar emoji={a.emoji} size={24} className="rounded-md" />
+                    <Avatar name={a.name} size={24} className="rounded-md" />
                     <span className="text-[13px] font-medium">{a.name}</span>
                     <Badge>{a.role}</Badge>
                   </div>

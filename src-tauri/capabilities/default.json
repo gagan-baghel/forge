@@ -13,31 +13,100 @@
     "fs:default",
     {
       "identifier": "fs:allow-read-text-file",
-      "allow": [{ "path": "$HOME/**" }],
+      "allow": [
+        {
+          "path": "$HOME/**"
+        }
+      ],
       "deny": [
-        { "path": "$HOME/.ssh/**" },
-        { "path": "$HOME/.aws/**" },
-        { "path": "$HOME/.gnupg/**" },
-        { "path": "$HOME/.config/gcloud/**" }
+        {
+          "path": "$HOME/.ssh/**"
+        },
+        {
+          "path": "$HOME/.aws/**"
+        },
+        {
+          "path": "$HOME/.gnupg/**"
+        },
+        {
+          "path": "$HOME/.config/gcloud/**"
+        }
       ]
     },
     {
       "identifier": "fs:allow-write-text-file",
-      "allow": [{ "path": "$HOME/**" }],
+      "allow": [
+        {
+          "path": "$HOME/**"
+        }
+      ],
       "deny": [
-        { "path": "$HOME/.ssh/**" },
-        { "path": "$HOME/.aws/**" },
-        { "path": "$HOME/.gnupg/**" },
-        { "path": "$HOME/.config/gcloud/**" }
+        {
+          "path": "$HOME/.ssh/**"
+        },
+        {
+          "path": "$HOME/.aws/**"
+        },
+        {
+          "path": "$HOME/.gnupg/**"
+        },
+        {
+          "path": "$HOME/.config/gcloud/**"
+        }
       ]
     },
     {
       "identifier": "fs:allow-exists",
-      "allow": [{ "path": "$HOME/**" }]
+      "allow": [
+        {
+          "path": "$HOME/**"
+        }
+      ]
     },
     {
       "identifier": "fs:allow-mkdir",
-      "allow": [{ "path": "$HOME/**" }]
+      "allow": [
+        {
+          "path": "$HOME/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [
+        {
+          "path": "$HOME"
+        },
+        {
+          "path": "$HOME/**"
+        }
+      ],
+      "deny": [
+        {
+          "path": "$HOME/.ssh"
+        },
+        {
+          "path": "$HOME/.aws"
+        },
+        {
+          "path": "$HOME/.gnupg"
+        },
+        {
+          "path": "$HOME/.config/gcloud"
+        },
+        {
+          "path": "$HOME/.ssh/**"
+        },
+        {
+          "path": "$HOME/.aws/**"
+        },
+        {
+          "path": "$HOME/.gnupg/**"
+        },
+        {
+          "path": "$HOME/.config/gcloud/**"
+        }
+      ]
     }
   ]
 }

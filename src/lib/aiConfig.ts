@@ -45,6 +45,11 @@ export function webSearchToolType(model: string): string {
   return modelSpec(model)?.webSearch ?? "web_search_20250305";
 }
 
+/** Server-side web fetch tool version: the dynamic-filtering one rides with the newer search. */
+export function webFetchToolType(model: string): string {
+  return webSearchToolType(model) === "web_search_20260209" ? "web_fetch_20260209" : "web_fetch_20250910";
+}
+
 /** Thinking depth and overall token spend. `high` is the API default. */
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 export const DEFAULT_EFFORT: Effort = "high";
@@ -55,7 +60,7 @@ export const DEFAULT_EFFORT: Effort = "high";
  * model: the user picked it, and quietly downgrading their agent is not ours
  * to decide.
  */
-export const UTILITY_MODEL = "claude-haiku-4-5";
+export const UTILITY_MODEL = "claude-haiku-5-5";
 
 export function routeModel(kind: "utility" | "reasoning", agentModel: string): string {
   return kind === "utility" ? UTILITY_MODEL : agentModel;

@@ -1,52 +1,53 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { DialogProvider } from "@/components/Confirm";
-import { TeamView } from "@/views/Team";
-import { useTeam } from "@/stores/team";
+import { SchedulesView } from "@/views/Schedules";
+import { useRoutines } from "@/stores/routines";
+import { resetStores } from "@/test/reset";
 
 /**
  * Destructive buttons must route through the confirm dialog. The trash icons
  * are one click with no undo behind them, so a regression here is silent data
  * loss — the button keeps working, it just stops asking.
  *
- * TeamView stands in for the whole set (skills, knowledge, connectors,
- * channels, team members): they all share the same useDialog() guard.
+ * Deleting a routine stands in for the whole set (skills, knowledge,
+ * connectors, channels, memories): they all share the same useDialog() guard.
  */
 describe("destructive actions ask first", () => {
-  beforeEach(() => {
-    localStorage.clear();
-    act(() => useTeam.setState({ members: [] }));
-  });
+  beforeEach(() => resetStores());
 
-  const renderWithMember = () => {
+  const renderWithRoutine = () => {
     act(() => {
-      useTeam.getState().add({ name: "Ada", email: "ada@example.com", role: "member" });
+      useRoutines.getState().add({ name: "Digest", agentId: "a", agentName: "A", cron: "0 9 * * *", prompt: "", enabled: true });
     });
     render(
-      <DialogProvider>
-        <TeamView />
-      </DialogProvider>,
+      <MemoryRouter>
+        <DialogProvider>
+          <SchedulesView />
+        </DialogProvider>
+      </MemoryRouter>,
     );
   };
 
-  it("keeps the member when the dialog is cancelled", async () => {
+  it("keeps the routine when the dialog is cancelled", async () => {
     const user = userEvent.setup();
-    renderWithMember();
+    renderWithRoutine();
 
-    await user.click(screen.getByRole("button", { name: "Remove Ada" }));
-    expect(await screen.findByText("Remove Ada?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Delete routine" }));
+    expect(await screen.findByText('Delete routine "Digest"?')).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(useTeam.getState().members).toHaveLength(1);
+    expect(useRoutines.getState().routines).toHaveLength(1);
   });
 
-  it("removes the member only after confirming", async () => {
+  it("deletes the routine only after confirming", async () => {
     const user = userEvent.setup();
-    renderWithMember();
+    renderWithRoutine();
 
-    await user.click(screen.getByRole("button", { name: "Remove Ada" }));
-    await user.click(await screen.findByRole("button", { name: "Remove" }));
-    expect(useTeam.getState().members).toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: "Delete routine" }));
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+    expect(useRoutines.getState().routines).toHaveLength(0);
   });
 });

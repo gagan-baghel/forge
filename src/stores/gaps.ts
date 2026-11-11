@@ -12,6 +12,7 @@ import type {
   Skill,
 } from "@/types/domain";
 import { starterGaps } from "@/lib/seed";
+import { stripSecrets } from "@/lib/gapfile";
 
 const now = () => Date.now();
 
@@ -66,7 +67,7 @@ export const useGaps = create<GapStore>()(
           name: input.name,
           description: input.description,
           emoji: input.emoji ?? "📦",
-          color: input.color ?? "#6D5BFF",
+          color: input.color ?? "#D9703A",
           tags: input.tags ?? [],
           author: "you",
           version: "1.0.0",
@@ -101,7 +102,13 @@ export const useGaps = create<GapStore>()(
         return gap;
       },
 
-      importGap: (incoming) => {
+      importGap: (raw) => {
+        // A pack is someone else's file. A hand-made one can carry a bot token
+        // with remote control on and its author as the paired owner (their
+        // phone then approves actions on this Mac), or MCP commands that run on
+        // the next agent turn. Scrub it as export does, and import every MCP
+        // server switched off until the user has looked at it.
+        const incoming = stripSecrets(raw);
         const id = nanoid(10);
         const gap: Gap = {
           ...incoming,
@@ -109,6 +116,7 @@ export const useGaps = create<GapStore>()(
           source: "imported",
           installed: true,
           updatedAt: now(),
+          mcpServers: incoming.mcpServers?.map((s) => ({ ...s, enabled: false })),
           agents: incoming.agents.map((a) => ({ ...a, id: nanoid(10), gapId: id })),
         };
         set((s) => ({ gaps: [gap, ...s.gaps] }));
@@ -123,7 +131,7 @@ export const useGaps = create<GapStore>()(
           role: input.role,
           emoji: input.emoji ?? "🤖",
           systemPrompt: input.systemPrompt ?? "You are a helpful assistant.",
-          model: input.model ?? "claude-opus-5",
+          model: input.model ?? "claude-opus-5-5",
           temperature: input.temperature ?? 0.7,
           maxTokens: input.maxTokens ?? 2048,
           status: input.status ?? "draft",

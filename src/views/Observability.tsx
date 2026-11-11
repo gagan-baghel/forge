@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { PageBody, PageHeader } from "@/components/Shell";
+import { PageBody, PageHeader, TABS } from "@/components/Shell";
 import { Card, CardHeader, EmptyState } from "@/components/ui";
 import { useRuns } from "@/stores/runs";
 import { useGaps } from "@/stores/gaps";
@@ -57,7 +57,7 @@ export function ObservabilityView() {
     return { cost, tokens, errorRate, top, days, failureMix, models };
   }, [runs]);
 
-  const header = <PageHeader title="Observability" subtitle="Spend, throughput and reliability across your workspace" />;
+  const header = <PageHeader title="Activity" tabs={TABS.activity} subtitle="Spend, volume and reliability over time" />;
 
   if (runs.length === 0) {
     return (

@@ -26,7 +26,7 @@ afterEach(() => {
   delete (window as any).__TAURI_INTERNALS__;
 });
 
-const req = { model: "claude-opus-5", system: "", prompt: "hi", resume: "" };
+const req = { model: "claude-opus-5-5", system: "", prompt: "hi", resume: "" };
 
 describe("Claude Code background-run token", () => {
   it("passes the saved token to the run as CLAUDE_CODE_OAUTH_TOKEN", async () => {

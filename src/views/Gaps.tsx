@@ -1,37 +1,26 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageBody, PageHeader } from "@/components/Shell";
-import { Avatar, Button, Badge, Card, EmptyState, Modal, Field } from "@/components/ui";
+import { PageBody, PageHeader, TABS } from "@/components/Shell";
+import { Avatar, Button, Badge, Card, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
+import type { Gap } from "@/types/domain";
 import { parseGapFile, decodeShareCode } from "@/lib/gapfile";
 import { relativeTime } from "@/lib/format";
 import { useDialog } from "@/components/Confirm";
 
-const COLORS = ["#6688FF", "#34C77C", "#EAB308", "#EF5350", "#FF8A4C", "#8B8B96"];
-const EMOJIS = ["📦", "🔬", "⚒️", "🎧", "✍️", "📈", "🤖", "🚀", "🧠", "💡"];
-
 export function GapsView() {
   const { notify } = useDialog();
   const gaps = useGaps((s) => s.gaps);
-  const createGap = useGaps((s) => s.createGap);
   const importGap = useGaps((s) => s.importGap);
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [desc, setDesc] = useState("");
-  const [emoji, setEmoji] = useState(EMOJIS[0]);
-  const [color, setColor] = useState(COLORS[0]);
 
-  const create = () => {
-    if (!name.trim()) return;
-    const gap = createGap({ name: name.trim(), description: desc.trim(), emoji, color });
-    setOpen(false);
-    setName("");
-    setDesc("");
-    navigate(`/gaps/${gap.id}`);
+  // Imported MCP servers arrive switched off; say so, or they look broken.
+  const noteDisabledServers = (gap: Gap) => {
+    const n = gap.mcpServers?.length ?? 0;
+    if (n) notify("Review before enabling", `${n} MCP server${n === 1 ? "" : "s"} in this pack run commands on your Mac. They're off until you check and enable them in the pack editor.`);
   };
 
   const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,6 +28,7 @@ export function GapsView() {
     if (!file) return;
     try {
       const gap = importGap(parseGapFile(await file.text()));
+      noteDisabledServers(gap);
       navigate(`/gaps/${gap.id}`);
     } catch (err: any) {
       notify("Import failed", err.message);
@@ -49,18 +39,21 @@ export function GapsView() {
   return (
     <div>
       <PageHeader
-        title="GAPs"
-        subtitle="Global Agent Packs — installable bundles of agents, skills and knowledge"
+        title="Packs"
+        tabs={TABS.packs}
+        subtitle="Bundles of agents, skills and knowledge — each one a shareable .gap file"
         actions={
           <>
             <input ref={fileRef} type="file" accept=".gap,.json" hidden onChange={onImport} />
             <Button
+              variant="ghost"
               icon="copy"
               onClick={() => {
                 const code = prompt("Paste a Forge share code:");
                 if (!code) return;
                 try {
                   const gap = importGap(decodeShareCode(code));
+                  noteDisabledServers(gap);
                   navigate(`/gaps/${gap.id}`);
                 } catch (e: any) {
                   notify("Invalid share code", e.message);
@@ -72,8 +65,11 @@ export function GapsView() {
             <Button icon="upload" onClick={() => fileRef.current?.click()}>
               Import file
             </Button>
-            <Button variant="primary" icon="plus" onClick={() => setOpen(true)}>
-              New GAP
+            <Button icon="spark" onClick={() => navigate("/architect")}>
+              Describe one
+            </Button>
+            <Button variant="primary" icon="plus" onClick={() => navigate("/workshop")}>
+              New pack
             </Button>
           </>
         }
@@ -84,11 +80,11 @@ export function GapsView() {
           <Card>
             <EmptyState
               icon="grid"
-              title="No GAPs installed"
-              body="A GAP bundles one or more agents with their skills and knowledge. Create one or install from the Marketplace."
+              title="No packs yet"
+              body="A pack bundles agents with their skills and knowledge. Build one, describe one to the Architect, or install one from the Marketplace."
               action={
-                <Button variant="primary" icon="plus" onClick={() => setOpen(true)}>
-                  Create your first GAP
+                <Button variant="primary" icon="plus" onClick={() => navigate("/workshop")}>
+                  Build your first pack
                 </Button>
               }
             />
@@ -102,7 +98,7 @@ export function GapsView() {
                 className="card flex flex-col p-4 text-left transition-colors hover:border-border-strong hover:bg-surface-2/40"
               >
                 <div className="flex items-start gap-3">
-                  <Avatar emoji={g.emoji} size={32} />
+                  <Avatar name={g.name} tint={g.color} size={32} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: g.color }} />
@@ -125,60 +121,6 @@ export function GapsView() {
         )}
       </PageBody>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="New GAP">
-        <div className="space-y-4">
-          <Field label="Name">
-            <input className="input" autoFocus value={name} placeholder="My agent pack" onChange={(e) => setName(e.target.value)} />
-          </Field>
-          <Field label="Description">
-            <textarea
-              className="input min-h-[72px] resize-y"
-              value={desc}
-              placeholder="What does this pack do?"
-              onChange={(e) => setDesc(e.target.value)}
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Icon">
-              <div className="flex flex-wrap gap-1.5">
-                {EMOJIS.map((e) => (
-                  <button
-                    key={e}
-                    onClick={() => setEmoji(e)}
-                    aria-label={`Icon ${e}`}
-                    aria-pressed={emoji === e}
-                    className={`grid h-8 w-8 place-items-center rounded-md border text-[15px] transition-colors ${
-                      emoji === e ? "border-ink-3 bg-surface-3" : "border-border hover:bg-surface-2"
-                    }`}
-                  >
-                    {e}
-                  </button>
-                ))}
-              </div>
-            </Field>
-            <Field label="Color">
-              <div className="flex flex-wrap gap-2 pt-1">
-                {COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setColor(c)}
-                    aria-label={`Color ${c}`}
-                    aria-pressed={color === c}
-                    className={`h-6 w-6 rounded-full ring-offset-2 ring-offset-surface ${color === c ? "ring-2 ring-ink-2" : ""}`}
-                    style={{ background: c }}
-                  />
-                ))}
-              </div>
-            </Field>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button onClick={() => setOpen(false)}>Cancel</Button>
-            <Button variant="primary" onClick={create} disabled={!name.trim()}>
-              Create GAP
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

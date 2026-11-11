@@ -7,7 +7,7 @@ describe("streamMessage (SSE parsing)", () => {
     mockStreamingFetch([textTurn("Hello there!", 12, 7)]);
     const chunks: string[] = [];
     const res = await streamMessage(
-      { apiKey: "k", model: "claude-opus-5", system: "", messages: [{ role: "user", content: "hi" }], temperature: 0.7, maxTokens: 256 },
+      { apiKey: "k", model: "claude-opus-5-5", system: "", messages: [{ role: "user", content: "hi" }], temperature: 0.7, maxTokens: 256 },
       { onText: (d) => chunks.push(d) },
     );
     expect(res.text).toBe("Hello there!");
@@ -21,7 +21,7 @@ describe("streamMessage (SSE parsing)", () => {
   it("parses a tool_use block with accumulated JSON input", async () => {
     mockStreamingFetch([toolTurn("http_request", { url: "https://example.com" })]);
     const res = await streamMessage(
-      { apiKey: "k", model: "claude-opus-5", system: "", messages: [{ role: "user", content: "fetch" }], temperature: 0.7, maxTokens: 256, tools: [] },
+      { apiKey: "k", model: "claude-opus-5-5", system: "", messages: [{ role: "user", content: "fetch" }], temperature: 0.7, maxTokens: 256, tools: [] },
       { onText: () => {} },
     );
     expect(res.stopReason).toBe("tool_use");
@@ -33,7 +33,7 @@ describe("streamMessage (SSE parsing)", () => {
   it("throws without an API key", async () => {
     await expect(
       streamMessage(
-        { apiKey: "", model: "claude-opus-5", system: "", messages: [], temperature: 0.7, maxTokens: 256 },
+        { apiKey: "", model: "claude-opus-5-5", system: "", messages: [], temperature: 0.7, maxTokens: 256 },
         { onText: () => {} },
       ),
     ).rejects.toThrow(/API key/i);
@@ -42,10 +42,10 @@ describe("streamMessage (SSE parsing)", () => {
 
 describe("costFor", () => {
   it("computes cost from default pricing", () => {
-    // Opus 5: $5/M in, $25/M out → 1M in + 1M out = $30
-    expect(costFor("claude-opus-5", 1_000_000, 1_000_000)).toBeCloseTo(30, 5);
+    // Opus 5.5: $4/M in, $20/M out → 1M in + 1M out = $24
+    expect(costFor("claude-opus-5-5", 1_000_000, 1_000_000)).toBeCloseTo(24, 5);
   });
   it("honors overrides", () => {
-    expect(costFor("claude-opus-5", 1_000_000, 0, { "claude-opus-5": { in: 2, out: 10 } })).toBeCloseTo(2, 5);
+    expect(costFor("claude-opus-5-5", 1_000_000, 0, { "claude-opus-5-5": { in: 2, out: 10 } })).toBeCloseTo(2, 5);
   });
 });

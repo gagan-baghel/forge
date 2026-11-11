@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { PageBody, PageHeader } from "@/components/Shell";
+import { PageBody, PageHeader, TABS } from "@/components/Shell";
 import { Avatar, Button, Card, Badge, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { marketplaceCatalog } from "@/lib/seed";
@@ -35,7 +35,7 @@ export function MarketplaceView() {
 
   return (
     <div>
-      <PageHeader title="Marketplace" subtitle="Discover and install GAPs built by the community" />
+      <PageHeader title="Packs" tabs={TABS.packs} subtitle="Ready-made packs to install and adapt" />
       <PageBody className="space-y-5">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative mr-1 w-64">
@@ -68,7 +68,7 @@ export function MarketplaceView() {
               return (
                 <Card key={l.gap.slug} className="flex flex-col p-4">
                   <div className="flex items-start gap-3">
-                    <Avatar emoji={l.gap.emoji} size={36} />
+                    <Avatar name={l.gap.name} tint={l.gap.color} size={36} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="truncate text-[13px] font-semibold">{l.gap.name}</h3>

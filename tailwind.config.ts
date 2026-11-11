@@ -28,12 +28,15 @@ export default {
         sans: ["var(--f-sans)"],
         mono: ["var(--f-mono)"],
       },
+      // Crisp, tool-like corners instead of soft pills.
       borderRadius: {
-        xl: "10px",
-        "2xl": "12px",
+        md: "4px",
+        lg: "6px",
+        xl: "6px",
+        "2xl": "8px",
       },
       boxShadow: {
-        soft: "0 1px 2px rgb(0 0 0 / 0.06), 0 12px 32px -8px rgb(0 0 0 / 0.28)",
+        soft: "0 1px 0 rgb(0 0 0 / 0.04), 0 16px 40px -12px rgb(0 0 0 / 0.45)",
         glow: "none",
       },
     },

@@ -1,72 +1,71 @@
 import { Link } from "react-router-dom";
-import { PageBody, PageHeader } from "@/components/Shell";
-import { Avatar, Card, EmptyState } from "@/components/ui";
+import { PageBody, PageHeader, TABS } from "@/components/Shell";
+import { Avatar, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
+import { AddDocumentButton } from "@/components/AddKnowledge";
 import { useGaps } from "@/stores/gaps";
 import { relativeTime } from "@/lib/format";
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="card px-4 py-3.5">
-      <div className="text-xs text-ink-3">{label}</div>
-      <div className="mt-1 text-xl font-semibold tabular-nums">{value}</div>
-    </div>
-  );
-}
+const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)} KB`;
 
+/**
+ * Every document any agent can read, grouped by the agent that reads it.
+ * Documents are added and removed on the agent itself (its Knowledge tab);
+ * this page is the one place to see them all.
+ */
 export function KnowledgeView() {
   const gaps = useGaps((s) => s.gaps);
-  const entries = gaps.flatMap((g) =>
-    g.agents.flatMap((a) => a.knowledge.map((d) => ({ doc: d, agent: a, gap: g }))),
-  );
-
-  const totalBytes = entries.reduce((a, e) => a + e.doc.bytes, 0);
+  const groups = gaps.flatMap((g) => g.agents.filter((a) => a.knowledge.length > 0).map((agent) => ({ agent, gap: g })));
+  const count = groups.reduce((n, { agent }) => n + agent.knowledge.length, 0);
 
   return (
     <div>
       <PageHeader
         title="Knowledge"
-        subtitle="Every document across your agents — matched and injected at chat time"
+        tabs={TABS.knowledge}
+        subtitle="Documents your agents read before answering"
+        actions={
+          <>
+            {count > 0 && <span className="num text-xs text-ink-3">{count} document{count === 1 ? "" : "s"}</span>}
+            <AddDocumentButton />
+          </>
+        }
       />
-      <PageBody className="space-y-6">
-        <div className="grid grid-cols-3 gap-3">
-          <Metric label="Documents" value={String(entries.length)} />
-          <Metric label="Total size" value={`${(totalBytes / 1024).toFixed(1)} KB`} />
-          <Metric label="Agents with knowledge" value={String(new Set(entries.map((e) => e.agent.id)).size)} />
-        </div>
-
-        <Card className="p-0">
-          {entries.length === 0 ? (
-            <EmptyState
-              icon="book"
-              title="No knowledge yet"
-              body="Open an agent and add documents in its Knowledge tab. Forge matches them against each message — no embeddings server required."
-            />
-          ) : (
-            <ul className="divide-y divide-border">
-              {entries.map(({ doc, agent }) => (
-                <li key={doc.id}>
-                  <Link
-                    to={`/agents/${agent.id}`}
-                    className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-surface-2/50"
-                  >
-                    <Icon name="book" size={15} className="shrink-0 text-ink-3" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13px] font-medium">{doc.title}</div>
-                      <div className="text-[11px] tabular-nums text-ink-3">
-                        {(doc.bytes / 1024).toFixed(1)} KB · added {relativeTime(doc.addedAt)}
-                      </div>
-                    </div>
-                    <span className="flex min-w-0 items-center gap-2 text-xs text-ink-2">
-                      <Avatar emoji={agent.emoji} size={20} className="rounded-md" />
-                      <span className="truncate">{agent.name}</span>
+      <PageBody className="max-w-3xl space-y-8">
+        {groups.length === 0 ? (
+          <EmptyState
+            icon="book"
+            title="No documents yet"
+            body="Add PDFs, notes or exports to an agent. Before each answer, Forge finds the passages that match the question and hands them to the agent. Files are read on this computer and never uploaded."
+            action={<AddDocumentButton label="Add your first document" />}
+          />
+        ) : (
+          groups.map(({ agent, gap }) => (
+            <section key={agent.id}>
+              <div className="mb-1 flex items-center gap-3 border-b border-border pb-2">
+                <Avatar name={agent.name} tint={gap.color} size={24} />
+                <Link to={`/agents/${agent.id}`} className="min-w-0 flex-1 truncate text-[13.5px] font-semibold hover:text-brand-2">
+                  {agent.name}
+                  <span className="ml-2 text-xs font-normal text-ink-3">{gap.name}</span>
+                </Link>
+                <Link to={`/agents/${agent.id}`} className="text-xs text-ink-3 hover:text-ink">
+                  Manage →
+                </Link>
+              </div>
+              <ul className="divide-y divide-border">
+                {agent.knowledge.map((doc) => (
+                  <li key={doc.id} className="flex items-center gap-3 py-2">
+                    <Icon name="book" size={14} className="shrink-0 text-ink-3" />
+                    <span className="min-w-0 flex-1 truncate text-[13.5px]">{doc.title}</span>
+                    <span className="num shrink-0 text-[11px] text-ink-3">
+                      {kb(doc.bytes)} · {relativeTime(doc.addedAt)}
                     </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))
+        )}
       </PageBody>
     </div>
   );

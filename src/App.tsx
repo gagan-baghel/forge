@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, type ReactElement, type ReactNode } from "react";
-import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
 import { Shell } from "./components/Shell";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Spinner } from "./components/ui";
@@ -9,7 +9,6 @@ import { initChannelListener, resumeChannels, syncKeepAwake } from "./lib/channe
 
 import { HomeView } from "./views/Home";
 import { GapsView } from "./views/Gaps";
-import { GapDetailView } from "./views/GapDetail";
 import { AgentsView } from "./views/Agents";
 import { AgentDetailView } from "./views/AgentDetail";
 import { SettingsView } from "./views/Settings";
@@ -24,11 +23,8 @@ const TerminalView = lazy(() => import("./views/Terminal").then((m) => ({ defaul
 const RunsView = lazy(() => import("./views/Runs").then((m) => ({ default: m.RunsView })));
 const ObservabilityView = lazy(() => import("./views/Observability").then((m) => ({ default: m.ObservabilityView })));
 const IntegrationsView = lazy(() => import("./views/Integrations").then((m) => ({ default: m.IntegrationsView })));
-const TeamView = lazy(() => import("./views/Team").then((m) => ({ default: m.TeamView })));
 const WorkshopView = lazy(() => import("./views/Workshop").then((m) => ({ default: m.WorkshopView })));
 const GapEditorView = lazy(() => import("./views/workshop/GapEditor").then((m) => ({ default: m.GapEditorView })));
-const BrainsView = lazy(() => import("./views/Brains").then((m) => ({ default: m.BrainsView })));
-const BrainDetailView = lazy(() => import("./views/BrainDetail").then((m) => ({ default: m.BrainDetailView })));
 const MemoryView = lazy(() => import("./views/Memory").then((m) => ({ default: m.MemoryView })));
 
 function Loading() {
@@ -37,6 +33,11 @@ function Loading() {
       <Spinner size={22} />
     </div>
   );
+}
+
+function PackRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/gaps/${id}`} replace />;
 }
 
 function lazyRoute(el: ReactElement) {
@@ -84,20 +85,21 @@ export function App() {
   }
 
   return (
-    <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <HashRouter>
       <Shell>
         <RouteBoundary>
           <Routes>
             <Route path="/" element={<HomeView />} />
             <Route path="/gaps" element={<GapsView />} />
-            <Route path="/gaps/:id" element={<GapDetailView />} />
+            <Route path="/gaps/:id" element={lazyRoute(<GapEditorView />)} />
             <Route path="/agents" element={<AgentsView />} />
             <Route path="/agents/:id" element={<AgentDetailView />} />
-            <Route path="/brains" element={lazyRoute(<BrainsView />)} />
-            <Route path="/brains/:id" element={lazyRoute(<BrainDetailView />)} />
+            {/* Brains were folded into agents (lib/foldBrains). */}
+            <Route path="/brains/*" element={<Navigate to="/agents" replace />} />
             <Route path="/memory" element={lazyRoute(<MemoryView />)} />
             <Route path="/workshop" element={lazyRoute(<WorkshopView />)} />
-            <Route path="/workshop/:id" element={lazyRoute(<GapEditorView />)} />
+            {/* The pack editor used to live here; one page per pack now. */}
+            <Route path="/workshop/:id" element={<PackRedirect />} />
             <Route path="/remote" element={lazyRoute(<RemoteView />)} />
             <Route path="/channels" element={<Navigate to="/remote" replace />} />
             <Route path="/architect" element={lazyRoute(<ArchitectView />)} />
@@ -108,7 +110,6 @@ export function App() {
             <Route path="/runs" element={lazyRoute(<RunsView />)} />
             <Route path="/observability" element={lazyRoute(<ObservabilityView />)} />
             <Route path="/integrations" element={lazyRoute(<IntegrationsView />)} />
-            <Route path="/team" element={lazyRoute(<TeamView />)} />
             <Route path="/settings" element={<SettingsView />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -3,8 +3,8 @@
  * simple: documents are chunked, scored against the query with a TF-style
  * keyword overlap, and the top chunks are injected into the system prompt.
  *
- * This is intentionally model-free (no embeddings) so it works offline and in
- * the web build. It can be upgraded to embeddings later without touching callers.
+ * Keyword retrieval is model-free, so it works offline and in the web build;
+ * `retrieveAsync` adds local embeddings on top and falls back to it.
  */
 
 import type { KnowledgeDoc } from "@/types/domain";
@@ -52,10 +52,12 @@ export async function retrieveAsync(docs: KnowledgeDoc[], query: string, topK = 
   if (!docs.length || !query.trim()) return "";
   if (!embeddingsAvailable()) return retrieve(docs, query, topK);
 
-  const qVec = await embed(query);
+  const qVec = await embed(query, "query");
   if (!qVec) return retrieve(docs, query, topK);
 
   const scored: { title: string; text: string; score: number }[] = [];
+  // ponytail: embeds every chunk (cached after first use), so the first question
+  // over a big PDF is slow; embed at add-time and persist vectors if that bites.
   for (const doc of docs) {
     for (const c of chunk(doc.content)) {
       const v = await embed(c);
@@ -80,6 +82,8 @@ export function retrieve(docs: KnowledgeDoc[], query: string, topK = 3): string 
   if (qTokens.size === 0) return "";
 
   const scored: { title: string; text: string; score: number }[] = [];
+  // ponytail: embeds every chunk (cached after first use), so the first question
+  // over a big PDF is slow; embed at add-time and persist vectors if that bites.
   for (const doc of docs) {
     for (const c of chunk(doc.content)) {
       const tokens = tokenize(c);

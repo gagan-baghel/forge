@@ -1,8 +1,8 @@
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { PageBody, PageHeader } from "@/components/Shell";
-import { Avatar, Button, Card, CardHeader, EmptyState, StatusDot } from "@/components/ui";
+import { Avatar, Button, EmptyState, StatusDot } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 import { useRuns } from "@/stores/runs";
@@ -13,18 +13,27 @@ import { useChannelRuntime, channelKey } from "@/stores/channelRuntime";
 import { fmtUsd, fmtTokens, relativeTime } from "@/lib/format";
 import { MODELS } from "@/types/domain";
 
-function greeting(): string {
-  const h = new Date().getHours();
-  return h < 5 ? "Good evening" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+/** One cell of the status readout: a mono figure over a quiet caption. */
+function Readout({ label, value, sub, to, alert }: { label: string; value: string; sub?: string; to: string; alert?: boolean }) {
+  return (
+    <Link to={to} className="group min-w-0 bg-surface px-5 py-4 transition-colors hover:bg-surface-2">
+      <div className="label">{label}</div>
+      <div className="num mt-2 text-[26px] leading-none tracking-tight text-ink">{value}</div>
+      {sub && <div className={clsx("mt-1.5 truncate text-[12px]", alert ? "text-warn" : "text-ink-3")}>{sub}</div>}
+    </Link>
+  );
 }
 
-function Metric({ label, value, sub, to }: { label: string; value: string; sub?: string; to: string }) {
+/** Section heading with a rule, used down the page instead of boxed card titles. */
+function Section({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <Link to={to} className="card group px-4 py-3.5 transition-colors hover:border-border-strong">
-      <div className="text-xs text-ink-3">{label}</div>
-      <div className="mt-1 text-xl font-semibold tabular-nums">{value}</div>
-      {sub && <div className="truncate text-[11px] text-ink-3">{sub}</div>}
-    </Link>
+    <section>
+      <div className="mb-2 flex items-baseline justify-between gap-3 border-b border-border pb-2">
+        <h2 className="text-[13.5px] font-semibold">{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -71,46 +80,55 @@ export function HomeView() {
   return (
     <div>
       <PageHeader
-        title={userName ? `${greeting()}, ${userName}` : greeting()}
+        title={userName ? `${userName}'s workbench` : "Workbench"}
         subtitle={new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
         actions={
           <>
             <Button icon="store" onClick={() => navigate("/marketplace")}>
               Marketplace
             </Button>
-            <Button variant="primary" icon="plus" onClick={() => navigate("/gaps")}>
-              New GAP
+            <Button variant="primary" icon="plus" onClick={() => navigate("/workshop")}>
+              New pack
             </Button>
           </>
         }
       />
 
-      <PageBody className="space-y-6">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Metric label="Agents" value={String(agents.length)} sub={`across ${gaps.length} GAP${gaps.length === 1 ? "" : "s"}`} to="/agents" />
-          <Metric label="Reachable by phone" value={String(liveBots.length)} sub={approvals ? `${approvals} waiting for approval` : "live bots"} to="/remote" />
-          <Metric
-            label="Runs, last 24h"
+      <PageBody className="space-y-8">
+        {/* 1px gaps over the border colour draw the dividers at any column count. */}
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border lg:grid-cols-4">
+          <Readout label="Agents" value={String(agents.length)} sub={`in ${gaps.length} pack${gaps.length === 1 ? "" : "s"}`} to="/agents" />
+          <Readout
+            label="On your phone"
+            value={String(liveBots.length)}
+            sub={approvals ? `${approvals} waiting for you` : liveBots.length ? "live now" : "none connected"}
+            alert={approvals > 0}
+            to="/remote"
+          />
+          <Readout
+            label="Runs · 24h"
             value={String(stats.today)}
             sub={stats.failedToday ? `${stats.failedToday} failed` : "no failures"}
+            alert={stats.failedToday > 0}
             to="/runs"
           />
-          <Metric label="Spend this month" value={fmtUsd(stats.spend)} sub={`${fmtTokens(stats.tokens)} tokens`} to="/observability" />
+          <Readout label="Spend · month" value={fmtUsd(stats.spend)} sub={`${fmtTokens(stats.tokens)} tokens`} to="/observability" />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <Card className="self-start p-0">
-            <div className="flex items-center justify-between px-5 pt-4">
-              <h2 className="text-[13px] font-semibold">Agents</h2>
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <Section
+            title="Agents"
+            action={
               <Link to="/agents" className="text-xs text-ink-3 hover:text-ink">
-                View all
+                All agents →
               </Link>
-            </div>
+            }
+          >
             {agents.length === 0 ? (
               <EmptyState
                 icon="agents"
                 title="No agents yet"
-                body="Install a GAP from the Marketplace, or describe one to the Architect."
+                body="Install a pack from the Marketplace, or describe one to the Architect."
                 action={
                   <Button variant="primary" icon="spark" onClick={() => navigate("/architect")}>
                     Design with Architect
@@ -118,84 +136,104 @@ export function HomeView() {
                 }
               />
             ) : (
-              <ul className="mt-2 divide-y divide-border border-t border-border">
-                {agents.slice(0, 8).map(({ agent, gap }) => {
-                  const last = lastActive(agent.id);
-                  const onPhone = agent.channels.some((c) => running[channelKey(agent.id, c.id)]);
-                  return (
-                    <li key={agent.id}>
-                      <Link to={`/agents/${agent.id}`} className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-surface-2/50">
-                        <Avatar emoji={agent.emoji} size={30} />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-[13px] font-medium">{agent.name}</div>
-                          <div className="truncate text-xs text-ink-3">
-                            {agent.role} · {gap.name}
-                          </div>
-                        </div>
-                        {onPhone && <Icon name="phone" size={13} className="text-success" aria-label="Reachable by phone" />}
-                        <span className="hidden w-20 text-right text-[11px] text-ink-3 sm:block">
-                          {MODELS.find((m) => m.id === agent.model)?.label}
-                        </span>
-                        <span className="hidden w-16 text-right text-[11px] text-ink-3 md:block">{last ? relativeTime(last) : "—"}</span>
-                        <StatusDot status={agent.status} />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
+              <table className="w-full table-fixed text-left">
+                <thead>
+                  <tr className="label">
+                    <th className="py-1.5 font-medium">Agent</th>
+                    <th className="hidden w-24 py-1.5 font-medium sm:table-cell">Model</th>
+                    <th className="hidden w-20 py-1.5 text-right font-medium md:table-cell">Last run</th>
+                    <th className="w-16 py-1.5 text-right font-medium">State</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {agents.slice(0, 8).map(({ agent, gap }) => {
+                    const last = lastActive(agent.id);
+                    const onPhone = agent.channels.some((c) => running[channelKey(agent.id, c.id)]);
+                    return (
+                      <tr
+                        key={agent.id}
+                        onClick={() => navigate(`/agents/${agent.id}`)}
+                        className="group cursor-pointer transition-colors hover:bg-surface-2/50"
+                      >
+                        <td className="py-2.5 pr-3">
+                          <Link to={`/agents/${agent.id}`} className="flex min-w-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                            <Avatar name={agent.name} tint={gap.color} size={28} />
+                            <span className="min-w-0">
+                              <span className="flex items-center gap-1.5 text-[13.5px] font-medium">
+                                <span className="truncate">{agent.name}</span>
+                                {onPhone && <Icon name="phone" size={12} className="shrink-0 text-success" aria-label="Reachable by phone" />}
+                              </span>
+                              <span className="block truncate text-xs text-ink-3">
+                                {agent.role} · {gap.name}
+                              </span>
+                            </span>
+                          </Link>
+                        </td>
+                        <td className="hidden py-2.5 font-mono text-[11.5px] text-ink-2 sm:table-cell">
+                          {MODELS.find((m) => m.id === agent.model)?.label ?? "—"}
+                        </td>
+                        <td className="num hidden py-2.5 text-right text-[11.5px] text-ink-3 md:table-cell">{last ? relativeTime(last) : "—"}</td>
+                        <td className="py-2.5 text-right">
+                          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ink-3">
+                            <StatusDot status={agent.status} />
+                            {agent.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
-          </Card>
+          </Section>
 
-          <div className="space-y-6">
+          <div className="space-y-8">
             {showChecklist && (
-              <Card>
-                <CardHeader title="Get set up" hint={`${checklist.filter((c) => c.done).length} of ${checklist.length} done`} />
-                <ul className="space-y-1">
-                  {checklist.map((c) => (
+              <Section title="Set up" action={<span className="num text-[11px] text-ink-3">{checklist.filter((c) => c.done).length}/{checklist.length}</span>}>
+                <ol>
+                  {checklist.map((c, i) => (
                     <li key={c.label}>
-                      <Link to={c.to} className="flex items-center gap-2.5 rounded-md px-1.5 py-1.5 text-[13px] hover:bg-surface-2/60">
-                        <span
-                          className={clsx(
-                            "grid h-4 w-4 shrink-0 place-items-center rounded-full border",
-                            c.done ? "border-success bg-success text-bg" : "border-border-strong",
-                          )}
-                        >
-                          {c.done && <Icon name="check" size={10} strokeWidth={3} />}
+                      <Link to={c.to} className="group flex items-baseline gap-3 py-1.5 text-[13px]">
+                        <span className={clsx("num w-5 shrink-0 text-[11px]", c.done ? "text-success" : "text-ink-3")}>
+                          {c.done ? "✓" : String(i + 1).padStart(2, "0")}
                         </span>
-                        <span className={c.done ? "text-ink-3 line-through" : "text-ink-2"}>{c.label}</span>
+                        <span className={c.done ? "text-ink-3" : "text-ink-2 group-hover:text-ink"}>{c.label}</span>
                       </Link>
                     </li>
                   ))}
-                </ul>
-              </Card>
+                </ol>
+              </Section>
             )}
 
-            <Card className="p-0">
-              <div className="flex items-center justify-between px-5 pt-4">
-                <h2 className="text-[13px] font-semibold">Recent runs</h2>
+            <Section
+              title="Recent runs"
+              action={
                 <Link to="/runs" className="text-xs text-ink-3 hover:text-ink">
-                  All runs
+                  All runs →
                 </Link>
-              </div>
+              }
+            >
               {runs.length === 0 ? (
-                <p className="px-5 py-8 text-center text-xs text-ink-3">No runs yet. Start a chat with an agent.</p>
+                <p className="py-6 text-[13px] text-ink-3">Nothing has run yet. Open an agent and say hello.</p>
               ) : (
-                <ul className="mt-2 divide-y divide-border border-t border-border">
+                <ul className="divide-y divide-border">
                   {runs.slice(0, 7).map((r) => (
-                    <li key={r.id} className="flex items-center gap-3 px-5 py-2.5">
-                      <StatusDot status={r.status === "success" ? "live" : r.status === "error" ? "error" : r.status === "running" ? "ready" : "draft"} />
+                    <li key={r.id} className="flex items-start gap-3 py-2">
+                      <span className="mt-1.5">
+                        <StatusDot status={r.status === "success" ? "live" : r.status === "error" ? "error" : r.status === "running" ? "ready" : "draft"} />
+                      </span>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[13px]">{r.summary || r.agentName}</div>
-                        <div className="text-[11px] text-ink-3">
+                        <div className="font-mono text-[10.5px] text-ink-3">
                           {r.agentName} · {r.trigger} · {relativeTime(r.startedAt)}
                         </div>
                       </div>
-                      {r.costUsd > 0 && <span className="font-mono text-[11px] text-ink-3">{fmtUsd(r.costUsd)}</span>}
+                      {r.costUsd > 0 && <span className="num text-[11px] text-ink-3">{fmtUsd(r.costUsd)}</span>}
                     </li>
                   ))}
                 </ul>
               )}
-            </Card>
+            </Section>
           </div>
         </div>
       </PageBody>

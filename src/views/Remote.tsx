@@ -255,7 +255,7 @@ function ConnectModal({ open, onClose }: { open: boolean; onClose: () => void })
             <select className="input" value={agent?.id ?? ""} onChange={(e) => setAgentId(e.target.value)}>
               {agents.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.emoji} {a.name} — {a.role}
+                  {a.name} — {a.role}
                 </option>
               ))}
             </select>
@@ -280,7 +280,7 @@ function ConnectModal({ open, onClose }: { open: boolean; onClose: () => void })
         {agent && (
           <>
             <div className="flex items-center gap-2 text-xs text-ink-3">
-              <Avatar emoji={agent.emoji} size={20} /> {agent.name}'s {kind} bot
+              <Avatar name={agent.name} size={20} /> {agent.name}'s {kind} bot
               {agent.channels.some((c) => c.kind === kind && c.token) && <Badge tone="success">already connected</Badge>}
             </div>
             <ChannelCard key={`${agent.id}-${kind}`} agent={agent} kind={kind} />
