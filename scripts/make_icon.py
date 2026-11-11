@@ -16,10 +16,21 @@ CANVAS = 1024
 SHAPE = 824
 SS = 2  # supersample factor for edge antialiasing
 
-BRAND = (109, 91, 255)
-BRAND_2 = (152, 136, 255)
-ACCENT = (255, 209, 102)
-WHITE = (255, 255, 255)
+# The app's own palette (src/styles/globals.css): a warm charcoal plate, the
+# cream ink for the anvil, one ember spark.
+PLATE_TOP = (38, 35, 31)
+PLATE_BOTTOM = (20, 19, 17)
+INK = (236, 231, 222)
+EMBER = (232, 106, 48)
+
+# The anvil silhouette, in percent of the tile: horn to the left, flat face,
+# waist, foot. The same outline, scaled, is the mark in the app and on the
+# website (ForgeMark in Shell.tsx, #mark in docs/index.html).
+ANVIL = [
+    (15, 39), (33, 35), (78, 35), (78, 46.5), (64, 46.5), (58, 53), (58, 61),
+    (68, 68), (68, 76), (30, 76), (30, 68), (40, 61), (40, 53), (34, 47.5), (15, 41.5),
+]
+SPARK = (70, 16, 81, 27)  # left, top, right, bottom
 
 
 def squircle_mask(size: int, n: float = 5.0) -> Image.Image:
@@ -47,30 +58,17 @@ def gradient(size: int) -> Image.Image:
         t = i / (size - 1)
         d.line(
             [(0, i), (size, i)],
-            fill=tuple(round(a + (b - a) * t) for a, b in zip(BRAND, BRAND_2)),
+            fill=tuple(round(a + (b - a) * t) for a, b in zip(PLATE_TOP, PLATE_BOTTOM)),
         )
     return g
 
 
 def draw_mark(img: Image.Image, size: int) -> None:
-    """A blocky F with the accent dot, sized as a fraction of the tile."""
+    """The anvil and its spark, sized as a fraction of the tile."""
     d = ImageDraw.Draw(img)
     u = size / 100  # one percent of the tile, so all numbers read as percentages
-    r = 3 * u       # bar corner radius
-
-    # Centred on the group's own bounding box (stem through dot), not on the
-    # stem — optically centring the F alone leaves the tile looking lopsided.
-    stem_l, stem_r = 26 * u, 39.5 * u
-    top, bottom = 26 * u, 74 * u
-    d.rounded_rectangle([stem_l, top, stem_r, bottom], radius=r, fill=WHITE)
-    d.rounded_rectangle([stem_l, top, 70 * u, 39 * u], radius=r, fill=WHITE)
-    d.rounded_rectangle([stem_l, 46 * u, 60.5 * u, 59 * u], radius=r, fill=WHITE)
-
-    dot_c, dot_r = (68 * u, 67 * u), 6.5 * u
-    d.ellipse(
-        [dot_c[0] - dot_r, dot_c[1] - dot_r, dot_c[0] + dot_r, dot_c[1] + dot_r],
-        fill=ACCENT,
-    )
+    d.polygon([(x * u, y * u) for x, y in ANVIL], fill=INK)
+    d.rounded_rectangle([v * u for v in SPARK], radius=1.2 * u, fill=EMBER)
 
 
 def build() -> Image.Image:

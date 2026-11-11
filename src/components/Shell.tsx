@@ -69,13 +69,14 @@ function isActive(item: NavItem, path: string): boolean {
   return under(item.to) || (item.also ?? []).some(under);
 }
 
-/** The Forge mark: an anvil on a square plate, with one ember spark. */
+/** The Forge mark: an anvil on a plate, with one ember spark. Same silhouette
+ *  as the app icon (scripts/make_icon.py). */
 export function ForgeMark({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
       <rect x="1" y="1" width="22" height="22" rx="4" fill="rgb(var(--primary))" />
-      <path d="M6 9.5h10.5l-2 2.5v3.5h-6v-3.5L6 9.5zM7.5 18h9" stroke="rgb(var(--on-primary))" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" fill="none" />
-      <rect x="17" y="4.5" width="2.6" height="2.6" fill="rgb(var(--accent))" />
+      <path d="M4.3 9.58 8.26 8.7h9.9v2.53h-3.08l-1.32 1.43v1.76l2.2 1.54v1.76H7.6v-1.76l2.2-1.54v-1.76l-1.32-1.21L4.3 10.13z" fill="rgb(var(--on-primary))" />
+      <rect x="16.4" y="4.5" width="2.4" height="2.4" rx="0.3" fill="rgb(var(--accent))" />
     </svg>
   );
 }

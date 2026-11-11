@@ -268,7 +268,9 @@ h3, h4, .lede, .sub { text-wrap: pretty; }
 .install .num { font: 500 12px var(--mono); color: var(--ember); }
 .install h3 { margin: 12px 0 6px; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
 .install p { margin: 0; color: var(--ink-2); font-size: 15px; }
-.after { margin-top: 48px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 24px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.firstrun { margin: 40px 0 0; max-width: 72ch; padding-left: 14px; border-left: 2px solid var(--ember); color: var(--ink-2); font-size: 14.5px; }
+.firstrun b { color: var(--ink); font-weight: 600; }
+.after { margin-top: 28px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 24px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
 .after p { margin: 0; color: var(--ink-2); max-width: 60ch; font-size: 15px; }
 .after b { color: var(--ink); font-weight: 600; }
 @media (max-width: 820px) { .install { grid-template-columns: 1fr; gap: 28px; } }
@@ -389,7 +391,7 @@ h3, h4, .lede, .sub { text-wrap: pretty; }
 /* ------------------------------ Install rail ---------------------- */
 .install { position: relative; }
 .install > div:not(.rail) { position: relative; border-top: 0; padding-top: 26px; }
-.install .rail { position: absolute; left: 0; right: 0; top: 0; height: 1px; background: var(--border-strong); }
+.install .rail { position: absolute; left: 0; right: 0; top: 0; height: 1px; padding: 0; border: 0; background: var(--border-strong); }
 .install .rail i { display: block; height: 100%; width: 0; background: var(--ember); transition: width 2.2s cubic-bezier(.4, 0, .2, 1); }
 .install.in .rail i { width: 100%; }
 .install .num em { position: absolute; top: -4px; left: 0; width: 9px; height: 9px; border-radius: 50%; background: var(--bg); border: 1.5px solid var(--border-strong); transition: background .3s, border-color .3s; }
