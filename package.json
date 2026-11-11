@@ -1,10 +1,10 @@
 {
   "name": "forge",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
-  "description": "Forge \u2014 a local-first desktop workspace for building, running and sharing AI agents as GAPs (Global Agent Packs).",
+  "description": "Forge — a local-first desktop workspace for building, running and sharing AI agents as GAPs (Global Agent Packs).",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
