@@ -47,6 +47,13 @@ with the project's key.
 Copies older than 1.0 have no updater — install 1.0 from Releases once by
 hand, and every later version arrives in-app.
 
+### Website
+
+The project site is the static page in `docs/`: what Forge is, and a
+download button pointing at the latest release. `vercel.json` tells Vercel
+to publish just that folder. Forge itself is a desktop app; it is never
+deployed to the web (`pnpm dev` runs it in a browser for development only).
+
 ## Release a new version
 
 ```bash
