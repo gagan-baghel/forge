@@ -29,7 +29,7 @@ async function pdfText(file: File): Promise<string> {
     for (let i = 1; i <= doc.numPages; i++) {
       const content = await (await doc.getPage(i)).getTextContent();
       // hasEOL marks a line break inside the page; without it lines run together.
-      const text = content.items.map((it: any) => (it.str ?? "") + (it.hasEOL ? "\n" : "")).join("");
+      const text = content.items.map((it) => ("str" in it ? it.str + (it.hasEOL ? "\n" : "") : "")).join("");
       if (text.trim()) pages.push(`[Page ${i}]\n${text.trim()}`);
     }
   } finally {

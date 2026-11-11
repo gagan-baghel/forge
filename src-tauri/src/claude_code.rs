@@ -262,6 +262,9 @@ enum CcEvent {
 /// first turn). Streams `cc://event` payloads; the frontend filters by run_id.
 /// `mcp_config` is the pack's `--mcp-config` JSON (empty = none); `env` is the
 /// pack's environment, applied to the CLI process (and thus its MCP servers).
+// The arguments are the JS invoke payload, one per field; bundling them into a
+// struct would only move the list.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn claude_code_run(
     app: tauri::AppHandle,

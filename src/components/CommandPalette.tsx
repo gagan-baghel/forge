@@ -115,8 +115,8 @@ export function CommandPalette() {
   if (!open) return null;
 
   return (
-    <div data-testid="command-palette" className="fixed inset-0 z-[60] flex items-start justify-center bg-black/55 p-4 pt-[14vh] backdrop-blur-[2px]" onMouseDown={() => setOpen(false)}>
-      <div className="card w-full max-w-xl overflow-hidden p-0 shadow-soft" onMouseDown={(e) => e.stopPropagation()}>
+    <div data-testid="command-palette" className="anim-fade fixed inset-0 z-[60] flex items-start justify-center bg-black/60 p-4 pt-[14vh]" onMouseDown={() => setOpen(false)}>
+      <div className="card anim-pop w-full max-w-xl overflow-hidden p-0 shadow-soft" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2.5 border-b border-border px-4">
           <Icon name="search" size={15} className="shrink-0 text-ink-3" />
           <input

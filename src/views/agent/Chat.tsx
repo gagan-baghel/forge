@@ -121,13 +121,13 @@ export function Chat({ agent }: { agent: Agent }) {
             <div className="mx-auto max-w-3xl space-y-6">
               {messages.map((m) =>
                 m.role === "user" ? (
-                  <div key={m.id} className="flex justify-end">
+                  <div key={m.id} className="anim-rise flex justify-end">
                     <div className="max-w-[80%] whitespace-pre-wrap rounded-lg bg-surface-2 px-3.5 py-2 text-[13px] leading-relaxed text-ink">
                       {m.content}
                     </div>
                   </div>
                 ) : (
-                  <div key={m.id} className="flex gap-3">
+                  <div key={m.id} className="anim-rise flex gap-3">
                     <Avatar name={agent.name} size={24} className="mt-0.5 rounded-md" />
                     <div className="min-w-0 flex-1 text-[13px] leading-relaxed">
                       {m.toolCalls && m.toolCalls.length > 0 && (

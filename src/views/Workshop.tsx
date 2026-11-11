@@ -8,7 +8,6 @@ import { useGaps } from "@/stores/gaps";
 import { MODELS, type ModelId } from "@/types/domain";
 
 const COLORS = ["#D9703A", "#C49A3C", "#7FA36B", "#6B8FA8", "#A8738F", "#B5654F"];
-const EMOJIS = ["📦", "🔬", "⚒️", "🎧", "✍️", "📈", "🤖", "🚀", "🧠", "💡"];
 
 interface DraftAgent {
   name: string;
@@ -54,7 +53,7 @@ function PackBuilder() {
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   // Marks are monograms of the name now; the field stays for older packs.
-  const emoji = EMOJIS[0];
+  const emoji = "📦";
   const [color, setColor] = useState(COLORS[0]);
   const [tags, setTags] = useState("");
   const [agents, setAgents] = useState<DraftAgent[]>([blankAgent()]);

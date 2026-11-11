@@ -165,7 +165,7 @@ function UpdateButton() {
   if (status !== "available" && status !== "downloading") return null;
   const busy = status === "downloading";
   return (
-    <div className="mt-1">
+    <div className="anim-rise mt-1">
       <button
         onClick={() => void install()}
         disabled={busy}
@@ -175,6 +175,11 @@ function UpdateButton() {
         <span className="flex-1 truncate">{busy ? `Updating… ${progress !== undefined ? `${progress}%` : ""}` : `Update to v${version}`}</span>
         {!busy && <span className="font-mono text-[10px] opacity-80">restart</span>}
       </button>
+      {busy && (
+        <div className="mt-1 h-[3px] overflow-hidden rounded-sm bg-surface-3" role="progressbar" aria-valuenow={progress ?? 0} aria-valuemin={0} aria-valuemax={100}>
+          <div className="h-full bg-brand transition-[width] duration-200" style={{ width: `${progress ?? 0}%` }} />
+        </div>
+      )}
       {error && <p className="mt-1 px-1 text-[11px] text-danger">{error}</p>}
     </div>
   );
@@ -278,5 +283,5 @@ export function BackLink({ to, label }: { to: string; label: string }) {
 
 /** Standard page body width and padding. */
 export function PageBody({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={clsx("mx-auto w-full max-w-6xl px-8 py-6", className)}>{children}</div>;
+  return <div className={clsx("anim-rise mx-auto w-full max-w-6xl px-8 py-6", className)}>{children}</div>;
 }

@@ -144,6 +144,29 @@ body {
   }
 }
 
+/* ---- Motion ------------------------------------------------------------
+ * Short, one-shot entrances that say where something came from: a page
+ * settles, a dialog pops from the backdrop, a new chat message rises. Nothing
+ * loops, and all of it is off for people who ask for reduced motion. */
+@keyframes forge-rise {
+  from { opacity: 0; transform: translateY(6px); }
+}
+@keyframes forge-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.975); }
+}
+@keyframes forge-fade {
+  from { opacity: 0; }
+}
+.anim-rise { animation: forge-rise 0.22s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+.anim-pop { animation: forge-pop 0.17s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+.anim-fade { animation: forge-fade 0.15s ease-out both; }
+.btn:active { transform: translateY(0.5px); }
+@media (prefers-reduced-motion: reduce) {
+  .anim-rise, .anim-pop, .anim-fade { animation: none; }
+  .btn:active { transform: none; }
+  .animate-ping, .animate-spin { animation-duration: 0s; animation-iteration-count: 1; }
+}
+
 /* xterm fills its container */
 .xterm,
 .xterm .xterm-viewport {

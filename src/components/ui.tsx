@@ -247,12 +247,12 @@ export function Modal({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onMouseDown={onClose}>
+    <div className="anim-fade fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="card w-full p-5 shadow-soft"
+        className="card anim-pop w-full p-5 shadow-soft"
         style={{ maxWidth: width }}
         onMouseDown={(e) => e.stopPropagation()}
       >
