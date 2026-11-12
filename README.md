@@ -260,6 +260,23 @@ the app does rather than to how it ships:
   then — and on a machine that stays offline — retrieval falls back to the
   built-in keyword search automatically. Nothing errors.
 
+### Signing without an Apple Developer account
+
+Every build is ad-hoc signed (`bundle.macOS.signingIdentity: "-"` in
+`tauri.conf.json`): Apple's free signature, which seals the whole app. A
+**copy built on your own Mac opens with no warning at all**, because it was
+never downloaded. A **downloaded** copy shows *“Forge” Not Opened* once;
+System Settings → Privacy & Security → **Open Anyway** clears it for good, and
+updates installed from inside Forge don't ask again. Removing that one prompt
+for downloads needs Apple's paid Developer Program (notarization).
+
+To install a build from your own checkout:
+
+```bash
+pnpm tauri build --bundles app
+ditto src-tauri/target/release/bundle/macos/Forge.app /Applications/Forge.app
+```
+
 ### Giving the installer to someone else
 
 The bundle is not code-signed, so macOS Gatekeeper blocks it on a machine that
