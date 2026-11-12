@@ -21,3 +21,18 @@ export async function invoke<T>(cmd: string, args?: Record<string, unknown>): Pr
   }
   return tauriInvoke<T>(cmd, args);
 }
+
+/**
+ * Open a link in the user's browser. Inside the desktop app a plain link
+ * would navigate Forge's own window away, so it goes through the opener
+ * plugin; only http(s) and mailto are allowed (capabilities/default.json).
+ */
+export async function openExternal(url: string): Promise<void> {
+  if (!/^(https?:|mailto:)/i.test(url)) return;
+  if (isDesktop()) {
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    await openUrl(url);
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}

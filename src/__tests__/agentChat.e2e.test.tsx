@@ -65,7 +65,7 @@ describe("agent chat (end to end)", () => {
 
     // The final assistant answer appears and the tool chip is shown.
     expect(await screen.findByText("Noted — I'll remember that.")).toBeInTheDocument();
-    expect(await screen.findByText("remember")).toBeInTheDocument();
+    expect(await screen.findByText("Saved to memory")).toBeInTheDocument();
 
     // The tool actually executed — the fact was stored in agent memory.
     const { useMemory } = await import("@/stores/memory");

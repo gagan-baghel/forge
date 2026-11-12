@@ -8,6 +8,7 @@ import { Markdown } from "@/components/Markdown";
 import { Icon } from "@/components/Icon";
 import { Avatar, Button, Spinner } from "@/components/ui";
 import { fmtUsd, fmtTokens, relativeTime } from "@/lib/format";
+import { describeStep, elapsed } from "@/lib/activity";
 
 export function Chat({ agent }: { agent: Agent }) {
   const ensureConversation = useConversations((s) => s.ensureConversation);
@@ -137,7 +138,8 @@ export function Chat({ agent }: { agent: Agent }) {
                           ))}
                         </div>
                       )}
-                      {m.content ? <Markdown content={m.content} /> : m.pending && <Spinner size={14} />}
+                      {m.content && <Markdown content={m.content} />}
+                      {m.pending && <LiveStatus calls={m.toolCalls} since={m.createdAt} writing={!!m.content} />}
                       {m.error && <div className="mt-1 text-xs text-danger">{m.error}</div>}
                       {m.usage && (
                         <div className="mt-1.5 flex gap-2 font-mono text-[10px] text-ink-3">
@@ -202,22 +204,47 @@ export function Chat({ agent }: { agent: Agent }) {
   );
 }
 
-/** A short, human line for what a tool was asked to do (the Bash command, the query, the path…). */
-function summarize(input: unknown): string {
-  if (input == null) return "";
-  if (typeof input !== "object") return String(input);
-  const o = input as Record<string, unknown>;
-  for (const k of ["command", "query", "url", "file_path", "path", "pattern", "text", "prompt", "name"]) {
-    if (typeof o[k] === "string" && o[k]) return o[k] as string;
+/** A clock that re-renders its owner every `ms` while mounted. */
+function useNow(ms: number): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), ms);
+    return () => clearInterval(t);
+  }, [ms]);
+  return now;
+}
+
+/**
+ * What a reply is doing right now, in words, with how long it has taken:
+ * "Searching the web: history of Greece · 0:12". Replaces a bare spinner,
+ * which on a long research run looked exactly like a hang.
+ */
+function LiveStatus({ calls = [], since, writing }: { calls?: ToolCall[]; since: number; writing: boolean }) {
+  const now = useNow(1000);
+  const running = [...calls].reverse().find((c) => c.status === "running");
+  let label = writing ? "Writing" : calls.length ? "Thinking about what it found" : "Thinking";
+  if (running) {
+    const step = describeStep(running.name, running.input);
+    label = step.showDetailWhileRunning && step.detail ? `${step.active}: ${step.detail}` : step.active;
   }
-  const first = Object.values(o).find((v) => typeof v === "string" && v);
-  return typeof first === "string" ? first : JSON.stringify(o);
+  return (
+    <div className="mt-1.5 flex min-w-0 items-center gap-2 text-xs text-ink-3">
+      <span aria-hidden className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-brand" />
+      <span role="status" aria-live="polite" className="min-w-0 truncate">
+        {label}…
+      </span>
+      <span aria-hidden className="num shrink-0">
+        {elapsed(now - since)}
+      </span>
+    </div>
+  );
 }
 
 function ToolRow({ call }: { call: ToolCall }) {
-  // The summary appears once the call settles: while it runs, an approval
-  // dialog may be showing the very same command, and one copy is enough.
-  const summary = call.status === "running" ? "" : summarize(call.input).replace(/\s+/g, " ");
+  const step = describeStep(call.name, call.input);
+  // The detail appears once the call settles if the step is a machine action:
+  // while it runs, an approval dialog shows the very same command.
+  const detail = call.status !== "running" || step.showDetailWhileRunning ? step.detail : "";
   const icon =
     call.status === "running" ? (
       <Spinner size={12} />
@@ -227,8 +254,10 @@ function ToolRow({ call }: { call: ToolCall }) {
   const head = (
     <>
       <span className="grid w-3 shrink-0 place-items-center">{icon}</span>
-      <span className="shrink-0 font-mono text-ink-2">{call.name}</span>
-      {summary && <span className="min-w-0 truncate font-mono text-ink-3">{summary.slice(0, 200)}</span>}
+      <span className="shrink-0 text-ink-2" title={call.name}>
+        {call.status === "running" ? step.active : step.done}
+      </span>
+      {detail && <span className="min-w-0 truncate text-ink-3">{detail.slice(0, 200)}</span>}
     </>
   );
   if (!call.output) {

@@ -164,7 +164,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .anim-rise, .anim-pop, .anim-fade { animation: none; }
   .btn:active { transform: none; }
-  .animate-ping, .animate-spin { animation-duration: 0s; animation-iteration-count: 1; }
+  .animate-ping, .animate-spin, .animate-pulse { animation-duration: 0s; animation-iteration-count: 1; }
 }
 
 /* xterm fills its container */

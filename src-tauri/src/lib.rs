@@ -22,6 +22,8 @@ pub fn run() {
         // Self-update from GitHub Releases: signed builds only (see tauri.conf.json).
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        // Links in answers open in the user's browser, never inside Forge's window.
+        .plugin(tauri_plugin_opener::init())
         .manage(PtyState::default())
         .manage(ClaudeCodeState::default())
         .manage(ChannelState::default())
