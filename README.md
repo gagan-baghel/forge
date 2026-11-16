@@ -135,12 +135,16 @@ src-tauri/       Rust shell: Claude Code bridge (detect / install / run),
 ## Features
 
 One home for each idea: a **pack** holds **agents**; an agent owns its
-model, prompt, skills, **knowledge** (documents + memory), connections and
-remote channels. Nothing overrides an agent from somewhere else.
+model, prompt, skills (built-in abilities and connected services), and
+**knowledge** (documents + memory). Phone access for every agent lives on the
+**Remote** page. Nothing overrides an agent from somewhere else, and nothing
+is edited in two places.
 
 - **Workbench** — what's live, what ran, what it cost, and what's left to set up
-- **Agents** — chat (streaming, tool-use loop), setup (prompt, model,
-  runtime), skills, knowledge, connections, remote channels and activity
+- **Agents** — chat (streaming, tool-use loop, live progress), setup
+  (prompt, model, runtime), skills and connected services (GitHub, Slack,
+  Notion), knowledge and activity. Each agent is **Active** or **Paused**: a
+  paused agent skips its schedules and declines phone messages
 - **Packs** — one page per pack: its agents, details, MCP servers,
   environment, sharing (`.gap` file or share code) and a raw-JSON escape
   hatch. New packs come from the step-by-step builder or the **Architect**

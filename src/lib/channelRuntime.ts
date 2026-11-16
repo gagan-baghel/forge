@@ -250,6 +250,11 @@ async function fetchFiles(ref: ChannelRef, files: InboundMessage["files"]): Prom
 
 async function runForChat(agent: Agent, ref: ChannelRef, msg: InboundMessage): Promise<void> {
   const chatKey = chatKeyOf(ref);
+  if (agent.status === "paused") {
+    quiet(sendText(ref, `${agent.name} is paused. Resume it in Forge to pick this up.`));
+    rt().log(ref.key, "system", `Ignored a message: ${agent.name} is paused`);
+    return;
+  }
   const controller = new AbortController();
   controllers.set(chatKey, controller);
   rt().setBusy(chatKey, true);

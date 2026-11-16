@@ -134,7 +134,7 @@ export const useGaps = create<GapStore>()(
           model: input.model ?? "claude-opus-5-5",
           temperature: input.temperature ?? 0.7,
           maxTokens: input.maxTokens ?? 2048,
-          status: input.status ?? "draft",
+          status: input.status ?? "active",
           skills: input.skills ?? [],
           knowledge: input.knowledge ?? [],
           connectors: input.connectors ?? [],
@@ -232,13 +232,18 @@ export const useGaps = create<GapStore>()(
     }),
     {
       name: "forge.gaps",
-      version: 1,
-      // Agents saved before the Claude 5 rename still point at retired ids.
+      version: 2,
+      // Retired model ids move to their successors; the old draft/ready/live
+      // labels, which nothing acted on, collapse into "active".
       migrate: (state: any) => ({
         ...state,
         gaps: (state?.gaps ?? []).map((g: any) => ({
           ...g,
-          agents: (g.agents ?? []).map((a: any) => ({ ...a, model: currentModel(a.model) })),
+          agents: (g.agents ?? []).map((a: any) => ({
+            ...a,
+            model: currentModel(a.model),
+            status: a.status === "paused" ? "paused" : "active",
+          })),
         })),
       }),
       onRehydrateStorage: () => (state) => {

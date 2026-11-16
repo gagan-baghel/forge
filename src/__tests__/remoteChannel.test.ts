@@ -81,6 +81,13 @@ describe("strangers and pairing", () => {
     await vi.waitFor(() => expect(runTurn).toHaveBeenCalledTimes(1));
   });
 
+  it("declines with a reason, and runs nothing, while the agent is paused", async () => {
+    useGaps.getState().updateAgent(agent.id, { status: "paused" });
+    await handleInbound(msg("hello"));
+    await vi.waitFor(() => expect(sent().slice(-1)[0]?.text).toMatch(/is paused/));
+    expect(runTurn).not.toHaveBeenCalled();
+  });
+
   it("routes to an agent whose id ends in '_' (nanoid can produce one)", async () => {
     useGaps.setState((s) => ({
       gaps: s.gaps.map((g) => ({ ...g, agents: g.agents.map((a) => ({ ...a, id: "abc_" })) })),

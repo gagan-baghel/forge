@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import clsx from "clsx";
 import { PageBody, PageHeader } from "@/components/Shell";
 import { Avatar, Badge, Button, Card, CardHeader, EmptyState, Field, Modal, Toggle } from "@/components/ui";
@@ -22,7 +23,17 @@ export function RemoteView() {
   const activity = useChannelRuntime((s) => s.activity);
   const keepAwake = useSettings((s) => s.keepAwake);
   const setKeepAwake = useSettings((s) => s.setKeepAwake);
+  const [params, setParams] = useSearchParams();
+  // An agent page links here with ?agent=<id>: open that agent's phone setup.
+  const preselect = params.get("agent") ?? "";
   const [connectOpen, setConnectOpen] = useState(false);
+  useEffect(() => {
+    if (preselect) setConnectOpen(true);
+  }, [preselect]);
+  const closeConnect = () => {
+    setConnectOpen(false);
+    if (preselect) setParams({}, { replace: true });
+  };
 
   const agents = useMemo(() => gaps.flatMap((g) => g.agents), [gaps]);
   const connections = useMemo(
@@ -148,7 +159,7 @@ export function RemoteView() {
         </div>
       </PageBody>
 
-      <ConnectModal open={connectOpen} onClose={() => setConnectOpen(false)} />
+      <ConnectModal open={connectOpen} onClose={closeConnect} initialAgentId={preselect} />
     </div>
   );
 }
@@ -240,10 +251,13 @@ function HowItWorks() {
   );
 }
 
-function ConnectModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+function ConnectModal({ open, onClose, initialAgentId = "" }: { open: boolean; onClose: () => void; initialAgentId?: string }) {
   const gaps = useGaps((s) => s.gaps);
   const agents = gaps.flatMap((g) => g.agents);
-  const [agentId, setAgentId] = useState("");
+  const [agentId, setAgentId] = useState(initialAgentId);
+  useEffect(() => {
+    if (initialAgentId) setAgentId(initialAgentId);
+  }, [initialAgentId]);
   const [kind, setKind] = useState<ChannelKind>("telegram");
   const agent = agents.find((a) => a.id === (agentId || agents[0]?.id));
 

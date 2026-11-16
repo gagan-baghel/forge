@@ -6,7 +6,7 @@ const runAgentHeadless = vi.hoisted(() => vi.fn(async () => ({ text: "ok", input
 vi.mock("@/lib/agentRun", () => ({ runAgentHeadless }));
 vi.mock("@/lib/runner", () => ({ recordRun: (_a: unknown, _k: unknown, fn: () => Promise<unknown>) => fn() }));
 
-import { tick, resetScheduler } from "@/lib/scheduler";
+import { tick, resetScheduler, runRoutineNow } from "@/lib/scheduler";
 import { useGaps } from "@/stores/gaps";
 
 const at = (h: number, m: number) => new Date(2026, 5, 20, h, m, 10);
@@ -37,5 +37,17 @@ describe("scheduler tick", () => {
   it("doesn't fire for minutes before the app opened", () => {
     tick(at(9, 3));
     expect(runAgentHeadless).not.toHaveBeenCalled();
+  });
+
+  it("skips a paused agent's routine, but Run now still runs it", async () => {
+    const agentId = useRoutines.getState().routines[0].agentId;
+    useGaps.getState().updateAgent(agentId, { status: "paused" });
+    tick(at(8, 59));
+    tick(at(9, 0));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(runAgentHeadless).not.toHaveBeenCalled();
+
+    await runRoutineNow(useRoutines.getState().routines[0].id);
+    expect(runAgentHeadless).toHaveBeenCalledTimes(1);
   });
 });

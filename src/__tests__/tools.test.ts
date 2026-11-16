@@ -13,7 +13,7 @@ function agent(partial: Partial<Agent>): Agent {
     model: "claude-opus-5-5",
     temperature: 0.7,
     maxTokens: 256,
-    status: "ready",
+    status: "active",
     skills: [],
     knowledge: [],
     connectors: [],

@@ -3,12 +3,11 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
 import { useGaps } from "@/stores/gaps";
 import { useRuns } from "@/stores/runs";
-import { MODELS, type Agent, type AgentStatus, type Connector, type Skill } from "@/types/domain";
+import { MODELS, type Agent, type Connector, type Skill } from "@/types/domain";
 import { Avatar, Button, Card, CardHeader, Badge, EmptyState, Field, StatusDot, Spinner, Tabs, Toggle } from "@/components/ui";
 import { PageBody } from "@/components/Shell";
 import { Icon } from "@/components/Icon";
 import { Chat } from "./agent/Chat";
-import { ChannelsTab } from "./agent/ChannelsTab";
 import { httpFetch } from "@/lib/http";
 import { useMemory } from "@/stores/memory";
 import { AddDocumentButton, AddMemoryButton } from "@/components/AddKnowledge";
@@ -17,18 +16,17 @@ import { useDialog } from "@/components/Confirm";
 import { supportsSampling } from "@/lib/aiConfig";
 
 /**
- * One tab per question: talk to it, how it's set up, what it can do, what it
- * knows (documents + memory, same split as the Knowledge page), what it's
- * connected to, where it can be reached, and what it has done.
+ * One tab per question: talk to it, how it's set up, what it can do (built-in
+ * skills and connected services together), what it knows (documents and
+ * memory), and what it has done. Reaching it from a phone lives on the Remote
+ * page, with every other agent's — the header links there.
  */
-type Tab = "chat" | "config" | "skills" | "knowledge" | "connections" | "channels" | "logs";
+type Tab = "chat" | "config" | "skills" | "knowledge" | "logs";
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "chat", label: "Chat", icon: "message" },
   { id: "config", label: "Setup", icon: "settings" },
   { id: "skills", label: "Skills", icon: "bolt" },
   { id: "knowledge", label: "Knowledge", icon: "book" },
-  { id: "connections", label: "Connections", icon: "plug" },
-  { id: "channels", label: "Remote", icon: "phone" },
   { id: "logs", label: "Activity", icon: "activity" },
 ];
 
@@ -54,11 +52,9 @@ export function AgentDetailView() {
     );
   }
   const { agent, gap } = found;
-  const statuses: AgentStatus[] = ["draft", "ready", "live", "paused"];
   const bots = agent.channels.filter((c) => (c.kind === "telegram" || c.kind === "discord") && c.token).length;
-  const tabs = TABS.map((t) =>
-    t.id === "channels" ? { ...t, count: bots } : t.id === "skills" ? { ...t, count: agent.skills.length } : t,
-  );
+  const tabs = TABS.map((t) => (t.id === "skills" ? { ...t, count: agent.skills.length + agent.connectors.length } : t));
+  const paused = agent.status === "paused";
 
   return (
     <div className="flex h-screen flex-col">
@@ -79,21 +75,24 @@ export function AgentDetailView() {
               </Link>
             </div>
           </div>
-          <label className="flex h-8 items-center gap-2 rounded-md border border-border bg-surface pl-2.5 pr-1 hover:border-border-strong">
-            <StatusDot status={agent.status} pulse={agent.status === "live"} />
-            <select
-              aria-label="Status"
-              value={agent.status}
-              onChange={(e) => updateAgent(agent.id, { status: e.target.value as AgentStatus })}
-              className="h-full cursor-pointer bg-transparent pr-1 text-[13px] capitalize text-ink outline-none"
-            >
-              {statuses.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Link
+            to={`/remote?agent=${agent.id}`}
+            className="btn-outline gap-2"
+            title={bots ? "Reachable from your phone — manage on the Remote page" : "Set up phone access on the Remote page"}
+          >
+            <Icon name="phone" size={14} className={bots ? "text-success" : "text-ink-3"} />
+            {bots ? "On your phone" : "Add to phone"}
+          </Link>
+          <button
+            role="switch"
+            aria-checked={!paused}
+            onClick={() => updateAgent(agent.id, { status: paused ? "active" : "paused" })}
+            title={paused ? "Paused: schedules don't run and phone messages are declined" : "Active: runs its schedules and answers your phone"}
+            className="btn-outline gap-2"
+          >
+            <StatusDot status={agent.status} pulse={!paused && bots > 0} />
+            {paused ? "Paused" : "Active"}
+          </button>
         </div>
         <Tabs tabs={tabs} value={tab} onChange={setTab} className="-mb-px" />
       </div>
@@ -105,10 +104,13 @@ export function AgentDetailView() {
           <div className="h-full overflow-y-auto">
             <div className="mx-auto w-full max-w-3xl px-8 py-6">
               {tab === "config" && <ConfigTab agent={agent} />}
-              {tab === "skills" && <SkillsTab agent={agent} />}
+              {tab === "skills" && (
+                <div className="space-y-6">
+                  <SkillsTab agent={agent} />
+                  <ConnectionsTab agent={agent} />
+                </div>
+              )}
               {tab === "knowledge" && <KnowledgeTab agent={agent} />}
-              {tab === "connections" && <ConnectionsTab agent={agent} />}
-              {tab === "channels" && <ChannelsTab agent={agent} />}
               {tab === "logs" && <LogsTab agent={agent} />}
             </div>
           </div>
@@ -439,7 +441,7 @@ function ConnectionsTab({ agent }: { agent: Agent }) {
     <div className="space-y-6">
       <ListCard
         title="Connected services"
-        hint="Each connection gives this agent a real tool that calls the service's API."
+        hint="GitHub, Slack and Notion. Each one gives this agent a real tool for that service."
         empty={agent.connectors.length === 0 && "No connectors yet."}
       >
         {agent.connectors.map((c) => (

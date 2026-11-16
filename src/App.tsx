@@ -23,7 +23,6 @@ const SchedulesView = lazy(() => import("./views/Schedules").then((m) => ({ defa
 const TerminalView = lazy(() => import("./views/Terminal").then((m) => ({ default: m.TerminalView })));
 const RunsView = lazy(() => import("./views/Runs").then((m) => ({ default: m.RunsView })));
 const ObservabilityView = lazy(() => import("./views/Observability").then((m) => ({ default: m.ObservabilityView })));
-const IntegrationsView = lazy(() => import("./views/Integrations").then((m) => ({ default: m.IntegrationsView })));
 const WorkshopView = lazy(() => import("./views/Workshop").then((m) => ({ default: m.WorkshopView })));
 const GapEditorView = lazy(() => import("./views/workshop/GapEditor").then((m) => ({ default: m.GapEditorView })));
 const MemoryView = lazy(() => import("./views/Memory").then((m) => ({ default: m.MemoryView })));
@@ -113,7 +112,8 @@ export function App() {
             <Route path="/terminal" element={lazyRoute(<TerminalView />)} />
             <Route path="/runs" element={lazyRoute(<RunsView />)} />
             <Route path="/observability" element={lazyRoute(<ObservabilityView />)} />
-            <Route path="/integrations" element={lazyRoute(<IntegrationsView />)} />
+            {/* Services are connected per agent, in its Skills tab. */}
+            <Route path="/integrations" element={<Navigate to="/agents" replace />} />
             <Route path="/settings" element={<SettingsView />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

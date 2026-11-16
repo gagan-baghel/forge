@@ -30,12 +30,15 @@ let timer: ReturnType<typeof setInterval> | null = null;
 
 /** Execute one routine end to end and record the run. Shared by the cron
  *  tick and the Schedules view's "Run now" action. */
-async function fireRoutine(routineId: string): Promise<void> {
+async function fireRoutine(routineId: string, manual = false): Promise<void> {
   const r = useRoutines.getState().routines.find((x) => x.id === routineId);
   if (!r) return;
   const found = useGaps.getState().findAgent(r.agentId);
   if (!found) return;
   const { agent } = found;
+  // A paused agent does no work on its own; the routine resumes with it.
+  // "Run now" is the user asking, so it runs anyway.
+  if (agent.status === "paused" && !manual) return;
 
   useRoutines.getState().update(r.id, { lastRunAt: Date.now(), nextRunAt: nextRun(r.cron, new Date()) });
   // A paired phone, if the agent has one: approvals go there and so does the result.
@@ -57,7 +60,7 @@ async function fireRoutine(routineId: string): Promise<void> {
 
 /** Trigger a routine immediately, regardless of its cron schedule. */
 export async function runRoutineNow(routineId: string): Promise<void> {
-  return fireRoutine(routineId);
+  return fireRoutine(routineId, true);
 }
 
 /** How far back a late tick looks for minutes it missed. */

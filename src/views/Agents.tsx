@@ -6,7 +6,7 @@ import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 import { MODELS } from "@/types/domain";
 
-const STATUSES = ["draft", "ready", "live", "paused"] as const;
+const STATUSES = ["active", "paused"] as const;
 
 export function AgentsView() {
   const gaps = useGaps((s) => s.gaps);
@@ -53,7 +53,7 @@ export function AgentsView() {
             ))}
           </select>
           <select className="input w-auto" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="">Any status</option>
+            <option value="">Active or paused</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>
                 {s}

@@ -71,7 +71,6 @@ export function CommandPalette() {
       { id: "runs", label: "Activity · runs", icon: "activity", run: go("/runs") },
       { id: "observability", label: "Activity · insights", icon: "chart", run: go("/observability") },
       { id: "remote", label: "Remote", icon: "phone", run: go("/remote") },
-      { id: "integrations", label: "Integrations", icon: "plug", run: go("/integrations") },
       { id: "terminal", label: "Terminal", icon: "terminal", run: go("/terminal") },
       { id: "settings", label: "Settings", icon: "settings", run: go("/settings") },
     ];

@@ -37,12 +37,6 @@ const SECTIONS: { title?: string; items: NavItem[] }[] = [
       { label: "Schedules", to: "/schedules", icon: "clock" },
       { label: "Activity", to: "/runs", icon: "activity", also: ["/observability"] },
       { label: "Remote", to: "/remote", icon: "phone" },
-    ],
-  },
-  {
-    title: "Tools",
-    items: [
-      { label: "Integrations", to: "/integrations", icon: "plug" },
       { label: "Terminal", to: "/terminal", icon: "terminal" },
     ],
   },

@@ -66,7 +66,7 @@ export function Badge({
 /* ------------------------------ Status dot ------------------------------ */
 export function StatusDot({ status, pulse }: { status: string; pulse?: boolean }) {
   const color =
-    status === "live"
+    status === "live" || status === "active"
       ? "bg-success"
       : status === "ready"
         ? "bg-brand"

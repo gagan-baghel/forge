@@ -9,7 +9,7 @@ import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 import { downloadGap, encodeShareCode } from "@/lib/gapfile";
 import { splitArgs } from "@/lib/mcp";
-import { MODELS, type Agent, type AgentStatus, type Gap, type McpServer, type ModelId } from "@/types/domain";
+import { MODELS, type Agent, type Gap, type McpServer } from "@/types/domain";
 import { useDialog } from "@/components/Confirm";
 
 type Section = "identity" | "agents" | "mcp" | "environment" | "advanced";
@@ -186,153 +186,71 @@ function IdentitySection({ gap }: { gap: Gap }) {
 /* ------------------------------- Agents -------------------------------- */
 function AgentsSection({ gap }: { gap: Gap }) {
   const addAgent = useGaps((s) => s.addAgent);
-  const [openId, setOpenId] = useState<string | null>(gap.agents[0]?.id ?? null);
+  const navigate = useNavigate();
+  // Agents are edited on their own page; here they are only listed, added and
+  // removed, so an agent never has two forms.
+  const add = () => navigate(`/agents/${addAgent(gap.id, { name: "New agent", role: "Assistant" }).id}`);
 
-  return (
+  return gap.agents.length === 0 ? (
+    <Card>
+      <EmptyState
+        icon="agents"
+        title="No agents in this pack"
+        action={
+          <Button variant="primary" icon="plus" onClick={add}>
+            Add agent
+          </Button>
+        }
+      />
+    </Card>
+  ) : (
     <>
-      {gap.agents.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon="agents"
-            title="No agents in this pack"
-            action={
-              <Button variant="primary" icon="plus" onClick={() => addAgent(gap.id, { name: "New agent", role: "Assistant" })}>
-                Add agent
-              </Button>
-            }
-          />
-        </Card>
-      ) : (
-        <div className="space-y-2">
+      <Card className="p-0">
+        <ul className="divide-y divide-border">
           {gap.agents.map((a) => (
-            <AgentRow key={a.id} agent={a} open={openId === a.id} onToggle={() => setOpenId(openId === a.id ? null : a.id)} />
+            <AgentRow key={a.id} agent={a} tint={gap.color} />
           ))}
-        </div>
-      )}
-      {gap.agents.length > 0 && (
-        <Button icon="plus" onClick={() => addAgent(gap.id, { name: "New agent", role: "Assistant" })}>
-          Add agent
-        </Button>
-      )}
+        </ul>
+      </Card>
+      <Button icon="plus" onClick={add}>
+        Add agent
+      </Button>
     </>
   );
 }
 
-function AgentRow({ agent, open, onToggle }: { agent: Agent; open: boolean; onToggle: () => void }) {
+function AgentRow({ agent, tint }: { agent: Agent; tint: string }) {
   const { confirm } = useDialog();
-  const updateAgent = useGaps((s) => s.updateAgent);
   const deleteAgent = useGaps((s) => s.deleteAgent);
-  const statuses: AgentStatus[] = ["draft", "ready", "live", "paused"];
-
+  const model = MODELS.find((m) => m.id === agent.model)?.label ?? agent.model;
   return (
-    <Card className="p-0">
-      <button
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left transition-colors hover:bg-surface-2/50"
-      >
-        <Avatar name={agent.name} size={30} />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[13px] font-medium">{agent.name}</div>
-          <div className="truncate text-xs text-ink-3">{agent.role}</div>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs capitalize text-ink-2">
+    <li className="flex items-center gap-3 px-4 py-3">
+      <Link to={`/agents/${agent.id}`} className="group flex min-w-0 flex-1 items-center gap-3">
+        <Avatar name={agent.name} tint={tint} size={30} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13.5px] font-medium group-hover:text-brand-2">{agent.name}</span>
+          <span className="block truncate text-xs text-ink-3">
+            {agent.role} · {agent.skills.length} skills · {agent.knowledge.length} docs
+          </span>
+        </span>
+        <span className="hidden font-mono text-[11px] text-ink-2 sm:block">{model}</span>
+        <span className="inline-flex w-16 items-center justify-end gap-1.5 font-mono text-[11px] text-ink-3">
           <StatusDot status={agent.status} />
           {agent.status}
-        </div>
-        <Icon name="chevron" size={15} className={clsx("text-ink-3 transition-transform", open && "rotate-90")} />
+        </span>
+        <Icon name="chevron" size={14} className="text-ink-3" />
+      </Link>
+      <button
+        className="btn-ghost h-7 w-7 shrink-0 px-0 text-ink-3 hover:text-danger"
+        aria-label={`Remove ${agent.name}`}
+        onClick={async () => {
+          if (await confirm({ title: `Remove ${agent.name}?`, body: "The agent, its chats and its documents are deleted.", confirmLabel: "Remove" }))
+            deleteAgent(agent.id);
+        }}
+      >
+        <Icon name="trash" size={14} />
       </button>
-
-      {open && (
-        <div className="space-y-4 border-t border-border p-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Name">
-              <input
-                className="input"
-                value={agent.name}
-                onChange={(e) => updateAgent(agent.id, { name: e.target.value })}
-              />
-            </Field>
-            <Field label="Role">
-              <input
-                className="input"
-                value={agent.role}
-                onChange={(e) => updateAgent(agent.id, { role: e.target.value })}
-              />
-            </Field>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Model">
-              <select
-                className="input"
-                value={agent.model}
-                onChange={(e) => updateAgent(agent.id, { model: e.target.value as ModelId })}
-              >
-                {MODELS.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Status">
-              <select
-                className="input"
-                value={agent.status}
-                onChange={(e) => updateAgent(agent.id, { status: e.target.value as AgentStatus })}
-              >
-                {statuses.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-          <SystemPromptField agent={agent} />
-          <div className="flex items-center justify-between border-t border-border pt-3">
-            <div className="flex items-center gap-2 text-xs text-ink-3">
-              <Badge>{agent.skills.length} skills</Badge>
-              <Badge>{agent.knowledge.length} docs</Badge>
-              <Link to={`/agents/${agent.id}`} className="ml-1 text-ink-2 hover:text-ink">
-                Open full agent →
-              </Link>
-            </div>
-            <Button
-              variant="danger"
-              icon="trash"
-              onClick={async () => {
-                if (await confirm({ title: `Remove "${agent.name}"?`, body: "The agent and its configuration are removed from this pack.", confirmLabel: "Remove" })) deleteAgent(agent.id);
-              }}
-            >
-              Remove
-            </Button>
-          </div>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function SystemPromptField({ agent }: { agent: Agent }) {
-  const updateAgent = useGaps((s) => s.updateAgent);
-  const [draft, setDraft] = useState(agent.systemPrompt);
-  const dirty = draft !== agent.systemPrompt;
-  return (
-    <Field label="System prompt">
-      <textarea
-        className="input min-h-[110px] resize-y font-mono text-xs leading-relaxed"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-      />
-      {dirty && (
-        <div className="mt-2 flex justify-end">
-          <Button variant="primary" icon="check" onClick={() => updateAgent(agent.id, { systemPrompt: draft })}>
-            Save prompt
-          </Button>
-        </div>
-      )}
-    </Field>
+    </li>
   );
 }
 

@@ -118,7 +118,11 @@ export function currentModel<T extends string | undefined>(id: T): T | ModelId {
   return id && MODEL_RENAMES[id] ? MODEL_RENAMES[id] : id;
 }
 
-export type AgentStatus = "draft" | "ready" | "live" | "paused";
+/**
+ * Whether the agent works on its own. A paused agent still chats in the app
+ * when you open it, but skips its schedules and tells your phone it's paused.
+ */
+export type AgentStatus = "active" | "paused";
 
 /**
  * How an agent's turns are executed:

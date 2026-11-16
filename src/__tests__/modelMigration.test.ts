@@ -27,6 +27,21 @@ describe("model id migration", () => {
     expect(useGaps.getState().gaps[0].agents[0].model).toBe("claude-opus-5-5");
   });
 
+  it("turns the old draft/ready/live labels into Active, and keeps Paused", async () => {
+    localStorage.setItem(
+      "forge.gaps",
+      JSON.stringify({
+        state: {
+          seeded: true,
+          gaps: [{ id: "g", name: "P", agents: ["draft", "ready", "live", "paused"].map((status, i) => ({ id: `a${i}`, name: "A", model: "claude-opus-5-5", status })) }],
+        },
+        version: 1,
+      }),
+    );
+    await useGaps.persist.rehydrate();
+    expect(useGaps.getState().gaps[0].agents.map((a) => a.status)).toEqual(["active", "active", "active", "paused"]);
+  });
+
   it("migrates the workspace default model", async () => {
     localStorage.setItem(
       "forge.settings",
