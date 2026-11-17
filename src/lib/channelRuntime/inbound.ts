@@ -50,7 +50,9 @@ function handleStranger(agent: Agent, channel: Channel, ref: ChannelRef, msg: In
     quiet(
       sendText(
         ref,
-        verdict === "none" ? "No pairing is open. Start one in Forge → Remote → Pair a phone." : "That code isn't right.",
+        verdict === "none"
+          ? "No pairing is open. Start one in Forge → Remote → Pair a phone."
+          : "That code isn't right.",
       ),
     );
     return;

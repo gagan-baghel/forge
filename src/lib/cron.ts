@@ -1,6 +1,6 @@
 /**
  * 5-field cron (minute hour day-of-month month day-of-week), standard
- * semantics: `*`, `n`, `a-b`, `a,b`, `*​/n`, `a-b/n`, `a/n`; Sunday is 0 or 7;
+ * semantics: `*`, `n`, `a-b`, `a,b`, `a-b/n`, `a/n` and a `/n` step on `*`; Sunday is 0 or 7;
  * when both day fields are restricted a day matches if EITHER does.
  */
 

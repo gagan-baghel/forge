@@ -227,17 +227,20 @@ export const useGaps = create<GapStore>()(
       version: 2,
       // Retired model ids move to their successors; the old draft/ready/live
       // labels, which nothing acted on, collapse into "active".
-      migrate: (state: any) => ({
-        ...state,
-        gaps: (state?.gaps ?? []).map((g: any) => ({
-          ...g,
-          agents: (g.agents ?? []).map((a: any) => ({
-            ...a,
-            model: currentModel(a.model),
-            status: a.status === "paused" ? "paused" : "active",
+      migrate: (persisted) => {
+        const state = persisted as { gaps?: Partial<Gap>[] } | undefined;
+        return {
+          ...state,
+          gaps: (state?.gaps ?? []).map((g) => ({
+            ...g,
+            agents: (g.agents ?? []).map((a) => ({
+              ...a,
+              model: currentModel(a.model),
+              status: a.status === "paused" ? "paused" : "active",
+            })),
           })),
-        })),
-      }),
+        } as unknown as GapStore;
+      },
       onRehydrateStorage: () => (state) => {
         // First run: install starter GAPs once.
         if (state && !state.seeded && state.gaps.length === 0) {

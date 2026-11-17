@@ -12,6 +12,7 @@ import { nanoid } from "nanoid";
 import type { Agent, ChatMessage, Run } from "@/types/domain";
 import { useConversations } from "@/stores/conversations";
 import { runAgentTurn, type AgentTurnResult, type ToolEvent } from "./agentRun";
+import { errorMessage, isAbortError } from "./runError";
 import { recordRun } from "./runner";
 import type { ChannelRef } from "./approval";
 
@@ -91,9 +92,8 @@ export async function runConversationTurn(
       usage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: result.costUsd },
     });
     return result;
-  } catch (err: any) {
-    const cancelled = err?.name === "AbortError";
-    patch({ pending: false, error: cancelled ? "Stopped." : String(err?.message ?? err) });
+  } catch (err) {
+    patch({ pending: false, error: isAbortError(err) ? "Stopped." : errorMessage(err) });
     throw err;
   }
 }

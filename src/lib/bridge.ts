@@ -13,6 +13,7 @@ import { invoke, isDesktop } from "./platform";
 import { approve } from "./approval";
 import { runTool, type ToolContext, type ToolOutput } from "./tools";
 import type { ToolEvent } from "./agentRun";
+import { errorMessage } from "./runError";
 
 export const PERMISSION_TOOL = "permission_prompt";
 
@@ -28,7 +29,7 @@ interface BridgeCall {
   call_id: number;
   run_id: string;
   name: string;
-  args: any;
+  args: Record<string, unknown>;
 }
 
 type McpContent = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
@@ -59,8 +60,8 @@ function decision(allow: boolean, input: unknown, message: string): McpContent[]
 }
 
 /** How a CLI tool request reads in an approval prompt. */
-export function describeCliTool(toolName: string, input: any): { title: string; body: string } {
-  const i = input ?? {};
+export function describeCliTool(toolName: string, input: unknown): { title: string; body: string } {
+  const i = (input ?? {}) as Record<string, string | undefined>;
   switch (toolName) {
     case "Bash":
       return {
@@ -121,8 +122,8 @@ export function initBridge(): Promise<void> {
       let reply: { content: McpContent[]; isError: boolean };
       try {
         reply = await handleBridgeCall(e.payload);
-      } catch (err: any) {
-        reply = { content: [{ type: "text", text: `Error: ${err?.message ?? err}` }], isError: true };
+      } catch (err) {
+        reply = { content: [{ type: "text", text: `Error: ${errorMessage(err)}` }], isError: true };
       }
       await invoke("bridge_respond", {
         callId: e.payload.call_id,

@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { PageBody, PageHeader, TABS } from "@/components/Shell";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { TABS } from "@/components/navTabs";
 import { Avatar, Button, Card, Badge, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { marketplaceCatalog } from "@/lib/seed";

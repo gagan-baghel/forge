@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import clsx from "clsx";
 import { PageBody, PageHeader } from "@/components/Shell";
@@ -26,10 +26,9 @@ export function RemoteView() {
   const [params, setParams] = useSearchParams();
   // An agent page links here with ?agent=<id>: open that agent's phone setup.
   const preselect = params.get("agent") ?? "";
-  const [connectOpen, setConnectOpen] = useState(false);
-  useEffect(() => {
-    if (preselect) setConnectOpen(true);
-  }, [preselect]);
+  // Arriving with ?agent= opens the dialog; closing it clears the param.
+  const [opened, setConnectOpen] = useState(false);
+  const connectOpen = opened || !!preselect;
   const closeConnect = () => {
     setConnectOpen(false);
     if (preselect) setParams({}, { replace: true });
@@ -182,7 +181,7 @@ export function RemoteView() {
         </div>
       </PageBody>
 
-      <ConnectModal open={connectOpen} onClose={closeConnect} initialAgentId={preselect} />
+      <ConnectModal key={preselect} open={connectOpen} onClose={closeConnect} initialAgentId={preselect} />
     </div>
   );
 }
@@ -307,10 +306,8 @@ function ConnectModal({
 }) {
   const gaps = useGaps((s) => s.gaps);
   const agents = gaps.flatMap((g) => g.agents);
+  // Keyed on initialAgentId by the parent, so a new preselect starts fresh.
   const [agentId, setAgentId] = useState(initialAgentId);
-  useEffect(() => {
-    if (initialAgentId) setAgentId(initialAgentId);
-  }, [initialAgentId]);
   const [kind, setKind] = useState<ChannelKind>("telegram");
   const agent = agents.find((a) => a.id === (agentId || agents[0]?.id));
 

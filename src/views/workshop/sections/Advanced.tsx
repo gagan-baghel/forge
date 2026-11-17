@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Card, CardHeader } from "@/components/ui";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 import { useGaps } from "@/stores/gaps";
 import { encodeShareCode } from "@/lib/gapfile";
 import { errorMessage } from "@/lib/runError";

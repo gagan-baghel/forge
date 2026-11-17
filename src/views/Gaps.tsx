@@ -1,13 +1,15 @@
 import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageBody, PageHeader, TABS } from "@/components/Shell";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { TABS } from "@/components/navTabs";
 import { Avatar, Button, Badge, Card, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 import type { Gap } from "@/types/domain";
 import { parseGapFile, decodeShareCode } from "@/lib/gapfile";
 import { relativeTime } from "@/lib/format";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
+import { errorMessage } from "@/lib/runError";
 
 export function GapsView() {
   const { notify } = useDialog();
@@ -33,8 +35,8 @@ export function GapsView() {
       const gap = importGap(parseGapFile(await file.text()));
       noteDisabledServers(gap);
       navigate(`/gaps/${gap.id}`);
-    } catch (err: any) {
-      notify("Import failed", err.message);
+    } catch (err) {
+      notify("Import failed", errorMessage(err));
     }
     e.target.value = "";
   };
@@ -58,8 +60,8 @@ export function GapsView() {
                   const gap = importGap(decodeShareCode(code));
                   noteDisabledServers(gap);
                   navigate(`/gaps/${gap.id}`);
-                } catch (e: any) {
-                  notify("Invalid share code", e.message);
+                } catch (e) {
+                  notify("Invalid share code", errorMessage(e));
                 }
               }}
             >

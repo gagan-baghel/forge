@@ -1,9 +1,10 @@
 import clsx from "clsx";
-import { PageBody, PageHeader, TABS } from "@/components/Shell";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { TABS } from "@/components/navTabs";
 import { Button, Card, Badge, EmptyState, StatusDot } from "@/components/ui";
 import { useRuns } from "@/stores/runs";
 import { fmtUsd, fmtTokens, relativeTime, fmtDuration } from "@/lib/format";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 
 /** "channel" runs came in from a paired phone, so say that. */
 const TRIGGER_LABEL: Record<string, string> = { channel: "phone" };

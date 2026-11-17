@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { DialogProvider, useDialog } from "@/components/Confirm";
+import { DialogProvider } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 
 /**
  * These stand in for every destructive guard in the app. `window.confirm` is a

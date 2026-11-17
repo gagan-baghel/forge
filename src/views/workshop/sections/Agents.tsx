@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Avatar, Button, Card, EmptyState, StatusDot } from "@/components/ui";
 import { Icon } from "@/components/Icon";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 import { useGaps } from "@/stores/gaps";
 import { MODELS, type Agent, type Gap } from "@/types/domain";
 

@@ -61,8 +61,7 @@ export type PassthroughBlock = {
 
 /** Rich tool-result content: text plus images (a screenshot, say). */
 export type ToolResultBlock =
-  | { type: "text"; text: string }
-  | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
+  { type: "text"; text: string } | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
 
 export interface ApiMessage {
   role: "user" | "assistant";

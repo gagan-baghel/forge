@@ -9,6 +9,7 @@ import { useGaps } from "@/stores/gaps";
 import { buildGap } from "@/lib/seed";
 import type { Gap } from "@/types/domain";
 import { asAgentSeeds, asRecord, asString, asStringArray, extractJsonObject } from "@/lib/validate";
+import { errorMessage } from "@/lib/runError";
 
 const SYSTEM = `You are the Forge Architect. You design "Packs" (Global Agent Packs) — bundles of AI agents.
 Given a user's goal, design 1-3 focused agents. Make each system prompt concrete, specific and
@@ -122,8 +123,8 @@ export function ArchitectView() {
         { onText: (d) => (raw += d) },
       );
       setDraft(parseDraft(raw));
-    } catch (e: any) {
-      setError(`Design failed: ${e.message ?? e}`);
+    } catch (e) {
+      setError(`Design failed: ${errorMessage(e)}`);
     } finally {
       setBusy(false);
     }

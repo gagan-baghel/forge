@@ -42,3 +42,8 @@ export function errorMessage(err: unknown): string {
   if (err && typeof err === "object" && "message" in err) return String((err as { message: unknown }).message);
   return String(err);
 }
+
+/** A user cancel (AbortController): not a failure, so it is never reported as one. */
+export function isAbortError(err: unknown): boolean {
+  return err instanceof Error ? err.name === "AbortError" : (err as { name?: unknown } | null)?.name === "AbortError";
+}

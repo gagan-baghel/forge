@@ -5,7 +5,15 @@ import { discordSend } from "@/lib/channelRuntime";
 import { isDesktop } from "@/lib/platform";
 import { errorMessage } from "@/lib/runError";
 
-export function DiscordWebhook({ agent, channel, onSave }: { agent: Agent; channel: Channel; onSave: (url: string) => void }) {
+export function DiscordWebhook({
+  agent,
+  channel,
+  onSave,
+}: {
+  agent: Agent;
+  channel: Channel;
+  onSave: (url: string) => void;
+}) {
   const [webhook, setWebhook] = useState(channel.config?.webhook ?? "");
   const [note, setNote] = useState("");
   const test = async () => {

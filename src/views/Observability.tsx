@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { PageBody, PageHeader, TABS } from "@/components/Shell";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { TABS } from "@/components/navTabs";
 import { Card, CardHeader, EmptyState } from "@/components/ui";
 import { useRuns } from "@/stores/runs";
 import { useGaps } from "@/stores/gaps";
-import { fmtUsd, fmtTokens } from "@/lib/format";
+import { fmtUsd, fmtTokens, DAY_MS } from "@/lib/format";
 import { ERROR_LABELS, type ErrorKind } from "@/lib/runError";
 import { MODELS } from "@/types/domain";
 
@@ -33,7 +34,7 @@ export function ObservabilityView() {
       const d = new Date();
       d.setDate(d.getDate() - i);
       d.setHours(0, 0, 0, 0);
-      const next = d.getTime() + 86400000;
+      const next = d.getTime() + DAY_MS;
       const c = runs.filter((r) => r.startedAt >= d.getTime() && r.startedAt < next).reduce((a, r) => a + r.costUsd, 0);
       days.push({ day: d.toLocaleDateString(undefined, { month: "numeric", day: "numeric" }), cost: c });
     }

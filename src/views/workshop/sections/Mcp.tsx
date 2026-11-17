@@ -3,7 +3,7 @@ import clsx from "clsx";
 import { nanoid } from "nanoid";
 import { Badge, Button, Card, CardHeader, Field, Toggle } from "@/components/ui";
 import { Icon } from "@/components/Icon";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 import { useGaps } from "@/stores/gaps";
 import { splitArgs } from "@/lib/mcp";
 import type { Gap, McpServer } from "@/types/domain";

@@ -4,7 +4,7 @@ import { useGaps } from "@/stores/gaps";
 import type { Agent, Connector, Skill } from "@/types/domain";
 import { Badge, Button, Card, CardHeader, Spinner, Toggle } from "@/components/ui";
 import { Icon } from "@/components/Icon";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 import { CONNECTORS, connectorToolName, validateConnector, type ConnectorSpec } from "@/lib/tools";
 import { ICON_BTN, ListCard, ROW } from "./ListCard";
 

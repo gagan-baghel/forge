@@ -12,6 +12,9 @@
 import type { Gap } from "@/types/domain";
 import { stripSecrets as stripGapSecrets } from "./gapfile";
 
+/** A persisted channel or connector, as raw JSON: only its id is relied on. */
+type Stored = { id: string } & Record<string, unknown>;
+
 export const BACKUP_MAGIC = "forge.backup/v1";
 
 const SETTINGS_KEY = "forge.settings";
@@ -116,8 +119,11 @@ export function applyBackup(data: Record<string, string>, store: Storage = local
       const parsed = JSON.parse(store.getItem(GAPS_KEY) ?? "null");
       for (const g of parsed?.state?.gaps ?? [])
         for (const a of g.agents ?? []) {
-          a.channels = (a.channels ?? []).map((c: any) => ({ ...c, ...(secrets.get(`${a.id}/ch/${c.id}`) as object) }));
-          a.connectors = (a.connectors ?? []).map((c: any) => {
+          a.channels = (a.channels ?? []).map((c: Stored) => ({
+            ...c,
+            ...(secrets.get(`${a.id}/ch/${c.id}`) as object),
+          }));
+          a.connectors = (a.connectors ?? []).map((c: Stored) => {
             const scopes = secrets.get(`${a.id}/co/${c.id}`);
             return scopes ? { ...c, scopes, status: "connected" } : c;
           });

@@ -51,10 +51,10 @@ export const useRuns = create<RunStore>()(
       // it crashes fmtUsd in the Runs table and turns every spend total into
       // NaN. v2 added model/runtime/errorKind, which are optional and so need
       // no backfill — old rows simply chart as "unknown".
-      migrate: (state: any) => ({
-        ...state,
-        runs: (state?.runs ?? []).map((r: Run) => ({ ...r, costUsd: r.costUsd ?? 0 })),
-      }),
+      migrate: (persisted) => {
+        const state = persisted as { runs?: Run[] } | undefined;
+        return { ...state, runs: (state?.runs ?? []).map((r) => ({ ...r, costUsd: r.costUsd ?? 0 })) } as RunStore;
+      },
     },
   ),
 );

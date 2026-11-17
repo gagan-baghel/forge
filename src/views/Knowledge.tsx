@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { PageBody, PageHeader, TABS } from "@/components/Shell";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { TABS } from "@/components/navTabs";
 import { Avatar, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { AddDocumentButton } from "@/components/AddKnowledge";

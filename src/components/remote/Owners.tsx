@@ -2,13 +2,23 @@ import { useEffect, useState } from "react";
 import type { Agent, Channel } from "@/types/domain";
 import { Button } from "@/components/ui";
 import { Icon } from "@/components/Icon";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 import { useChannelRuntime, channelKey } from "@/stores/channelRuntime";
 import { cancelPairing, removeOwner, startPairing } from "@/lib/channelRuntime";
 import { relativeTime } from "@/lib/format";
 
 /** Paired phones, and pairing a new one. */
-export function Owners({ agent, channel, running, bot }: { agent: Agent; channel: Channel; running: boolean; bot: string }) {
+export function Owners({
+  agent,
+  channel,
+  running,
+  bot,
+}: {
+  agent: Agent;
+  channel: Channel;
+  running: boolean;
+  bot: string;
+}) {
   const key = channelKey(agent.id, channel.id);
   const pairing = useChannelRuntime((s) => s.pairing[key]);
   const { confirm } = useDialog();

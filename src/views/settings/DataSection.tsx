@@ -1,7 +1,7 @@
 import { useState, type ChangeEvent } from "react";
 import { Button, Card, CardHeader } from "@/components/ui";
 import { Icon } from "@/components/Icon";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 import { collectBackup, applyBackup, BACKUP_MAGIC } from "@/lib/backup";
 import { saveTextFile } from "@/lib/saveFile";
 import { errorMessage } from "@/lib/runError";

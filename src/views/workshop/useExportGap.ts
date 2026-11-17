@@ -1,4 +1,4 @@
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 import { downloadGap } from "@/lib/gapfile";
 import { errorMessage } from "@/lib/runError";
 import type { Gap } from "@/types/domain";

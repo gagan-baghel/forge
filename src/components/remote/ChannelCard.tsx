@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Agent, Channel } from "@/types/domain";
 import { Badge, Button, StatusDot, Toggle } from "@/components/ui";
 import { Icon } from "@/components/Icon";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 import { useGaps } from "@/stores/gaps";
 import { useChannelRuntime, channelKey } from "@/stores/channelRuntime";
 import { startChannel, stopChannel, syncKeepAwake } from "@/lib/channelRuntime";

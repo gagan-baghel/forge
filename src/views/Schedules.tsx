@@ -9,7 +9,7 @@ import { runRoutineNow } from "@/lib/scheduler";
 import { isValidCron, nextRun } from "@/lib/cron";
 import { relativeTime } from "@/lib/format";
 import type { Routine } from "@/types/domain";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 
 const PRESETS = [
   { label: "Every hour", cron: "0 * * * *" },

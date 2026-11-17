@@ -1,6 +1,7 @@
 import { type ReactNode, type ButtonHTMLAttributes, useEffect, useId } from "react";
 import clsx from "clsx";
 import { Icon } from "./Icon";
+import { initials } from "@/lib/format";
 
 /* --------------------------------- Button ------------------------------- */
 type Variant = "primary" | "ghost" | "outline" | "danger";
@@ -86,17 +87,6 @@ export function StatusDot({ status, pulse }: { status: string; pulse?: boolean }
 /* -------------------------------- Avatar -------------------------------- */
 /** Earthy marks that sit well on both themes. */
 const TINTS = ["#d9703a", "#c49a3c", "#7fa36b", "#6b8fa8", "#a8738f", "#b5654f", "#8a8f5a"];
-
-/** Up to two initials: "Code Forge" → "CF", "scout" → "SC". */
-export function initials(name: string): string {
-  const words = name
-    .trim()
-    .split(/[\s_-]+/)
-    .filter(Boolean);
-  if (words.length === 0) return "·";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
-}
 
 function tintFor(name: string): string {
   let h = 0;

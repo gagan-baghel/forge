@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button, Modal } from "./ui";
 import { setApprover, type ApprovalResult } from "@/lib/approval";
+import { DialogContext, type DialogApi } from "@/hooks/useDialog";
 
 /**
  * In-app confirm / notify dialogs.
@@ -26,13 +27,6 @@ export interface ConfirmOptions {
    */
   timeoutMs?: number;
 }
-
-interface DialogApi {
-  confirm: (opts: ConfirmOptions) => Promise<boolean>;
-  notify: (title: string, body?: string) => void;
-}
-
-const DialogContext = createContext<DialogApi | null>(null);
 
 type Pending =
   | { kind: "confirm"; opts: ConfirmOptions; resolve: (result: ApprovalResult) => void }
@@ -124,11 +118,4 @@ export function DialogProvider({ children }: { children: ReactNode }) {
       </Modal>
     </DialogContext.Provider>
   );
-}
-
-/** `const { confirm, notify } = useDialog();` — both are safe on every platform. */
-export function useDialog(): DialogApi {
-  const ctx = useContext(DialogContext);
-  if (!ctx) throw new Error("useDialog must be used inside <DialogProvider>.");
-  return ctx;
 }

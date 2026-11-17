@@ -11,10 +11,13 @@ const MODEL = "Xenova/bge-small-en-v1.5";
 /** BGE retrieves best when the query (not the passage) carries this instruction. */
 const QUERY_PREFIX = "Represent this sentence for searching relevant passages: ";
 
-let extractorPromise: Promise<any> | null = null;
+// Type-only: the library itself stays a lazy chunk.
+type Extractor = Awaited<ReturnType<typeof import("@huggingface/transformers").pipeline<"feature-extraction">>>;
+
+let extractorPromise: Promise<Extractor | null> | null = null;
 let available = true;
 
-async function getExtractor(): Promise<any | null> {
+async function getExtractor(): Promise<Extractor | null> {
   if (!available) return null;
   if (!extractorPromise) {
     extractorPromise = (async () => {

@@ -4,7 +4,7 @@ import { useMemory } from "@/stores/memory";
 import type { Agent } from "@/types/domain";
 import { Button, Toggle } from "@/components/ui";
 import { Icon } from "@/components/Icon";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 import { AddDocumentButton, AddMemoryButton } from "@/components/AddKnowledge";
 import { relativeTime } from "@/lib/format";
 import { ICON_BTN, ListCard, ROW } from "./ListCard";

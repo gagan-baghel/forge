@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { PageBody, PageHeader, TABS } from "@/components/Shell";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { TABS } from "@/components/navTabs";
 import { Avatar, Button, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useMemory, type MemoryNote } from "@/stores/memory";
 import { useGaps } from "@/stores/gaps";
 import { relativeTime } from "@/lib/format";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 import { AddMemoryButton } from "@/components/AddKnowledge";
 
 interface Pool {

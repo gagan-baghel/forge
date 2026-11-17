@@ -50,11 +50,10 @@ export const useSettings = create<SettingsStore>()(
       name: STORE_KEY,
       version: 2,
       // A retired defaultModel would price every new run at $0.
-      migrate: (state: any) => ({
-        keepAwake: true,
-        ...state,
-        defaultModel: currentModel(state?.defaultModel),
-      }),
+      migrate: (persisted) => {
+        const state = persisted as Partial<SettingsStore> | undefined;
+        return { keepAwake: true, ...state, defaultModel: currentModel(state?.defaultModel) } as SettingsStore;
+      },
     },
   ),
 );

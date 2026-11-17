@@ -36,3 +36,16 @@ export function fmtDuration(ms: number): string {
   const m = Math.floor(s / 60);
   return `${m}m ${Math.round(s % 60)}s`;
 }
+
+export const DAY_MS = 86_400_000;
+
+/** Up to two initials: "Code Forge" → "CF", "scout" → "SC". */
+export function initials(name: string): string {
+  const words = name
+    .trim()
+    .split(/[\s_-]+/)
+    .filter(Boolean);
+  if (words.length === 0) return "·";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}

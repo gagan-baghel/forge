@@ -31,9 +31,12 @@ export function Chat({ agent }: { agent: Agent }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
+  // Follow the newest message as it grows while streaming.
+  const lastContent = conv?.messages[conv.messages.length - 1]?.content;
+  const messageCount = conv?.messages.length;
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [conv?.messages.length, conv?.messages[conv.messages.length - 1]?.content]);
+  }, [messageCount, lastContent]);
 
   const submit = () => {
     if (!draft.trim() || streaming) return;

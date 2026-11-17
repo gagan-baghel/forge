@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { PageBody, PageHeader } from "@/components/Shell";
@@ -10,7 +10,7 @@ import { useSettings } from "@/stores/settings";
 import { useRoutines } from "@/stores/routines";
 import { useConversations } from "@/stores/conversations";
 import { useChannelRuntime, channelKey } from "@/stores/channelRuntime";
-import { fmtUsd, fmtTokens, relativeTime } from "@/lib/format";
+import { fmtUsd, fmtTokens, relativeTime, DAY_MS } from "@/lib/format";
 import { MODELS } from "@/types/domain";
 
 /** One cell of the status readout: a mono figure over a quiet caption. */
@@ -61,11 +61,13 @@ export function HomeView() {
   const navigate = useNavigate();
 
   const agents = useMemo(() => gaps.flatMap((g) => g.agents.map((a) => ({ agent: a, gap: g }))), [gaps]);
+  // Captured once per visit: the dashboard is a snapshot, not a clock.
+  const [now] = useState(() => Date.now());
   const stats = useMemo(() => {
-    const monthStart = new Date();
+    const monthStart = new Date(now);
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
-    const dayAgo = Date.now() - 86_400_000;
+    const dayAgo = now - DAY_MS;
     const month = runs.filter((r) => r.startedAt >= monthStart.getTime());
     return {
       today: runs.filter((r) => r.startedAt >= dayAgo).length,
@@ -73,7 +75,7 @@ export function HomeView() {
       spend: month.reduce((a, r) => a + r.costUsd, 0),
       tokens: month.reduce((a, r) => a + r.tokensIn + r.tokensOut, 0),
     };
-  }, [runs]);
+  }, [runs, now]);
 
   const bots = agents.flatMap(({ agent }) => agent.channels.filter((c) => c.token).map((c) => ({ agent, c })));
   const liveBots = bots.filter(({ agent, c }) => running[channelKey(agent.id, c.id)]);
