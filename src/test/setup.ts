@@ -1,9 +1,12 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
+import { resetPendingWrites } from "@/lib/persistStorage";
 
 // jsdom lacks a few browser APIs the app touches; stub the minimum.
 beforeEach(() => {
+  // Each test starts like a fresh launch: nothing queued, nothing stored.
+  resetPendingWrites();
   localStorage.clear();
   if (!window.matchMedia) {
     window.matchMedia = vi.fn().mockReturnValue({

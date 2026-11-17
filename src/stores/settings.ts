@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { deferredStorage } from "@/lib/persistStorage";
 import { currentModel } from "@/types/domain";
 import type { ModelId, RuntimeKind, Settings, ThemeName } from "@/types/domain";
 
@@ -48,6 +49,7 @@ export const useSettings = create<SettingsStore>()(
     }),
     {
       name: STORE_KEY,
+      storage: deferredStorage(),
       version: 2,
       // A retired defaultModel would price every new run at $0.
       migrate: (persisted) => {

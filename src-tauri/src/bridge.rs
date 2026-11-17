@@ -301,6 +301,8 @@ fn respond(inner: &Inner, call_id: u64, content: Value, is_error: bool) {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use std::time::Instant;
 
     #[test]
     fn secret_comparison_needs_an_exact_match() {
@@ -308,7 +310,96 @@ mod tests {
         assert!(!constant_time_eq(b"Bearer abd", b"Bearer abc"));
         assert!(!constant_time_eq(b"Bearer ab", b"Bearer abc"));
     }
-    use super::*;
+
+    /// Load test: many CLI tool calls at once, answered out of order with
+    /// jitter, must each get their own answer — no lost, crossed or failed
+    /// calls — while forged requests are turned away.
+    #[test]
+    fn concurrent_tool_calls_each_get_their_own_answer() {
+        const CALLERS: usize = 32;
+        const CALLS_EACH: usize = 12;
+
+        let bridge = BridgeState::start_with(Arc::new(|inner, call| {
+            std::thread::spawn(move || {
+                // Answer out of order: later calls often finish first.
+                std::thread::sleep(Duration::from_millis(call.call_id % 7));
+                let echo = call.args["n"].clone();
+                respond(
+                    &inner,
+                    call.call_id,
+                    json!([{ "type": "text", "text": echo.to_string() }]),
+                    false,
+                );
+            });
+        }));
+        assert!(bridge.available());
+        bridge.register(
+            "load",
+            vec![json!({ "name": "echo", "inputSchema": { "type": "object" } })],
+            false,
+        );
+        let url = format!("http://127.0.0.1:{}/mcp/load", bridge.port);
+        let auth = format!("Bearer {}", bridge.secret);
+
+        let started = Instant::now();
+        let workers: Vec<_> = (0..CALLERS)
+            .map(|w| {
+                let (url, auth) = (url.clone(), auth.clone());
+                std::thread::spawn(move || {
+                    let agent = ureq::AgentBuilder::new().timeout(Duration::from_secs(30)).build();
+                    let mut latencies = Vec::new();
+                    for i in 0..CALLS_EACH {
+                        let n = w * 1000 + i;
+                        let t = Instant::now();
+                        let reply: Value = agent
+                            .post(&url)
+                            .set("Authorization", &auth)
+                            .send_json(json!({ "jsonrpc": "2.0", "id": n, "method": "tools/call",
+                                               "params": { "name": "echo", "arguments": { "n": n } } }))
+                            .expect("call failed")
+                            .into_json()
+                            .unwrap();
+                        latencies.push(t.elapsed());
+                        assert_eq!(reply["id"], n, "reply went to the wrong request");
+                        assert_eq!(reply["result"]["content"][0]["text"], n.to_string(), "answers crossed");
+                        assert_eq!(reply["result"]["isError"], false);
+                    }
+                    latencies
+                })
+            })
+            .collect();
+        let mut latencies: Vec<Duration> = workers.into_iter().flat_map(|w| w.join().unwrap()).collect();
+
+        // Forged requests in the same window: no secret, wrong secret.
+        let agent = ureq::agent();
+        for header in [None, Some("Bearer nope")] {
+            let mut req = agent.post(&url);
+            if let Some(h) = header {
+                req = req.set("Authorization", h);
+            }
+            match req.send_string("{}") {
+                Err(ureq::Error::Status(code, _)) => assert_eq!(code, 401),
+                other => panic!("forged request was not refused: {other:?}"),
+            }
+        }
+
+        latencies.sort();
+        let total = CALLERS * CALLS_EACH;
+        let p95 = latencies[total * 95 / 100];
+        eprintln!(
+            "bridge load: {total} calls from {CALLERS} callers in {:?}, p50 {:?}, p95 {:?}",
+            started.elapsed(),
+            latencies[total / 2],
+            p95
+        );
+        assert_eq!(latencies.len(), total);
+        assert!(inner_is_drained(&bridge), "a call was left pending");
+        assert!(p95 < Duration::from_secs(2), "p95 latency {p95:?} is too slow");
+    }
+
+    fn inner_is_drained(bridge: &BridgeState) -> bool {
+        bridge.inner.pending.lock().unwrap().is_empty()
+    }
 
     fn inner_with(run: &str, approvals: bool) -> Inner {
         let inner = Inner::default();

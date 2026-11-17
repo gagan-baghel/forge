@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { deferredStorage } from "@/lib/persistStorage";
 import { nanoid } from "nanoid";
 import type { ChatMessage, Conversation, ConversationOrigin } from "@/types/domain";
 
@@ -100,6 +101,6 @@ export const useConversations = create<ConversationStore>()(
 
       remove: (convId) => set((s) => ({ conversations: s.conversations.filter((c) => c.id !== convId) })),
     }),
-    { name: "forge.conversations" },
+    { name: "forge.conversations", storage: deferredStorage() },
   ),
 );

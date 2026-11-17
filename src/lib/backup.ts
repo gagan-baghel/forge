@@ -12,6 +12,7 @@
 import type { Gap } from "@/types/domain";
 import { stripSecrets as stripGapSecrets } from "./gapfile";
 import { normalizeGap } from "./gapSchema";
+import { discardPendingWrites, flushPendingWrites } from "./persistStorage";
 import { InvalidPayload } from "./validate";
 
 /** A persisted channel or connector, as raw JSON: only its id is relied on. */
@@ -76,6 +77,8 @@ function deviceSecrets(store: Storage): Map<string, ChannelSecrets | string[] | 
 
 /** Every persisted Forge key, with credentials stripped out of the settings blob. */
 export function collectBackup(store: Storage = localStorage): Record<string, string> {
+  // Include the last few hundred milliseconds of edits still queued in memory.
+  flushPendingWrites();
   const data: Record<string, string> = {};
   for (let i = 0; i < store.length; i++) {
     const key = store.key(i)!;
@@ -129,6 +132,11 @@ export function validateBackup(data: unknown): Record<string, string> {
 export function applyBackup(raw: unknown, store: Storage = localStorage): void {
   // Validate first: nothing is removed unless the whole backup is usable.
   const data = validateBackup(raw);
+  // Read this device's current state as it really is, then stop the stores
+  // writing: the caller reloads next, and a queued write must not land on
+  // top of the restore.
+  flushPendingWrites();
+  discardPendingWrites();
   const secrets = deviceSecrets(store);
   const current = store.getItem(SETTINGS_KEY);
   const keep: Record<string, string> = {};

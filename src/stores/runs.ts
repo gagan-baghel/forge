@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { deferredStorage } from "@/lib/persistStorage";
 import { nanoid } from "nanoid";
 import type { Run } from "@/types/domain";
 
@@ -46,6 +47,7 @@ export const useRuns = create<RunStore>()(
     }),
     {
       name: "forge.runs",
+      storage: deferredStorage(),
       version: 2,
       // v1: runs written before cost accounting have no costUsd. Left undefined
       // it crashes fmtUsd in the Runs table and turns every spend total into

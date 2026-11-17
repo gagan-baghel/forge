@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { deferredStorage } from "@/lib/persistStorage";
 import { nanoid } from "nanoid";
 import { currentModel } from "@/types/domain";
 import type { Agent, Connector, Channel, Gap, KnowledgeDoc, MarketplaceListing, Skill } from "@/types/domain";
@@ -221,6 +222,7 @@ export const useGaps = create<GapStore>()(
     }),
     {
       name: "forge.gaps",
+      storage: deferredStorage(),
       version: 2,
       // Retired model ids move to their successors; the old draft/ready/live
       // labels, which nothing acted on, collapse into "active".

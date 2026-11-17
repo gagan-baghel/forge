@@ -6,6 +6,7 @@ import { collectBackup, applyBackup, BACKUP_MAGIC } from "@/lib/backup";
 import { saveTextFile } from "@/lib/saveFile";
 import { errorMessage } from "@/lib/runError";
 import { exportLogs } from "@/lib/log";
+import { discardPendingWrites } from "@/lib/persistStorage";
 import { useGaps } from "@/stores/gaps";
 import { useConversations } from "@/stores/conversations";
 import { useRuns } from "@/stores/runs";
@@ -24,6 +25,7 @@ export function DataSection() {
     // clear() rather than removing the forge.* keys one by one: this is the
     // button people press to leave nothing behind, and a per-key sweep would
     // quietly spare the API key if a future key ever escapes the prefix.
+    discardPendingWrites();
     localStorage.clear();
     location.reload();
   };

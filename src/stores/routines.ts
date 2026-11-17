@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { deferredStorage } from "@/lib/persistStorage";
 import { nanoid } from "nanoid";
 import type { Routine } from "@/types/domain";
 
@@ -27,6 +28,6 @@ export const useRoutines = create<RoutineStore>()(
         if (r) get().update(id, { enabled: !r.enabled });
       },
     }),
-    { name: "forge.routines" },
+    { name: "forge.routines", storage: deferredStorage() },
   ),
 );
