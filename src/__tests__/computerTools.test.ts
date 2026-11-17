@@ -12,9 +12,11 @@ function asDesktop() {
   (window as any).__TAURI_INTERNALS__ = {};
 }
 
+// Hoisted by vitest anyway; written at the top level so it reads in the order it runs.
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => ({ stdout: "hi", stderr: "", code: 0 })) }));
+
 beforeEach(() => {
   asDesktop();
-  vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => ({ stdout: "hi", stderr: "", code: 0 })) }));
 });
 
 afterEach(() => {

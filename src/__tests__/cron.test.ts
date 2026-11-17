@@ -61,7 +61,15 @@ describe("cron edge cases", () => {
   });
 
   it("rejects out-of-range and junk values", () => {
-    for (const bad of ["60 * * * *", "* 24 * * *", "* * 0 * *", "* * * 13 *", "* * * * 8", "a * * * *", "5-1 * * * *"]) {
+    for (const bad of [
+      "60 * * * *",
+      "* 24 * * *",
+      "* * 0 * *",
+      "* * * 13 *",
+      "* * * * 8",
+      "a * * * *",
+      "5-1 * * * *",
+    ]) {
       expect(isValidCron(bad), bad).toBe(false);
     }
   });

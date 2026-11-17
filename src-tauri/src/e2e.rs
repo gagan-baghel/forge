@@ -19,8 +19,12 @@ pub fn start(app: tauri::AppHandle) {
     if !cfg!(debug_assertions) {
         return;
     }
-    let Ok(port) = std::env::var("FORGE_E2E_PORT") else { return };
-    let Ok(server) = tiny_http::Server::http(format!("127.0.0.1:{port}")) else { return };
+    let Ok(port) = std::env::var("FORGE_E2E_PORT") else {
+        return;
+    };
+    let Ok(server) = tiny_http::Server::http(format!("127.0.0.1:{port}")) else {
+        return;
+    };
     std::thread::spawn(move || {
         for mut req in server.incoming_requests() {
             let mut body = String::new();
@@ -33,7 +37,9 @@ pub fn start(app: tauri::AppHandle) {
                  window.__TAURI_INTERNALS__.invoke('e2e_report',{{value:v}})}})()"
             );
             let out = match app.get_webview_window("main") {
-                Some(w) if w.eval(&js).is_ok() => rx.recv_timeout(Duration::from_secs(300)).unwrap_or_else(|_| "\"timeout\"".into()),
+                Some(w) if w.eval(&js).is_ok() => rx
+                    .recv_timeout(Duration::from_secs(300))
+                    .unwrap_or_else(|_| "\"timeout\"".into()),
                 _ => "\"no window\"".into(),
             };
             let _ = req.respond(tiny_http::Response::from_string(out));

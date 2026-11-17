@@ -11,6 +11,9 @@ import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "./styles/globals.css";
 import { foldBrainsIntoAgents } from "./lib/foldBrains";
+import { installGlobalErrorHandlers } from "./lib/log";
+
+installGlobalErrorHandlers();
 
 // Stores hydrate synchronously from localStorage, so this sees the saved data.
 foldBrainsIntoAgents();
@@ -31,7 +34,7 @@ mount();
 
 // End-to-end test builds only (VITE_FORGE_E2E=1 at build time): expose the
 // stores and channel runtime so a test can set the app up without the GUI.
-if ((import.meta as any).env?.VITE_FORGE_E2E) {
+if (import.meta.env.VITE_FORGE_E2E) {
   void Promise.all([
     import("./stores/gaps"),
     import("./stores/settings"),
@@ -40,6 +43,13 @@ if ((import.meta as any).env?.VITE_FORGE_E2E) {
     import("./stores/runs"),
     import("./lib/channelRuntime"),
   ]).then(([gaps, settings, rt, convs, runs, channels]) => {
-    (window as any).__forge = { ...gaps, ...settings, ...rt, ...convs, ...runs, ...channels };
+    (window as unknown as { __forge: object }).__forge = {
+      ...gaps,
+      ...settings,
+      ...rt,
+      ...convs,
+      ...runs,
+      ...channels,
+    };
   });
 }

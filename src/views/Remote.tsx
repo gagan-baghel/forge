@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import clsx from "clsx";
 import { PageBody, PageHeader } from "@/components/Shell";
@@ -26,10 +26,9 @@ export function RemoteView() {
   const [params, setParams] = useSearchParams();
   // An agent page links here with ?agent=<id>: open that agent's phone setup.
   const preselect = params.get("agent") ?? "";
-  const [connectOpen, setConnectOpen] = useState(false);
-  useEffect(() => {
-    if (preselect) setConnectOpen(true);
-  }, [preselect]);
+  // Arriving with ?agent= opens the dialog; closing it clears the param.
+  const [opened, setConnectOpen] = useState(false);
+  const connectOpen = opened || !!preselect;
   const closeConnect = () => {
     setConnectOpen(false);
     if (preselect) setParams({}, { replace: true });
@@ -63,9 +62,25 @@ export function RemoteView() {
       />
       <PageBody className="space-y-6">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat icon="bolt" label="Live bots" value={`${live}`} sub={`of ${connections.length} connected`} tone={live ? "success" : undefined} />
-          <Stat icon="phone" label="Paired phones" value={`${phones}`} sub={phones ? "only they can reach agents" : "pair one to start"} />
-          <Stat icon="shield" label="Remote control" value={`${remoteOn}`} sub={remoteOn === 1 ? "agent may act on this Mac" : "agents may act on this Mac"} />
+          <Stat
+            icon="bolt"
+            label="Live bots"
+            value={`${live}`}
+            sub={`of ${connections.length} connected`}
+            tone={live ? "success" : undefined}
+          />
+          <Stat
+            icon="phone"
+            label="Paired phones"
+            value={`${phones}`}
+            sub={phones ? "only they can reach agents" : "pair one to start"}
+          />
+          <Stat
+            icon="shield"
+            label="Remote control"
+            value={`${remoteOn}`}
+            sub={remoteOn === 1 ? "agent may act on this Mac" : "agents may act on this Mac"}
+          />
           <Stat
             icon="lock"
             label="Waiting on you"
@@ -83,7 +98,9 @@ export function RemoteView() {
                 <li key={a.id} className="flex flex-wrap items-start gap-3 py-3 first:pt-0 last:pb-0">
                   <div className="min-w-0 flex-1">
                     <div className="text-[13px] font-medium">{a.title}</div>
-                    <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-xs text-ink-2">{a.body}</pre>
+                    <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap font-mono text-xs text-ink-2">
+                      {a.body}
+                    </pre>
                     <div className="mt-1 text-[11px] text-ink-3">
                       {agentName(a.key)} · {relativeTime(a.createdAt)}
                     </div>
@@ -112,7 +129,12 @@ export function RemoteView() {
                   title="No agent is reachable from your phone yet"
                   body="Connect an agent to a Telegram or Discord bot, pair your phone, and message it from anywhere."
                   action={
-                    <Button variant="primary" icon="plus" onClick={() => setConnectOpen(true)} disabled={agents.length === 0}>
+                    <Button
+                      variant="primary"
+                      icon="plus"
+                      onClick={() => setConnectOpen(true)}
+                      disabled={agents.length === 0}
+                    >
                       Connect an agent
                     </Button>
                   }
@@ -159,19 +181,37 @@ export function RemoteView() {
         </div>
       </PageBody>
 
-      <ConnectModal open={connectOpen} onClose={closeConnect} initialAgentId={preselect} />
+      <ConnectModal key={preselect} open={connectOpen} onClose={closeConnect} initialAgentId={preselect} />
     </div>
   );
 }
 
-function Stat({ icon, label, value, sub, tone }: { icon: string; label: string; value: string; sub: string; tone?: "success" | "warn" }) {
+function Stat({
+  icon,
+  label,
+  value,
+  sub,
+  tone,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  sub: string;
+  tone?: "success" | "warn";
+}) {
   return (
     <div className="card px-4 py-3.5">
       <div className="flex items-center gap-2 text-xs text-ink-3">
         <Icon name={icon} size={13} />
         {label}
       </div>
-      <div className={clsx("mt-1.5 text-xl font-semibold tabular-nums", tone === "success" && "text-success", tone === "warn" && "text-warn")}>
+      <div
+        className={clsx(
+          "mt-1.5 text-xl font-semibold tabular-nums",
+          tone === "success" && "text-success",
+          tone === "warn" && "text-warn",
+        )}
+      >
         {value}
       </div>
       <div className="truncate text-[11px] text-ink-3">{sub}</div>
@@ -211,17 +251,21 @@ const PANES = {
 };
 
 function Permissions() {
-  const open = (pane: keyof typeof PANES) => void invoke("shell_exec", { command: `open "${PANES[pane]}"` }).catch(() => {});
+  const open = (pane: keyof typeof PANES) =>
+    void invoke("shell_exec", { command: `open "${PANES[pane]}"` }).catch(() => {});
   return (
     <div className="space-y-2 border-t border-border pt-4">
-      <div className="text-xs text-ink-3">
-        To see the screen and click or type, macOS needs to allow Forge once:
-      </div>
+      <div className="text-xs text-ink-3">To see the screen and click or type, macOS needs to allow Forge once:</div>
       <div className="flex flex-wrap gap-2">
         <Button className="h-7 px-2 text-xs" icon="monitor" disabled={!isDesktop()} onClick={() => open("screen")}>
           Screen Recording
         </Button>
-        <Button className="h-7 px-2 text-xs" icon="command" disabled={!isDesktop()} onClick={() => open("accessibility")}>
+        <Button
+          className="h-7 px-2 text-xs"
+          icon="command"
+          disabled={!isDesktop()}
+          onClick={() => open("accessibility")}
+        >
           Accessibility
         </Button>
       </div>
@@ -251,13 +295,19 @@ function HowItWorks() {
   );
 }
 
-function ConnectModal({ open, onClose, initialAgentId = "" }: { open: boolean; onClose: () => void; initialAgentId?: string }) {
+function ConnectModal({
+  open,
+  onClose,
+  initialAgentId = "",
+}: {
+  open: boolean;
+  onClose: () => void;
+  initialAgentId?: string;
+}) {
   const gaps = useGaps((s) => s.gaps);
   const agents = gaps.flatMap((g) => g.agents);
+  // Keyed on initialAgentId by the parent, so a new preselect starts fresh.
   const [agentId, setAgentId] = useState(initialAgentId);
-  useEffect(() => {
-    if (initialAgentId) setAgentId(initialAgentId);
-  }, [initialAgentId]);
   const [kind, setKind] = useState<ChannelKind>("telegram");
   const agent = agents.find((a) => a.id === (agentId || agents[0]?.id));
 
@@ -295,7 +345,9 @@ function ConnectModal({ open, onClose, initialAgentId = "" }: { open: boolean; o
           <>
             <div className="flex items-center gap-2 text-xs text-ink-3">
               <Avatar name={agent.name} size={20} /> {agent.name}'s {kind} bot
-              {agent.channels.some((c) => c.kind === kind && c.token) && <Badge tone="success">already connected</Badge>}
+              {agent.channels.some((c) => c.kind === kind && c.token) && (
+                <Badge tone="success">already connected</Badge>
+              )}
             </div>
             <ChannelCard key={`${agent.id}-${kind}`} agent={agent} kind={kind} />
           </>

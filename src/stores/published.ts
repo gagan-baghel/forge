@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { deferredStorage } from "@/lib/persistStorage";
 import type { Gap, MarketplaceListing } from "@/types/domain";
 
 /**
@@ -32,6 +33,6 @@ export const usePublished = create<PublishedStore>()(
       unpublish: (slug) => set((s) => ({ listings: s.listings.filter((l) => l.gap.slug !== slug) })),
       isPublished: (slug) => get().listings.some((l) => l.gap.slug === slug),
     }),
-    { name: "forge.published" },
+    { name: "forge.published", storage: deferredStorage() },
   ),
 );

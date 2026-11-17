@@ -1,18 +1,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { deferredStorage } from "@/lib/persistStorage";
 import { nanoid } from "nanoid";
 import { currentModel } from "@/types/domain";
-import type {
-  Agent,
-  Connector,
-  Channel,
-  Gap,
-  KnowledgeDoc,
-  MarketplaceListing,
-  Skill,
-} from "@/types/domain";
+import type { Agent, Connector, Channel, Gap, KnowledgeDoc, MarketplaceListing, Skill } from "@/types/domain";
 import { starterGaps } from "@/lib/seed";
 import { stripSecrets } from "@/lib/gapfile";
+import { slugify } from "@/lib/format";
 
 const now = () => Date.now();
 
@@ -63,7 +57,7 @@ export const useGaps = create<GapStore>()(
         const id = nanoid(10);
         const gap: Gap = {
           id,
-          slug: input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || id,
+          slug: slugify(input.name) || id,
           name: input.name,
           description: input.description,
           emoji: input.emoji ?? "📦",
@@ -143,9 +137,7 @@ export const useGaps = create<GapStore>()(
           updatedAt: now(),
         };
         set((s) => ({
-          gaps: s.gaps.map((g) =>
-            g.id === gapId ? touch({ ...g, agents: [...g.agents, agent] }) : g,
-          ),
+          gaps: s.gaps.map((g) => (g.id === gapId ? touch({ ...g, agents: [...g.agents, agent] }) : g)),
         }));
         return agent;
       },
@@ -209,9 +201,7 @@ export const useGaps = create<GapStore>()(
         if (!a) return;
         const exists = a.channels.some((c) => c.id === channel.id);
         get().updateAgent(agentId, {
-          channels: exists
-            ? a.channels.map((c) => (c.id === channel.id ? channel : c))
-            : [...a.channels, channel],
+          channels: exists ? a.channels.map((c) => (c.id === channel.id ? channel : c)) : [...a.channels, channel],
         });
       },
       removeChannel: (agentId, channelId) => {
@@ -232,20 +222,24 @@ export const useGaps = create<GapStore>()(
     }),
     {
       name: "forge.gaps",
+      storage: deferredStorage(),
       version: 2,
       // Retired model ids move to their successors; the old draft/ready/live
       // labels, which nothing acted on, collapse into "active".
-      migrate: (state: any) => ({
-        ...state,
-        gaps: (state?.gaps ?? []).map((g: any) => ({
-          ...g,
-          agents: (g.agents ?? []).map((a: any) => ({
-            ...a,
-            model: currentModel(a.model),
-            status: a.status === "paused" ? "paused" : "active",
+      migrate: (persisted) => {
+        const state = persisted as { gaps?: Partial<Gap>[] } | undefined;
+        return {
+          ...state,
+          gaps: (state?.gaps ?? []).map((g) => ({
+            ...g,
+            agents: (g.agents ?? []).map((a) => ({
+              ...a,
+              model: currentModel(a.model),
+              status: a.status === "paused" ? "paused" : "active",
+            })),
           })),
-        })),
-      }),
+        } as unknown as GapStore;
+      },
       onRehydrateStorage: () => (state) => {
         // First run: install starter GAPs once.
         if (state && !state.seeded && state.gaps.length === 0) {

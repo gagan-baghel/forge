@@ -1,9 +1,10 @@
 import clsx from "clsx";
-import { PageBody, PageHeader, TABS } from "@/components/Shell";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { TABS } from "@/components/navTabs";
 import { Button, Card, Badge, EmptyState, StatusDot } from "@/components/ui";
 import { useRuns } from "@/stores/runs";
 import { fmtUsd, fmtTokens, relativeTime, fmtDuration } from "@/lib/format";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 
 /** "channel" runs came in from a paired phone, so say that. */
 const TRIGGER_LABEL: Record<string, string> = { channel: "phone" };
@@ -26,7 +27,13 @@ export function RunsView() {
             <Button
               icon="trash"
               onClick={async () => {
-                if (await confirm({ title: "Clear run history?", body: "Token and cost accounting for past runs is deleted.", confirmLabel: "Clear" }))
+                if (
+                  await confirm({
+                    title: "Clear run history?",
+                    body: "Token and cost accounting for past runs is deleted.",
+                    confirmLabel: "Clear",
+                  })
+                )
                   clear();
               }}
             >
@@ -42,7 +49,9 @@ export function RunsView() {
           </Card>
         ) : (
           <Card className="overflow-hidden p-0">
-            <div className={clsx(COLS, "h-9 border-b border-border bg-surface-2/40 text-[11px] font-medium text-ink-3")}>
+            <div
+              className={clsx(COLS, "h-9 border-b border-border bg-surface-2/40 text-[11px] font-medium text-ink-3")}
+            >
               <span className="w-2" />
               <span>Agent</span>
               <span className="text-right">Duration</span>
@@ -53,7 +62,17 @@ export function RunsView() {
             <ul className="divide-y divide-border">
               {runs.map((r) => (
                 <li key={r.id} className={clsx(COLS, "py-2.5 transition-colors hover:bg-surface-2/50")}>
-                  <StatusDot status={r.status === "success" ? "live" : r.status === "error" ? "error" : r.status === "running" ? "ready" : "draft"} />
+                  <StatusDot
+                    status={
+                      r.status === "success"
+                        ? "live"
+                        : r.status === "error"
+                          ? "error"
+                          : r.status === "running"
+                            ? "ready"
+                            : "draft"
+                    }
+                  />
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="truncate text-[13px] font-medium">{r.agentName}</span>
@@ -64,11 +83,17 @@ export function RunsView() {
                       {r.summary ? ` · ${r.summary}` : ""}
                     </div>
                   </div>
-                  <span className="text-right text-xs tabular-nums text-ink-2">{r.endedAt ? fmtDuration(r.endedAt - r.startedAt) : "—"}</span>
-                  <span className="text-right text-xs tabular-nums text-ink-2">{fmtTokens(r.tokensIn + r.tokensOut)}</span>
+                  <span className="text-right text-xs tabular-nums text-ink-2">
+                    {r.endedAt ? fmtDuration(r.endedAt - r.startedAt) : "—"}
+                  </span>
+                  <span className="text-right text-xs tabular-nums text-ink-2">
+                    {fmtTokens(r.tokensIn + r.tokensOut)}
+                  </span>
                   <span className="text-right text-xs tabular-nums text-ink-2">{fmtUsd(r.costUsd)}</span>
                   <span className="text-right">
-                    <Badge tone={r.status === "error" ? "danger" : r.status === "success" ? "success" : "neutral"}>{r.status}</Badge>
+                    <Badge tone={r.status === "error" ? "danger" : r.status === "success" ? "success" : "neutral"}>
+                      {r.status}
+                    </Badge>
                   </span>
                 </li>
               ))}

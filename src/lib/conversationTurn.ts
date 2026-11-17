@@ -12,6 +12,7 @@ import { nanoid } from "nanoid";
 import type { Agent, ChatMessage, Run } from "@/types/domain";
 import { useConversations } from "@/stores/conversations";
 import { runAgentTurn, type AgentTurnResult, type ToolEvent } from "./agentRun";
+import { errorMessage, isAbortError } from "./runError";
 import { recordRun } from "./runner";
 import type { ChannelRef } from "./approval";
 
@@ -47,7 +48,11 @@ export async function runConversationTurn(
 
   const conv = convs.get(conversationId);
   const history = conv?.messages.filter((m) => m.id !== assistantId) ?? [];
-  const current = () => useConversations.getState().get(conversationId)?.messages.find((m) => m.id === assistantId);
+  const current = () =>
+    useConversations
+      .getState()
+      .get(conversationId)
+      ?.messages.find((m) => m.id === assistantId);
   const patch = (p: Partial<ChatMessage>) => useConversations.getState().updateMessage(conversationId, assistantId, p);
 
   const onText = (delta: string) => patch({ content: (current()?.content ?? "") + delta });
@@ -87,9 +92,8 @@ export async function runConversationTurn(
       usage: { inputTokens: result.inputTokens, outputTokens: result.outputTokens, costUsd: result.costUsd },
     });
     return result;
-  } catch (err: any) {
-    const cancelled = err?.name === "AbortError";
-    patch({ pending: false, error: cancelled ? "Stopped." : String(err?.message ?? err) });
+  } catch (err) {
+    patch({ pending: false, error: isAbortError(err) ? "Stopped." : errorMessage(err) });
     throw err;
   }
 }

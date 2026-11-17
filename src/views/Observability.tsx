@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { PageBody, PageHeader, TABS } from "@/components/Shell";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { TABS } from "@/components/navTabs";
 import { Card, CardHeader, EmptyState } from "@/components/ui";
 import { useRuns } from "@/stores/runs";
 import { useGaps } from "@/stores/gaps";
-import { fmtUsd, fmtTokens } from "@/lib/format";
+import { fmtUsd, fmtTokens, DAY_MS } from "@/lib/format";
 import { ERROR_LABELS, type ErrorKind } from "@/lib/runError";
 import { MODELS } from "@/types/domain";
 
@@ -23,7 +24,9 @@ export function ObservabilityView() {
       byAgent[r.agentId] ??= { name: r.agentName, cost: 0 };
       byAgent[r.agentId].cost += r.costUsd;
     }
-    const top = Object.values(byAgent).sort((a, b) => b.cost - a.cost).slice(0, 8);
+    const top = Object.values(byAgent)
+      .sort((a, b) => b.cost - a.cost)
+      .slice(0, 8);
 
     // Last-14-day spend buckets.
     const days: { day: string; cost: number }[] = [];
@@ -31,7 +34,7 @@ export function ObservabilityView() {
       const d = new Date();
       d.setDate(d.getDate() - i);
       d.setHours(0, 0, 0, 0);
-      const next = d.getTime() + 86400000;
+      const next = d.getTime() + DAY_MS;
       const c = runs.filter((r) => r.startedAt >= d.getTime() && r.startedAt < next).reduce((a, r) => a + r.costUsd, 0);
       days.push({ day: d.toLocaleDateString(undefined, { month: "numeric", day: "numeric" }), cost: c });
     }
@@ -57,7 +60,9 @@ export function ObservabilityView() {
     return { cost, tokens, errorRate, top, days, failureMix, models };
   }, [runs]);
 
-  const header = <PageHeader title="Activity" tabs={TABS.activity} subtitle="Spend, volume and reliability over time" />;
+  const header = (
+    <PageHeader title="Activity" tabs={TABS.activity} subtitle="Spend, volume and reliability over time" />
+  );
 
   if (runs.length === 0) {
     return (
@@ -65,7 +70,11 @@ export function ObservabilityView() {
         {header}
         <PageBody>
           <Card className="p-0">
-            <EmptyState icon="chart" title="Nothing to chart yet" body="Run some agents and analytics will appear here." />
+            <EmptyState
+              icon="chart"
+              title="Nothing to chart yet"
+              body="Run some agents and analytics will appear here."
+            />
           </Card>
         </PageBody>
       </div>
@@ -96,7 +105,11 @@ export function ObservabilityView() {
         </div>
 
         <Card>
-          <CardHeader title="Spend" hint="Last 14 days" action={<span className="text-xs tabular-nums text-ink-3">max {fmtUsd(maxDay)}</span>} />
+          <CardHeader
+            title="Spend"
+            hint="Last 14 days"
+            action={<span className="text-xs tabular-nums text-ink-3">max {fmtUsd(maxDay)}</span>}
+          />
           <div className="relative h-40">
             {/* Subtle gridlines at 0 / 50 / 100%. */}
             <div className="pointer-events-none absolute inset-x-0 bottom-5 top-0 flex flex-col justify-between">
@@ -124,7 +137,10 @@ export function ObservabilityView() {
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader title="Top agents by spend" />
-            <BarList rows={stats.top.map((a) => ({ key: a.name, label: a.name, value: a.cost, text: fmtUsd(a.cost) }))} max={maxAgent} />
+            <BarList
+              rows={stats.top.map((a) => ({ key: a.name, label: a.name, value: a.cost, text: fmtUsd(a.cost) }))}
+              max={maxAgent}
+            />
           </Card>
 
           {stats.models.length > 0 && (
@@ -161,7 +177,8 @@ export function ObservabilityView() {
         </div>
 
         <p className="text-xs text-ink-3">
-          {gaps.length} GAP{gaps.length === 1 ? "" : "s"} · {gaps.reduce((a, g) => a + g.agents.length, 0)} agents tracked
+          {gaps.length} GAP{gaps.length === 1 ? "" : "s"} · {gaps.reduce((a, g) => a + g.agents.length, 0)} agents
+          tracked
         </p>
       </PageBody>
     </div>

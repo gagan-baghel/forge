@@ -87,7 +87,12 @@ export function describeStep(name: string, input: unknown): Step {
   // MCP tools arrive as mcp__<server>__<tool>; the server is the useful part.
   const mcp = /^mcp__([^_]+(?:_[^_]+)*?)__(.+)$/.exec(name);
   const what = mcp ? mcp[1].replace(/[-_]/g, " ") : name.replace(/_/g, " ");
-  return { active: `Using ${what}`, done: `Used ${what}`, detail: str(o, "query", "url", "path", "name"), showDetailWhileRunning: false };
+  return {
+    active: `Using ${what}`,
+    done: `Used ${what}`,
+    detail: str(o, "query", "url", "path", "name"),
+    showDetailWhileRunning: false,
+  };
 }
 
 /** 7 → "0:07", 125 → "2:05". */

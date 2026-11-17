@@ -47,7 +47,9 @@ describe("conversations store", () => {
   it("reuses one conversation per agent and titles from first message", () => {
     const id = useConversations.getState().ensureConversation("agent-1");
     expect(useConversations.getState().ensureConversation("agent-1")).toBe(id);
-    useConversations.getState().appendMessage(id, { id: "m1", role: "user", content: "Hello world question", createdAt: 0 });
+    useConversations
+      .getState()
+      .appendMessage(id, { id: "m1", role: "user", content: "Hello world question", createdAt: 0 });
     expect(useConversations.getState().get(id)?.title).toBe("Hello world question");
   });
 });

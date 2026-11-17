@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { detectClaudeCode, installClaudeCode, type ClaudeCodeInfo } from "@/lib/claudeCode";
 import { isDesktop } from "@/lib/platform";
 import { useSettings } from "@/stores/settings";
+import { errorMessage } from "@/lib/runError";
 
 /**
  * Claude Code connection state. Detection runs on mount and flips the runtime
@@ -12,12 +13,13 @@ import { useSettings } from "@/stores/settings";
 export function useClaudeCode() {
   const runtime = useSettings((s) => s.runtime);
   const setRuntime = useSettings((s) => s.setRuntime);
-  const [info, setInfo] = useState<ClaudeCodeInfo | null>(null);
+  const desktop = isDesktop();
+  // The web build has no CLI to find; say so up front instead of detecting.
+  const [info, setInfo] = useState<ClaudeCodeInfo | null>(desktop ? null : { available: false, version: "", path: "" });
   const [installing, setInstalling] = useState(false);
   const [installLog, setInstallLog] = useState<string[]>([]);
   const [installError, setInstallError] = useState("");
   const mounted = useRef(true);
-  const desktop = isDesktop();
 
   useEffect(() => {
     mounted.current = true;
@@ -27,10 +29,7 @@ export function useClaudeCode() {
   }, []);
 
   const recheck = useCallback(async () => {
-    if (!desktop) {
-      setInfo({ available: false, version: "", path: "" });
-      return null;
-    }
+    if (!desktop) return null;
     const i = await detectClaudeCode();
     if (mounted.current) setInfo(i);
     return i;
@@ -66,8 +65,8 @@ export function useClaudeCode() {
         return true;
       }
       return false;
-    } catch (err: any) {
-      if (mounted.current) setInstallError(String(err?.message ?? err));
+    } catch (err) {
+      if (mounted.current) setInstallError(errorMessage(err));
       return false;
     } finally {
       if (mounted.current) setInstalling(false);

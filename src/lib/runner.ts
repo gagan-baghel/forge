@@ -16,7 +16,10 @@ import type { Agent, Run } from "@/types/domain";
 import type { AgentTurnResult } from "./agentRun";
 import { useRuns } from "@/stores/runs";
 import { useSettings } from "@/stores/settings";
-import { classifyError } from "./runError";
+import { classifyError, errorMessage, isAbortError } from "./runError";
+import { logger } from "./log";
+
+const log = logger("runs");
 
 export interface RunOptions {
   /** One-line log summary. Defaults to the head of the reply. */
@@ -44,8 +47,18 @@ export async function recordRun(
     runtime: agent.runtime ?? useSettings.getState().runtime,
   });
 
+  const startedAt = Date.now();
+  // runId is the correlation id: every entry for this run carries it.
+  const ctx = { runId, agentId: agent.id, trigger, model: agent.model };
+  log.info("run started", ctx);
   try {
     const result = await invoke();
+    log.info("run finished", {
+      ...ctx,
+      ms: Date.now() - startedAt,
+      tokensIn: result.inputTokens,
+      tokensOut: result.outputTokens,
+    });
     runs.finishRun(runId, {
       status: "success",
       tokensIn: result.inputTokens,
@@ -54,16 +67,18 @@ export async function recordRun(
       summary: (opts.summary ?? ((r) => r.text.slice(0, 80)))(result),
     });
     return result;
-  } catch (err: any) {
+  } catch (err) {
     // A user cancel is not a failure; it gets its own status and no error kind.
-    const cancelled = err?.name === "AbortError";
+    const cancelled = isAbortError(err);
+    if (cancelled) log.info("run cancelled", { ...ctx, ms: Date.now() - startedAt });
+    else log.error("run failed", { ...ctx, ms: Date.now() - startedAt, kind: classifyError(err), error: err });
     runs.finishRun(runId, {
       status: cancelled ? "cancelled" : "error",
       tokensIn: 0,
       tokensOut: 0,
       costUsd: 0,
       errorKind: cancelled ? undefined : classifyError(err),
-      summary: cancelled ? "Cancelled" : String(err?.message ?? err).slice(0, 80),
+      summary: cancelled ? "Cancelled" : errorMessage(err).slice(0, 80),
     });
     throw err;
   }

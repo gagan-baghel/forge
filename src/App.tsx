@@ -11,10 +11,12 @@ import { initChannelListener, resumeChannels, syncKeepAwake } from "./lib/channe
 import { HomeView } from "./views/Home";
 import { GapsView } from "./views/Gaps";
 import { AgentsView } from "./views/Agents";
-import { AgentDetailView } from "./views/AgentDetail";
-import { SettingsView } from "./views/Settings";
 import { OnboardingView } from "./views/Onboarding";
 
+// The agent page carries the chat and its Markdown renderer; Settings carries
+// the backup and runtime tooling. Neither is needed to paint the first screen.
+const AgentDetailView = lazy(() => import("./views/AgentDetail").then((m) => ({ default: m.AgentDetailView })));
+const SettingsView = lazy(() => import("./views/Settings").then((m) => ({ default: m.SettingsView })));
 const MarketplaceView = lazy(() => import("./views/Marketplace").then((m) => ({ default: m.MarketplaceView })));
 const ArchitectView = lazy(() => import("./views/Architect").then((m) => ({ default: m.ArchitectView })));
 const KnowledgeView = lazy(() => import("./views/Knowledge").then((m) => ({ default: m.KnowledgeView })));
@@ -62,7 +64,10 @@ export function App() {
   useEffect(() => {
     const media = window.matchMedia?.("(prefers-color-scheme: light)");
     const apply = () =>
-      document.documentElement.setAttribute("data-theme", theme === "system" ? (media?.matches ? "paper" : "dusk") : theme);
+      document.documentElement.setAttribute(
+        "data-theme",
+        theme === "system" ? (media?.matches ? "paper" : "dusk") : theme,
+      );
     apply();
     if (theme !== "system" || !media?.addEventListener) return;
     media.addEventListener("change", apply);

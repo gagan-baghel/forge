@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { PageBody, PageHeader } from "@/components/Shell";
@@ -10,11 +10,23 @@ import { useSettings } from "@/stores/settings";
 import { useRoutines } from "@/stores/routines";
 import { useConversations } from "@/stores/conversations";
 import { useChannelRuntime, channelKey } from "@/stores/channelRuntime";
-import { fmtUsd, fmtTokens, relativeTime } from "@/lib/format";
+import { fmtUsd, fmtTokens, relativeTime, DAY_MS } from "@/lib/format";
 import { MODELS } from "@/types/domain";
 
 /** One cell of the status readout: a mono figure over a quiet caption. */
-function Readout({ label, value, sub, to, alert }: { label: string; value: string; sub?: string; to: string; alert?: boolean }) {
+function Readout({
+  label,
+  value,
+  sub,
+  to,
+  alert,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  to: string;
+  alert?: boolean;
+}) {
   return (
     <Link to={to} className="group min-w-0 bg-surface px-5 py-4 transition-colors hover:bg-surface-2">
       <div className="label">{label}</div>
@@ -49,11 +61,13 @@ export function HomeView() {
   const navigate = useNavigate();
 
   const agents = useMemo(() => gaps.flatMap((g) => g.agents.map((a) => ({ agent: a, gap: g }))), [gaps]);
+  // Captured once per visit: the dashboard is a snapshot, not a clock.
+  const [now] = useState(() => Date.now());
   const stats = useMemo(() => {
-    const monthStart = new Date();
+    const monthStart = new Date(now);
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
-    const dayAgo = Date.now() - 86_400_000;
+    const dayAgo = now - DAY_MS;
     const month = runs.filter((r) => r.startedAt >= monthStart.getTime());
     return {
       today: runs.filter((r) => r.startedAt >= dayAgo).length,
@@ -61,7 +75,7 @@ export function HomeView() {
       spend: month.reduce((a, r) => a + r.costUsd, 0),
       tokens: month.reduce((a, r) => a + r.tokensIn + r.tokensOut, 0),
     };
-  }, [runs]);
+  }, [runs, now]);
 
   const bots = agents.flatMap(({ agent }) => agent.channels.filter((c) => c.token).map((c) => ({ agent, c })));
   const liveBots = bots.filter(({ agent, c }) => running[channelKey(agent.id, c.id)]);
@@ -70,8 +84,16 @@ export function HomeView() {
     Math.max(0, ...runs.filter((r) => r.agentId === agentId).map((r) => r.startedAt));
 
   const checklist = [
-    { done: true, label: `Runtime ready — ${runtime === "claude-code" ? "Claude Code" : "Claude API"}`, to: "/settings" },
-    { done: conversations.some((c) => c.messages.length > 0), label: "Chat with an agent", to: agents[0] ? `/agents/${agents[0].agent.id}` : "/agents" },
+    {
+      done: true,
+      label: `Runtime ready — ${runtime === "claude-code" ? "Claude Code" : "Claude API"}`,
+      to: "/settings",
+    },
+    {
+      done: conversations.some((c) => c.messages.length > 0),
+      label: "Chat with an agent",
+      to: agents[0] ? `/agents/${agents[0].agent.id}` : "/agents",
+    },
     { done: paired, label: "Pair your phone for remote control", to: "/remote" },
     { done: routines.length > 0, label: "Schedule a routine", to: "/schedules" },
   ];
@@ -97,7 +119,12 @@ export function HomeView() {
       <PageBody className="space-y-8">
         {/* 1px gaps over the border colour draw the dividers at any column count. */}
         <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border lg:grid-cols-4">
-          <Readout label="Agents" value={String(agents.length)} sub={`in ${gaps.length} pack${gaps.length === 1 ? "" : "s"}`} to="/agents" />
+          <Readout
+            label="Agents"
+            value={String(agents.length)}
+            sub={`in ${gaps.length} pack${gaps.length === 1 ? "" : "s"}`}
+            to="/agents"
+          />
           <Readout
             label="On your phone"
             value={String(liveBots.length)}
@@ -112,7 +139,12 @@ export function HomeView() {
             alert={stats.failedToday > 0}
             to="/runs"
           />
-          <Readout label="Spend · month" value={fmtUsd(stats.spend)} sub={`${fmtTokens(stats.tokens)} tokens`} to="/observability" />
+          <Readout
+            label="Spend · month"
+            value={fmtUsd(stats.spend)}
+            sub={`${fmtTokens(stats.tokens)} tokens`}
+            to="/observability"
+          />
         </div>
 
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -156,12 +188,23 @@ export function HomeView() {
                         className="group cursor-pointer transition-colors hover:bg-surface-2/50"
                       >
                         <td className="py-2.5 pr-3">
-                          <Link to={`/agents/${agent.id}`} className="flex min-w-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                          <Link
+                            to={`/agents/${agent.id}`}
+                            className="flex min-w-0 items-center gap-3"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <Avatar name={agent.name} tint={gap.color} size={28} />
                             <span className="min-w-0">
                               <span className="flex items-center gap-1.5 text-[13.5px] font-medium">
                                 <span className="truncate">{agent.name}</span>
-                                {onPhone && <Icon name="phone" size={12} className="shrink-0 text-success" aria-label="Reachable by phone" />}
+                                {onPhone && (
+                                  <Icon
+                                    name="phone"
+                                    size={12}
+                                    className="shrink-0 text-success"
+                                    aria-label="Reachable by phone"
+                                  />
+                                )}
                               </span>
                               <span className="block truncate text-xs text-ink-3">
                                 {agent.role} · {gap.name}
@@ -172,7 +215,9 @@ export function HomeView() {
                         <td className="hidden py-2.5 font-mono text-[11.5px] text-ink-2 sm:table-cell">
                           {MODELS.find((m) => m.id === agent.model)?.label ?? "—"}
                         </td>
-                        <td className="num hidden py-2.5 text-right text-[11.5px] text-ink-3 md:table-cell">{last ? relativeTime(last) : "—"}</td>
+                        <td className="num hidden py-2.5 text-right text-[11.5px] text-ink-3 md:table-cell">
+                          {last ? relativeTime(last) : "—"}
+                        </td>
                         <td className="py-2.5 text-right">
                           <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ink-3">
                             <StatusDot status={agent.status} />
@@ -189,7 +234,14 @@ export function HomeView() {
 
           <div className="space-y-8">
             {showChecklist && (
-              <Section title="Set up" action={<span className="num text-[11px] text-ink-3">{checklist.filter((c) => c.done).length}/{checklist.length}</span>}>
+              <Section
+                title="Set up"
+                action={
+                  <span className="num text-[11px] text-ink-3">
+                    {checklist.filter((c) => c.done).length}/{checklist.length}
+                  </span>
+                }
+              >
                 <ol>
                   {checklist.map((c, i) => (
                     <li key={c.label}>
@@ -220,7 +272,17 @@ export function HomeView() {
                   {runs.slice(0, 7).map((r) => (
                     <li key={r.id} className="flex items-start gap-3 py-2">
                       <span className="mt-1.5">
-                        <StatusDot status={r.status === "success" ? "live" : r.status === "error" ? "error" : r.status === "running" ? "ready" : "draft"} />
+                        <StatusDot
+                          status={
+                            r.status === "success"
+                              ? "live"
+                              : r.status === "error"
+                                ? "error"
+                                : r.status === "running"
+                                  ? "ready"
+                                  : "draft"
+                          }
+                        />
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[13px]">{r.summary || r.agentName}</div>

@@ -6,6 +6,7 @@
  */
 import { create } from "zustand";
 import { isDesktop } from "@/lib/platform";
+import { flushPendingWrites } from "@/lib/persistStorage";
 
 type Status = "idle" | "checking" | "current" | "available" | "downloading" | "error";
 
@@ -60,6 +61,8 @@ export const useUpdate = create<UpdateState>((set, get) => ({
         }
       });
       const { relaunch } = await import("@tauri-apps/plugin-process");
+      // A relaunch skips the page's unload events; write queued state first.
+      flushPendingWrites();
       await relaunch();
     } catch (e) {
       set({ status: "available", error: `Update failed: ${String((e as Error)?.message ?? e)}` });

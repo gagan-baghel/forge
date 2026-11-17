@@ -44,4 +44,3 @@ describe("buildMcpConfig", () => {
     expect(splitArgs("  -y   @scope/pkg  --flag ")).toEqual(["-y", "@scope/pkg", "--flag"]);
   });
 });
-

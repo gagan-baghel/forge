@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button, Card } from "./ui";
 import { Icon } from "./Icon";
+import { logger } from "@/lib/log";
 
 /**
  * Catches render/lifecycle throws so one bad view can't blank the whole window.
@@ -31,7 +32,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     // Keep the stack somewhere a user can find it when reporting a bug.
-    console.error("[forge] render error:", error, info.componentStack);
+    logger("ui").error("render error", { error, componentStack: info.componentStack });
   }
 
   private reset = () => this.setState({ error: null });
@@ -51,8 +52,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="min-w-0">
               <h2 className="text-[13px] font-semibold">{title}</h2>
               <p className="mt-1 text-[13px] text-ink-3">
-                This screen hit an unexpected error. Your GAPs, chats and keys are stored
-                locally and were not affected.
+                This screen hit an unexpected error. Your GAPs, chats and keys are stored locally and were not affected.
               </p>
               <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-bg p-3 font-mono text-xs text-danger">
                 {error.message || String(error)}

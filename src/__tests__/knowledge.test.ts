@@ -11,8 +11,20 @@ import { retrieve, retrieveAsync } from "@/lib/knowledge";
 import type { KnowledgeDoc } from "@/types/domain";
 
 const docs: KnowledgeDoc[] = [
-  { id: "1", title: "Refunds", content: "Customers can request a refund within 30 days of purchase.", bytes: 60, addedAt: 0 },
-  { id: "2", title: "Shipping", content: "Orders ship within two business days via standard courier.", bytes: 60, addedAt: 0 },
+  {
+    id: "1",
+    title: "Refunds",
+    content: "Customers can request a refund within 30 days of purchase.",
+    bytes: 60,
+    addedAt: 0,
+  },
+  {
+    id: "2",
+    title: "Shipping",
+    content: "Orders ship within two business days via standard courier.",
+    bytes: 60,
+    addedAt: 0,
+  },
 ];
 
 describe("knowledge retrieval", () => {

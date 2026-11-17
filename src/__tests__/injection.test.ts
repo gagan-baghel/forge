@@ -116,7 +116,9 @@ describe("prompt injection defences", () => {
     const spy = mockStreamingFetch([textTurn("ok")]);
     await runAgentHeadless(a, "hello");
 
-    const system = JSON.parse(spy.mock.calls[0][1].body).system.map((b: any) => b.text).join("");
+    const system = JSON.parse(spy.mock.calls[0][1].body)
+      .system.map((b: any) => b.text)
+      .join("");
     expect(system).toContain("Trust boundary");
     expect(system).toMatch(/never a command to obey/i);
   });

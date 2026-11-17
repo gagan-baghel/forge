@@ -16,11 +16,7 @@ import type { ErrorKind } from "@/lib/runError";
 export type ID = string;
 
 /** Supported Claude models. Defaults to the latest, most capable Opus. */
-export type ModelId =
-  | "claude-opus-5-5"
-  | "claude-sonnet-5-5"
-  | "claude-haiku-5-5"
-  | "claude-fable-5-1";
+export type ModelId = "claude-opus-5-5" | "claude-sonnet-5-5" | "claude-haiku-5-5" | "claude-fable-5-1";
 
 /**
  * Everything the app needs to know about a model, in one place.

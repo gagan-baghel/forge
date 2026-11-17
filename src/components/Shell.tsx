@@ -42,22 +42,6 @@ const SECTIONS: { title?: string; items: NavItem[] }[] = [
   },
 ];
 
-/** Sibling pages shown as tabs in the page header. */
-export const TABS = {
-  packs: [
-    { label: "My packs", to: "/gaps" },
-    { label: "Marketplace", to: "/marketplace" },
-  ],
-  knowledge: [
-    { label: "Documents", to: "/knowledge" },
-    { label: "Memory", to: "/memory" },
-  ],
-  activity: [
-    { label: "Runs", to: "/runs" },
-    { label: "Insights", to: "/observability" },
-  ],
-} satisfies Record<string, { label: string; to: string }[]>;
-
 function isActive(item: NavItem, path: string): boolean {
   const under = (p: string) => (p === "/" ? path === "/" : path === p || path.startsWith(`${p}/`));
   return under(item.to) || (item.also ?? []).some(under);
@@ -69,7 +53,10 @@ export function ForgeMark({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
       <rect x="1" y="1" width="22" height="22" rx="4" fill="rgb(var(--primary))" />
-      <path d="M4.3 9.58 8.26 8.7h9.9v2.53h-3.08l-1.32 1.43v1.76l2.2 1.54v1.76H7.6v-1.76l2.2-1.54v-1.76l-1.32-1.21L4.3 10.13z" fill="rgb(var(--on-primary))" />
+      <path
+        d="M4.3 9.58 8.26 8.7h9.9v2.53h-3.08l-1.32 1.43v1.76l2.2 1.54v1.76H7.6v-1.76l2.2-1.54v-1.76l-1.32-1.21L4.3 10.13z"
+        fill="rgb(var(--on-primary))"
+      />
       <rect x="16.4" y="4.5" width="2.4" height="2.4" rx="0.3" fill="rgb(var(--accent))" />
     </svg>
   );
@@ -78,7 +65,10 @@ export function ForgeMark({ size = 22 }: { size?: number }) {
 function Brand() {
   return (
     // On desktop the window's traffic lights sit over this corner.
-    <div className={clsx("flex h-12 items-center gap-2.5", isDesktop() ? "pl-[84px] pr-4" : "px-4")} data-tauri-drag-region>
+    <div
+      className={clsx("flex h-12 items-center gap-2.5", isDesktop() ? "pl-[84px] pr-4" : "px-4")}
+      data-tauri-drag-region
+    >
       <ForgeMark />
       <span className="text-[14.5px] font-semibold tracking-tight">Forge</span>
       <span className="ml-auto font-mono text-[10px] text-ink-3">v{__APP_VERSION__}</span>
@@ -167,11 +157,19 @@ function UpdateButton() {
         className="flex w-full items-center gap-2 rounded-md bg-brand px-2.5 py-2 text-left text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-80"
       >
         <Icon name="download" size={14} />
-        <span className="flex-1 truncate">{busy ? `Updating… ${progress !== undefined ? `${progress}%` : ""}` : `Update to v${version}`}</span>
+        <span className="flex-1 truncate">
+          {busy ? `Updating… ${progress !== undefined ? `${progress}%` : ""}` : `Update to v${version}`}
+        </span>
         {!busy && <span className="font-mono text-[10px] opacity-80">restart</span>}
       </button>
       {busy && (
-        <div className="mt-1 h-[3px] overflow-hidden rounded-sm bg-surface-3" role="progressbar" aria-valuenow={progress ?? 0} aria-valuemin={0} aria-valuemax={100}>
+        <div
+          className="mt-1 h-[3px] overflow-hidden rounded-sm bg-surface-3"
+          role="progressbar"
+          aria-valuenow={progress ?? 0}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
           <div className="h-full bg-brand transition-[width] duration-200" style={{ width: `${progress ?? 0}%` }} />
         </div>
       )}

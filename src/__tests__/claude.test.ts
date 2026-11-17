@@ -7,7 +7,14 @@ describe("streamMessage (SSE parsing)", () => {
     mockStreamingFetch([textTurn("Hello there!", 12, 7)]);
     const chunks: string[] = [];
     const res = await streamMessage(
-      { apiKey: "k", model: "claude-opus-5-5", system: "", messages: [{ role: "user", content: "hi" }], temperature: 0.7, maxTokens: 256 },
+      {
+        apiKey: "k",
+        model: "claude-opus-5-5",
+        system: "",
+        messages: [{ role: "user", content: "hi" }],
+        temperature: 0.7,
+        maxTokens: 256,
+      },
       { onText: (d) => chunks.push(d) },
     );
     expect(res.text).toBe("Hello there!");
@@ -21,7 +28,15 @@ describe("streamMessage (SSE parsing)", () => {
   it("parses a tool_use block with accumulated JSON input", async () => {
     mockStreamingFetch([toolTurn("http_request", { url: "https://example.com" })]);
     const res = await streamMessage(
-      { apiKey: "k", model: "claude-opus-5-5", system: "", messages: [{ role: "user", content: "fetch" }], temperature: 0.7, maxTokens: 256, tools: [] },
+      {
+        apiKey: "k",
+        model: "claude-opus-5-5",
+        system: "",
+        messages: [{ role: "user", content: "fetch" }],
+        temperature: 0.7,
+        maxTokens: 256,
+        tools: [],
+      },
       { onText: () => {} },
     );
     expect(res.stopReason).toBe("tool_use");

@@ -1,13 +1,15 @@
 import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { PageBody, PageHeader, TABS } from "@/components/Shell";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { TABS } from "@/components/navTabs";
 import { Avatar, Button, Badge, Card, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 import type { Gap } from "@/types/domain";
 import { parseGapFile, decodeShareCode } from "@/lib/gapfile";
 import { relativeTime } from "@/lib/format";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
+import { errorMessage } from "@/lib/runError";
 
 export function GapsView() {
   const { notify } = useDialog();
@@ -16,11 +18,14 @@ export function GapsView() {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
 
-
   // Imported MCP servers arrive switched off; say so, or they look broken.
   const noteDisabledServers = (gap: Gap) => {
     const n = gap.mcpServers?.length ?? 0;
-    if (n) notify("Review before enabling", `${n} MCP server${n === 1 ? "" : "s"} in this pack run commands on your Mac. They're off until you check and enable them in the pack editor.`);
+    if (n)
+      notify(
+        "Review before enabling",
+        `${n} MCP server${n === 1 ? "" : "s"} in this pack run commands on your Mac. They're off until you check and enable them in the pack editor.`,
+      );
   };
 
   const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,8 +35,8 @@ export function GapsView() {
       const gap = importGap(parseGapFile(await file.text()));
       noteDisabledServers(gap);
       navigate(`/gaps/${gap.id}`);
-    } catch (err: any) {
-      notify("Import failed", err.message);
+    } catch (err) {
+      notify("Import failed", errorMessage(err));
     }
     e.target.value = "";
   };
@@ -55,8 +60,8 @@ export function GapsView() {
                   const gap = importGap(decodeShareCode(code));
                   noteDisabledServers(gap);
                   navigate(`/gaps/${gap.id}`);
-                } catch (e: any) {
-                  notify("Invalid share code", e.message);
+                } catch (e) {
+                  notify("Invalid share code", errorMessage(e));
                 }
               }}
             >
@@ -120,7 +125,6 @@ export function GapsView() {
           </div>
         )}
       </PageBody>
-
     </div>
   );
 }

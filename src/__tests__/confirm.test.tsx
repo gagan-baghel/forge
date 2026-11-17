@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { DialogProvider, useDialog } from "@/components/Confirm";
+import { DialogProvider } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 
 /**
  * These stand in for every destructive guard in the app. `window.confirm` is a
@@ -11,9 +12,7 @@ function Harness({ onResult }: { onResult: (v: boolean) => void }) {
   const { confirm, notify } = useDialog();
   return (
     <>
-      <button
-        onClick={async () => onResult(await confirm({ title: "Delete it?", body: "Cannot be undone." }))}
-      >
+      <button onClick={async () => onResult(await confirm({ title: "Delete it?", body: "Cannot be undone." }))}>
         danger
       </button>
       <button onClick={() => notify("Copied", "Share code is on the clipboard.")}>tell me</button>

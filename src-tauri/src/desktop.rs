@@ -45,7 +45,11 @@ fn macos_only() -> Result<(), String> {
 }
 
 fn run(cmd: &mut Command) -> Result<String, String> {
-    let out = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).output().map_err(|e| e.to_string())?;
+    let out = cmd
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| e.to_string())?;
     if !out.status.success() {
         let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
         return Err(explain_permission(&err));
@@ -55,7 +59,8 @@ fn run(cmd: &mut Command) -> Result<String, String> {
 
 /// The raw macOS errors for a missing privacy grant are cryptic; say what to do.
 fn explain_permission(err: &str) -> String {
-    if err.contains("-1743") || err.contains("-25211") || err.contains("not allowed assistive") || err.contains("1002") {
+    if err.contains("-1743") || err.contains("-25211") || err.contains("not allowed assistive") || err.contains("1002")
+    {
         return "macOS blocked this: give Forge Accessibility access in System Settings → Privacy & Security → \
                 Accessibility, then try again."
             .into();
@@ -73,7 +78,9 @@ fn explain_permission(err: &str) -> String {
 }
 
 fn jxa(script: &str, args: &[String]) -> Result<String, String> {
-    run(Command::new("osascript").args(["-l", "JavaScript", "-e", script, "--"]).args(args))
+    run(Command::new("osascript")
+        .args(["-l", "JavaScript", "-e", script, "--"])
+        .args(args))
 }
 
 fn b64(bytes: &[u8]) -> String {
@@ -82,9 +89,12 @@ fn b64(bytes: &[u8]) -> String {
 }
 
 fn screen_points_width() -> Result<f64, String> {
-    jxa(r#"ObjC.import("AppKit"); function run(){ return $.NSScreen.mainScreen.frame.size.width; }"#, &[])?
-        .parse::<f64>()
-        .map_err(|e| e.to_string())
+    jxa(
+        r#"ObjC.import("AppKit"); function run(){ return $.NSScreen.mainScreen.frame.size.width; }"#,
+        &[],
+    )?
+    .parse::<f64>()
+    .map_err(|e| e.to_string())
 }
 
 fn image_size(path: &str) -> Result<(u32, u32), String> {
@@ -124,8 +134,20 @@ pub async fn screen_capture(state: State<'_, DesktopState>) -> Result<Screenshot
         ]))?;
         let (width, height) = image_size(&p)?;
         let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
-        let scale = if width > 0 { screen_points_width()? / width as f64 } else { 1.0 };
-        Ok((Screenshot { path: p, base64: b64(&bytes), width, height }, scale))
+        let scale = if width > 0 {
+            screen_points_width()? / width as f64
+        } else {
+            1.0
+        };
+        Ok((
+            Screenshot {
+                path: p,
+                base64: b64(&bytes),
+                width,
+                height,
+            },
+            scale,
+        ))
     })
     .await
     .map_err(|e| e.to_string())??;
@@ -163,7 +185,13 @@ function run(argv) {
 
 /// Click at a point given in the coordinates of the last screenshot.
 #[tauri::command]
-pub async fn input_click(state: State<'_, DesktopState>, x: f64, y: f64, button: Option<String>, clicks: Option<u32>) -> Result<(), String> {
+pub async fn input_click(
+    state: State<'_, DesktopState>,
+    x: f64,
+    y: f64,
+    button: Option<String>,
+    clicks: Option<u32>,
+) -> Result<(), String> {
     macos_only()?;
     let (px, py) = to_points(&state, x, y);
     let args = vec![
@@ -243,7 +271,11 @@ fn key_code(name: &str) -> Option<u32> {
 /// Parse "cmd+shift+t" into (modifiers, key). Unknown modifiers are an error,
 /// not silently dropped — a dropped "cmd" turns cmd+q into typing a "q".
 pub fn parse_combo(combo: &str) -> Result<(Vec<&'static str>, String), String> {
-    let parts: Vec<String> = combo.split('+').map(|p| p.trim().to_lowercase()).filter(|p| !p.is_empty()).collect();
+    let parts: Vec<String> = combo
+        .split('+')
+        .map(|p| p.trim().to_lowercase())
+        .filter(|p| !p.is_empty())
+        .collect();
     let Some((key, mods)) = parts.split_last() else {
         return Err("No key given.".into());
     };
@@ -317,7 +349,10 @@ mod tests {
 
     #[test]
     fn combos_parse_into_modifiers_and_a_key() {
-        assert_eq!(parse_combo("cmd+shift+t").unwrap(), (vec!["command down", "shift down"], "t".to_string()));
+        assert_eq!(
+            parse_combo("cmd+shift+t").unwrap(),
+            (vec!["command down", "shift down"], "t".to_string())
+        );
         assert_eq!(parse_combo("Enter").unwrap(), (vec![], "enter".to_string()));
         assert!(parse_combo("hyper+t").is_err(), "unknown modifiers must not be dropped");
         assert!(parse_combo("").is_err());
@@ -342,6 +377,8 @@ mod tests {
 
     #[test]
     fn permission_errors_say_what_to_do() {
-        assert!(explain_permission("execution error: not allowed assistive access. (-25211)").contains("Accessibility"));
+        assert!(
+            explain_permission("execution error: not allowed assistive access. (-25211)").contains("Accessibility")
+        );
     }
 }

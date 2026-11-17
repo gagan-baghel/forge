@@ -33,7 +33,18 @@ describe("model id migration", () => {
       JSON.stringify({
         state: {
           seeded: true,
-          gaps: [{ id: "g", name: "P", agents: ["draft", "ready", "live", "paused"].map((status, i) => ({ id: `a${i}`, name: "A", model: "claude-opus-5-5", status })) }],
+          gaps: [
+            {
+              id: "g",
+              name: "P",
+              agents: ["draft", "ready", "live", "paused"].map((status, i) => ({
+                id: `a${i}`,
+                name: "A",
+                model: "claude-opus-5-5",
+                status,
+              })),
+            },
+          ],
         },
         version: 1,
       }),
@@ -43,10 +54,7 @@ describe("model id migration", () => {
   });
 
   it("migrates the workspace default model", async () => {
-    localStorage.setItem(
-      "forge.settings",
-      JSON.stringify({ state: { defaultModel: "claude-opus-4-8" }, version: 0 }),
-    );
+    localStorage.setItem("forge.settings", JSON.stringify({ state: { defaultModel: "claude-opus-4-8" }, version: 0 }));
 
     await useSettings.persist.rehydrate();
 

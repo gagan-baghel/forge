@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { deferredStorage } from "@/lib/persistStorage";
 import { currentModel } from "@/types/domain";
 import type { ModelId, RuntimeKind, Settings, ThemeName } from "@/types/domain";
 
@@ -42,20 +43,19 @@ export const useSettings = create<SettingsStore>()(
       setTheme: (theme) => set({ theme }),
       setUserName: (userName) => set({ userName }),
       setKeepAwake: (keepAwake) => set({ keepAwake }),
-      setPriceOverride: (model, price) =>
-        set((s) => ({ priceOverrides: { ...s.priceOverrides, [model]: price } })),
+      setPriceOverride: (model, price) => set((s) => ({ priceOverrides: { ...s.priceOverrides, [model]: price } })),
       completeOnboarding: () => set({ onboarded: true }),
       reset: () => set(initial),
     }),
     {
       name: STORE_KEY,
+      storage: deferredStorage(),
       version: 2,
       // A retired defaultModel would price every new run at $0.
-      migrate: (state: any) => ({
-        keepAwake: true,
-        ...state,
-        defaultModel: currentModel(state?.defaultModel),
-      }),
+      migrate: (persisted) => {
+        const state = persisted as Partial<SettingsStore> | undefined;
+        return { keepAwake: true, ...state, defaultModel: currentModel(state?.defaultModel) } as SettingsStore;
+      },
     },
   ),
 );

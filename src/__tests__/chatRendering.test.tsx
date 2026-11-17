@@ -9,9 +9,17 @@ vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl }));
 
 describe("chat markdown", () => {
   it("renders a GitHub table as a real table", () => {
-    render(<Markdown content={"| Feature | Ancient | Modern |\n|---|---|---|\n| Accent | Pitch | Stress |\n| Cases | 5 | 4 |"} />);
+    render(
+      <Markdown
+        content={"| Feature | Ancient | Modern |\n|---|---|---|\n| Accent | Pitch | Stress |\n| Cases | 5 | 4 |"}
+      />,
+    );
     const table = screen.getByRole("table");
-    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Feature", "Ancient", "Modern"]);
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((h) => h.textContent),
+    ).toEqual(["Feature", "Ancient", "Modern"]);
     expect(within(table).getAllByRole("row")).toHaveLength(3);
     expect(screen.queryByText(/\|---/)).toBeNull();
   });
@@ -38,11 +46,19 @@ describe("chat markdown", () => {
 
 describe("activity words", () => {
   it("names steps in plain English, with what they acted on", () => {
-    expect(describeStep("WebSearch", { query: "history of Greek" })).toMatchObject({ active: "Searching the web", detail: "history of Greek" });
-    expect(describeStep("WebFetch", { url: "https://www.britannica.com/topic/Greek-language" }).detail).toBe("britannica.com/topic/Greek-language");
+    expect(describeStep("WebSearch", { query: "history of Greek" })).toMatchObject({
+      active: "Searching the web",
+      detail: "history of Greek",
+    });
+    expect(describeStep("WebFetch", { url: "https://www.britannica.com/topic/Greek-language" }).detail).toBe(
+      "britannica.com/topic/Greek-language",
+    );
     expect(describeStep("mcp__github__search_issues", {}).active).toBe("Using github");
     expect(describeStep("SomethingNew", {}).done).toBe("Used SomethingNew");
-    expect(describeStep("ToolSearch", { query: "select:WebSearch" })).toMatchObject({ done: "Got its tools ready", detail: "" });
+    expect(describeStep("ToolSearch", { query: "select:WebSearch" })).toMatchObject({
+      done: "Got its tools ready",
+      detail: "",
+    });
   });
 
   it("keeps commands out of the live line while an approval shows them", () => {
@@ -69,7 +85,9 @@ describe("live status while a reply is in progress", () => {
     const gap = useGaps.getState().createGap({ name: "G", description: "" });
     const agent = useGaps.getState().addAgent(gap.id, { name: "Scout", role: "r" });
     const convId = useConversations.getState().ensureConversation(agent.id);
-    useConversations.getState().appendMessage(convId, { id: "u", role: "user", content: "research Greek", createdAt: Date.now() });
+    useConversations
+      .getState()
+      .appendMessage(convId, { id: "u", role: "user", content: "research Greek", createdAt: Date.now() });
     useConversations.getState().appendMessage(convId, {
       id: "a",
       role: "assistant",

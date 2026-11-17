@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { PageBody, PageHeader, TABS } from "@/components/Shell";
+import { PageBody, PageHeader } from "@/components/Shell";
+import { TABS } from "@/components/navTabs";
 import { Avatar, Button, EmptyState } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useMemory, type MemoryNote } from "@/stores/memory";
 import { useGaps } from "@/stores/gaps";
 import { relativeTime } from "@/lib/format";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 import { AddMemoryButton } from "@/components/AddKnowledge";
 
 interface Pool {
@@ -135,7 +136,12 @@ export function MemoryView() {
                         <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => reject(n.id)}>
                           Discard
                         </Button>
-                        <Button variant="primary" icon="check" className="h-7 px-2 text-xs" onClick={() => approve(n.id)}>
+                        <Button
+                          variant="primary"
+                          icon="check"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => approve(n.id)}
+                        >
                           Keep
                         </Button>
                       </div>
@@ -145,7 +151,9 @@ export function MemoryView() {
               </section>
             )}
 
-            {visible.length === 0 && query && <p className="py-6 text-[13px] text-ink-3">No memories match “{query}”.</p>}
+            {visible.length === 0 && query && (
+              <p className="py-6 text-[13px] text-ink-3">No memories match “{query}”.</p>
+            )}
 
             {visible.map((pool) => (
               <section key={pool.key}>
@@ -162,7 +170,14 @@ export function MemoryView() {
                     variant="ghost"
                     className="h-7 px-2 text-xs hover:text-danger"
                     onClick={async () => {
-                      if (await confirm({ title: `Forget everything ${pool.title} remembers?`, body: `All ${pool.notes.length} memories are deleted. This can't be undone.`, confirmLabel: "Forget all" })) clearAgent(pool.key);
+                      if (
+                        await confirm({
+                          title: `Forget everything ${pool.title} remembers?`,
+                          body: `All ${pool.notes.length} memories are deleted. This can't be undone.`,
+                          confirmLabel: "Forget all",
+                        })
+                      )
+                        clearAgent(pool.key);
                     }}
                   >
                     Forget all

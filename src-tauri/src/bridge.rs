@@ -136,7 +136,11 @@ impl BridgeState {
 fn respond_json(request: tiny_http::Request, status: u16, body: &Value) {
     let data = body.to_string();
     let header = tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
-    let _ = request.respond(tiny_http::Response::from_string(data).with_status_code(status).with_header(header));
+    let _ = request.respond(
+        tiny_http::Response::from_string(data)
+            .with_status_code(status)
+            .with_header(header),
+    );
 }
 
 fn respond_empty(request: tiny_http::Request, status: u16) {
@@ -144,11 +148,15 @@ fn respond_empty(request: tiny_http::Request, status: u16) {
 }
 
 fn handle(mut request: tiny_http::Request, inner: &Arc<Inner>, secret: &str, emit: &Emit) {
+    let expected = format!("Bearer {secret}");
     let authorised = request
         .headers()
         .iter()
-        .any(|h| h.field.equiv("Authorization") && h.value.as_str() == format!("Bearer {secret}"));
-    let Some(run_id) = request.url().strip_prefix("/mcp/").map(|s| s.split('?').next().unwrap_or("").to_string())
+        .any(|h| h.field.equiv("Authorization") && constant_time_eq(h.value.as_str().as_bytes(), expected.as_bytes()));
+    let Some(run_id) = request
+        .url()
+        .strip_prefix("/mcp/")
+        .map(|s| s.split('?').next().unwrap_or("").to_string())
     else {
         return respond_empty(request, 404);
     };
@@ -176,6 +184,12 @@ fn handle(mut request: tiny_http::Request, inner: &Arc<Inner>, secret: &str, emi
     };
     let reply = dispatch(&run_id, &msg, id, inner, emit);
     respond_json(request, 200, &reply);
+}
+
+/// Compare secrets without an early exit, so response timing says nothing
+/// about how much of a guessed token was right.
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    a.len() == b.len() && a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
 fn rpc_error(id: Value, code: i64, message: &str) -> Value {
@@ -245,7 +259,15 @@ fn forward_call(run_id: &str, name: String, args: Value, inner: &Arc<Inner>, emi
     let call_id = inner.next_call.fetch_add(1, Ordering::Relaxed);
     let (tx, rx) = mpsc::channel();
     inner.pending.lock().unwrap().insert(call_id, tx);
-    emit(inner.clone(), BridgeCall { call_id, run_id: run_id.to_string(), name: name.clone(), args });
+    emit(
+        inner.clone(),
+        BridgeCall {
+            call_id,
+            run_id: run_id.to_string(),
+            name: name.clone(),
+            args,
+        },
+    );
 
     let result = rx.recv_timeout(CALL_TIMEOUT);
     inner.pending.lock().unwrap().remove(&call_id);
@@ -280,12 +302,113 @@ fn respond(inner: &Inner, call_id: u64, content: Value, is_error: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Instant;
+
+    #[test]
+    fn secret_comparison_needs_an_exact_match() {
+        assert!(constant_time_eq(b"Bearer abc", b"Bearer abc"));
+        assert!(!constant_time_eq(b"Bearer abd", b"Bearer abc"));
+        assert!(!constant_time_eq(b"Bearer ab", b"Bearer abc"));
+    }
+
+    /// Load test: many CLI tool calls at once, answered out of order with
+    /// jitter, must each get their own answer — no lost, crossed or failed
+    /// calls — while forged requests are turned away.
+    #[test]
+    fn concurrent_tool_calls_each_get_their_own_answer() {
+        const CALLERS: usize = 32;
+        const CALLS_EACH: usize = 12;
+
+        let bridge = BridgeState::start_with(Arc::new(|inner, call| {
+            std::thread::spawn(move || {
+                // Answer out of order: later calls often finish first.
+                std::thread::sleep(Duration::from_millis(call.call_id % 7));
+                let echo = call.args["n"].clone();
+                respond(
+                    &inner,
+                    call.call_id,
+                    json!([{ "type": "text", "text": echo.to_string() }]),
+                    false,
+                );
+            });
+        }));
+        assert!(bridge.available());
+        bridge.register(
+            "load",
+            vec![json!({ "name": "echo", "inputSchema": { "type": "object" } })],
+            false,
+        );
+        let url = format!("http://127.0.0.1:{}/mcp/load", bridge.port);
+        let auth = format!("Bearer {}", bridge.secret);
+
+        let started = Instant::now();
+        let workers: Vec<_> = (0..CALLERS)
+            .map(|w| {
+                let (url, auth) = (url.clone(), auth.clone());
+                std::thread::spawn(move || {
+                    let agent = ureq::AgentBuilder::new().timeout(Duration::from_secs(30)).build();
+                    let mut latencies = Vec::new();
+                    for i in 0..CALLS_EACH {
+                        let n = w * 1000 + i;
+                        let t = Instant::now();
+                        let reply: Value = agent
+                            .post(&url)
+                            .set("Authorization", &auth)
+                            .send_json(json!({ "jsonrpc": "2.0", "id": n, "method": "tools/call",
+                                               "params": { "name": "echo", "arguments": { "n": n } } }))
+                            .expect("call failed")
+                            .into_json()
+                            .unwrap();
+                        latencies.push(t.elapsed());
+                        assert_eq!(reply["id"], n, "reply went to the wrong request");
+                        assert_eq!(reply["result"]["content"][0]["text"], n.to_string(), "answers crossed");
+                        assert_eq!(reply["result"]["isError"], false);
+                    }
+                    latencies
+                })
+            })
+            .collect();
+        let mut latencies: Vec<Duration> = workers.into_iter().flat_map(|w| w.join().unwrap()).collect();
+
+        // Forged requests in the same window: no secret, wrong secret.
+        let agent = ureq::agent();
+        for header in [None, Some("Bearer nope")] {
+            let mut req = agent.post(&url);
+            if let Some(h) = header {
+                req = req.set("Authorization", h);
+            }
+            match req.send_string("{}") {
+                Err(ureq::Error::Status(code, _)) => assert_eq!(code, 401),
+                other => panic!("forged request was not refused: {other:?}"),
+            }
+        }
+
+        latencies.sort();
+        let total = CALLERS * CALLS_EACH;
+        let p95 = latencies[total * 95 / 100];
+        eprintln!(
+            "bridge load: {total} calls from {CALLERS} callers in {:?}, p50 {:?}, p95 {:?}",
+            started.elapsed(),
+            latencies[total / 2],
+            p95
+        );
+        assert_eq!(latencies.len(), total);
+        assert!(inner_is_drained(&bridge), "a call was left pending");
+        assert!(p95 < Duration::from_secs(2), "p95 latency {p95:?} is too slow");
+    }
+
+    fn inner_is_drained(bridge: &BridgeState) -> bool {
+        bridge.inner.pending.lock().unwrap().is_empty()
+    }
 
     fn inner_with(run: &str, approvals: bool) -> Inner {
         let inner = Inner::default();
         inner.runs.lock().unwrap().insert(
             run.into(),
-            RunTools { tools: vec![json!({ "name": "remember", "inputSchema": { "type": "object" } })], approvals },
+            RunTools {
+                tools: vec![json!({ "name": "remember", "inputSchema": { "type": "object" } })],
+                approvals,
+            },
         );
         inner
     }
@@ -369,8 +492,14 @@ mod tests {
         let _ = std::fs::remove_file(&cfg);
         let stdout = String::from_utf8_lossy(&out.stdout);
         let names = calls.lock().unwrap().clone();
-        assert!(names.iter().any(|n| n == PERMISSION_TOOL), "no permission prompt reached Forge: {names:?}\n{stdout}");
-        assert!(names.iter().any(|n| n == "remember"), "Forge tool never called: {names:?}\n{stdout}");
+        assert!(
+            names.iter().any(|n| n == PERMISSION_TOOL),
+            "no permission prompt reached Forge: {names:?}\n{stdout}"
+        );
+        assert!(
+            names.iter().any(|n| n == "remember"),
+            "Forge tool never called: {names:?}\n{stdout}"
+        );
         assert!(marker.exists(), "approved command did not run\n{stdout}");
         let _ = std::fs::remove_file(&marker);
     }

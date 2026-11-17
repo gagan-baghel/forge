@@ -173,7 +173,10 @@ export function marketplaceCatalog(): MarketplaceListing[] {
             emoji: "💬",
             systemPrompt:
               "You are Pixel, a warm, efficient customer-support agent. You answer only from the provided knowledge base, escalate when unsure, and keep replies short and kind.",
-            skills: [skill("Memory", "memory", "Recall the conversation"), skill("HTTP", "http", "Call internal APIs", false)],
+            skills: [
+              skill("Memory", "memory", "Recall the conversation"),
+              skill("HTTP", "http", "Call internal APIs", false),
+            ],
           },
         ],
       },

@@ -24,7 +24,12 @@ describe("tool bridge", () => {
     });
 
     const input = { command: "git status", description: "check the tree" };
-    const r = await handleBridgeCall({ call_id: 1, run_id: "r1", name: "permission_prompt", args: { tool_name: "Bash", input } });
+    const r = await handleBridgeCall({
+      call_id: 1,
+      run_id: "r1",
+      name: "permission_prompt",
+      args: { tool_name: "Bash", input },
+    });
 
     expect(r.isError).toBe(false);
     expect(JSON.parse(textOf(r))).toEqual({ behavior: "allow", updatedInput: input });

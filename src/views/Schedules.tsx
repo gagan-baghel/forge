@@ -9,7 +9,7 @@ import { runRoutineNow } from "@/lib/scheduler";
 import { isValidCron, nextRun } from "@/lib/cron";
 import { relativeTime } from "@/lib/format";
 import type { Routine } from "@/types/domain";
-import { useDialog } from "@/components/Confirm";
+import { useDialog } from "@/hooks/useDialog";
 
 const PRESETS = [
   { label: "Every hour", cron: "0 * * * *" },
@@ -68,7 +68,15 @@ export function SchedulesView() {
         nextRunAt: nextRun(cron, new Date()),
       });
     } else {
-      add({ name: name.trim(), agentId: agent.id, agentName: agent.name, cron, prompt, enabled: true, nextRunAt: nextRun(cron, new Date()) });
+      add({
+        name: name.trim(),
+        agentId: agent.id,
+        agentName: agent.name,
+        cron,
+        prompt,
+        enabled: true,
+        nextRunAt: nextRun(cron, new Date()),
+      });
     }
     setOpen(false);
   };
@@ -103,7 +111,11 @@ export function SchedulesView() {
             <EmptyState
               icon="clock"
               title="No routines"
-              body={agents.length === 0 ? "Create an agent first, then schedule it." : "Schedule an agent to run a prompt on a cron cadence."}
+              body={
+                agents.length === 0
+                  ? "Create an agent first, then schedule it."
+                  : "Schedule an agent to run a prompt on a cron cadence."
+              }
               action={
                 agents.length > 0 && (
                   <Button variant="primary" icon="plus" onClick={openCreate}>
@@ -148,13 +160,23 @@ export function SchedulesView() {
                   <Button icon="play" disabled={firing === r.id} onClick={() => void runNow(r)}>
                     {firing === r.id ? "Running…" : "Run now"}
                   </Button>
-                  <button className="btn-ghost h-7 px-1.5 text-ink-3 hover:text-ink" onClick={() => openEdit(r)} aria-label="Edit routine">
+                  <button
+                    className="btn-ghost h-7 px-1.5 text-ink-3 hover:text-ink"
+                    onClick={() => openEdit(r)}
+                    aria-label="Edit routine"
+                  >
                     <Icon name="edit" size={14} />
                   </button>
                   <button
                     className="btn-ghost h-7 px-1.5 text-ink-3 hover:text-danger"
                     onClick={async () => {
-                      if (await confirm({ title: `Delete routine "${r.name}"?`, body: "The schedule stops running immediately." })) remove(r.id);
+                      if (
+                        await confirm({
+                          title: `Delete routine "${r.name}"?`,
+                          body: "The schedule stops running immediately.",
+                        })
+                      )
+                        remove(r.id);
                     }}
                     aria-label="Delete routine"
                   >
@@ -170,7 +192,13 @@ export function SchedulesView() {
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? "Edit routine" : "New routine"}>
         <div className="space-y-4">
           <Field label="Name">
-            <input className="input" autoFocus value={name} placeholder="Morning briefing" onChange={(e) => setName(e.target.value)} />
+            <input
+              className="input"
+              autoFocus
+              value={name}
+              placeholder="Morning briefing"
+              onChange={(e) => setName(e.target.value)}
+            />
           </Field>
           <Field label="Agent">
             <select className="input" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
@@ -183,7 +211,11 @@ export function SchedulesView() {
           </Field>
           <Field
             label="Schedule"
-            hint={isValidCron(cron) ? undefined : "Not a valid cron expression: five fields — minute hour day month weekday."}
+            hint={
+              isValidCron(cron)
+                ? undefined
+                : "Not a valid cron expression: five fields — minute hour day month weekday."
+            }
           >
             <div className="mb-2 flex flex-wrap gap-1.5">
               {PRESETS.map((p) => (
@@ -191,7 +223,10 @@ export function SchedulesView() {
                   key={p.cron}
                   onClick={() => setCron(p.cron)}
                   aria-pressed={cron === p.cron}
-                  className={clsx("chip h-6 px-2 transition-colors", cron === p.cron ? "border-border-strong bg-surface-3 text-ink" : "hover:text-ink")}
+                  className={clsx(
+                    "chip h-6 px-2 transition-colors",
+                    cron === p.cron ? "border-border-strong bg-surface-3 text-ink" : "hover:text-ink",
+                  )}
                 >
                   {p.label}
                 </button>
@@ -205,7 +240,12 @@ export function SchedulesView() {
             />
           </Field>
           <Field label="Prompt">
-            <textarea className="input min-h-[90px] resize-y" value={prompt} placeholder="What should the agent do each run?" onChange={(e) => setPrompt(e.target.value)} />
+            <textarea
+              className="input min-h-[90px] resize-y"
+              value={prompt}
+              placeholder="What should the agent do each run?"
+              onChange={(e) => setPrompt(e.target.value)}
+            />
           </Field>
           <div className="flex justify-end gap-2 pt-1">
             <Button onClick={() => setOpen(false)}>Cancel</Button>

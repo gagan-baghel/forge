@@ -6,14 +6,7 @@
  * set turns "12 failures" into "9 rate limits and 3 timeouts", which is the
  * difference between knowing something broke and knowing what to do.
  */
-export type ErrorKind =
-  | "timeout"
-  | "rate_limit"
-  | "auth"
-  | "network"
-  | "malformed"
-  | "cancelled"
-  | "other";
+export type ErrorKind = "timeout" | "rate_limit" | "auth" | "network" | "malformed" | "cancelled" | "other";
 
 export function classifyError(err: unknown): ErrorKind {
   const e = err as { name?: string; message?: string } | undefined;
@@ -43,3 +36,14 @@ export const ERROR_LABELS: Record<ErrorKind, string> = {
   cancelled: "Cancelled",
   other: "Other",
 };
+
+/** The readable message of anything thrown: an Error, a string, a Tauri error. */
+export function errorMessage(err: unknown): string {
+  if (err && typeof err === "object" && "message" in err) return String((err as { message: unknown }).message);
+  return String(err);
+}
+
+/** A user cancel (AbortController): not a failure, so it is never reported as one. */
+export function isAbortError(err: unknown): boolean {
+  return err instanceof Error ? err.name === "AbortError" : (err as { name?: unknown } | null)?.name === "AbortError";
+}

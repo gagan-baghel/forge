@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { deferredStorage } from "@/lib/persistStorage";
 import { nanoid } from "nanoid";
 import type { Run } from "@/types/domain";
 
@@ -40,23 +41,22 @@ export const useRuns = create<RunStore>()(
       },
       finishRun: (id, patch) =>
         set((s) => ({
-          runs: s.runs.map((r) =>
-            r.id === id ? { ...r, ...patch, endedAt: Date.now() } : r,
-          ),
+          runs: s.runs.map((r) => (r.id === id ? { ...r, ...patch, endedAt: Date.now() } : r)),
         })),
       clear: () => set({ runs: [] }),
     }),
     {
       name: "forge.runs",
+      storage: deferredStorage(),
       version: 2,
       // v1: runs written before cost accounting have no costUsd. Left undefined
       // it crashes fmtUsd in the Runs table and turns every spend total into
       // NaN. v2 added model/runtime/errorKind, which are optional and so need
       // no backfill — old rows simply chart as "unknown".
-      migrate: (state: any) => ({
-        ...state,
-        runs: (state?.runs ?? []).map((r: Run) => ({ ...r, costUsd: r.costUsd ?? 0 })),
-      }),
+      migrate: (persisted) => {
+        const state = persisted as { runs?: Run[] } | undefined;
+        return { ...state, runs: (state?.runs ?? []).map((r) => ({ ...r, costUsd: r.costUsd ?? 0 })) } as RunStore;
+      },
     },
   ),
 );
