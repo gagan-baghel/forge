@@ -108,7 +108,11 @@ fn find_claude() -> Option<PathBuf> {
 #[tauri::command]
 pub fn claude_code_detect() -> ClaudeCodeInfo {
     let Some(bin) = find_claude() else {
-        return ClaudeCodeInfo { available: false, version: String::new(), path: String::new() };
+        return ClaudeCodeInfo {
+            available: false,
+            version: String::new(),
+            path: String::new(),
+        };
     };
     let mut version_cmd = Command::new(&bin);
     apply_shell_env(&mut version_cmd);
@@ -132,7 +136,10 @@ enum InstallEvent {
     #[serde(rename = "line")]
     Line { text: String },
     #[serde(rename = "done")]
-    Done { info: ClaudeCodeInfo, error: Option<String> },
+    Done {
+        info: ClaudeCodeInfo,
+        error: Option<String>,
+    },
 }
 
 /// Install the Claude Code CLI from inside the app — the last mile of the
@@ -186,8 +193,14 @@ pub fn claude_code_install(app: tauri::AppHandle) -> Result<(), String> {
             // Stream stdout + stderr line-by-line so the UI can show progress.
             let mut threads = Vec::new();
             for pipe in [
-                child.stdout.take().map(|s| Box::new(s) as Box<dyn std::io::Read + Send>),
-                child.stderr.take().map(|s| Box::new(s) as Box<dyn std::io::Read + Send>),
+                child
+                    .stdout
+                    .take()
+                    .map(|s| Box::new(s) as Box<dyn std::io::Read + Send>),
+                child
+                    .stderr
+                    .take()
+                    .map(|s| Box::new(s) as Box<dyn std::io::Read + Send>),
             ]
             .into_iter()
             .flatten()
@@ -197,8 +210,12 @@ pub fn claude_code_install(app: tauri::AppHandle) -> Result<(), String> {
                     for line in BufReader::new(pipe).lines().map_while(Result::ok) {
                         let trimmed = line.trim();
                         if !trimmed.is_empty() {
-                            let _ = app2
-                                .emit("cc://install", InstallEvent::Line { text: trimmed.to_string() });
+                            let _ = app2.emit(
+                                "cc://install",
+                                InstallEvent::Line {
+                                    text: trimmed.to_string(),
+                                },
+                            );
                         }
                     }
                 }));
@@ -225,7 +242,11 @@ pub fn claude_code_install(app: tauri::AppHandle) -> Result<(), String> {
         }
 
         let info = claude_code_detect();
-        let error = if info.available { None } else { last_err.or(Some("Install failed.".into())) };
+        let error = if info.available {
+            None
+        } else {
+            last_err.or(Some("Install failed.".into()))
+        };
         let _ = app.emit("cc://install", InstallEvent::Done { info, error });
     });
     Ok(())
@@ -314,7 +335,8 @@ pub fn claude_code_run(
         // Forge's tools gate themselves; don't make the CLI ask again.
         cmd.arg("--allowedTools").arg("mcp__forge");
         if approvals {
-            cmd.arg("--permission-prompt-tool").arg(format!("mcp__forge__{PERMISSION_TOOL}"));
+            cmd.arg("--permission-prompt-tool")
+                .arg(format!("mcp__forge__{PERMISSION_TOOL}"));
         }
         Some(cfg.to_string())
     } else {
@@ -438,7 +460,10 @@ pub fn claude_code_run(
                                     text.push_str(t);
                                     let _ = app2.emit(
                                         "cc://event",
-                                        CcEvent::Text { run_id: run_id2.clone(), text: t.to_string() },
+                                        CcEvent::Text {
+                                            run_id: run_id2.clone(),
+                                            text: t.to_string(),
+                                        },
                                     );
                                 }
                             }
@@ -479,7 +504,12 @@ pub fn claude_code_run(
                                     name: String::new(),
                                     input: None,
                                     output: Some(tool_result_text(&block["content"])),
-                                    status: if block["is_error"].as_bool() == Some(true) { "error" } else { "done" }.into(),
+                                    status: if block["is_error"].as_bool() == Some(true) {
+                                        "error"
+                                    } else {
+                                        "done"
+                                    }
+                                    .into(),
                                 },
                             );
                         }
@@ -651,7 +681,14 @@ mod smoke_tests {
         assert!(
             !stdout.contains("\"is_error\":true") && !stderr.contains("Failed to authenticate"),
             "agent turn failed to authenticate.\nstdout tail: {}\nstderr: {}",
-            stdout.chars().rev().take(400).collect::<String>().chars().rev().collect::<String>(),
+            stdout
+                .chars()
+                .rev()
+                .take(400)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect::<String>(),
             stderr
         );
         assert!(stdout.contains("PONG"), "no model output in stream; stderr: {stderr}");

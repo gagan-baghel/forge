@@ -30,7 +30,12 @@ pub(super) fn read_file_capped(path: &str) -> Result<(Vec<u8>, String), String> 
 
 /// Build a `multipart/form-data` body by hand — neither provider's upload
 /// endpoint is JSON, and ureq has no multipart helper of its own.
-pub(super) fn build_multipart(fields: &[(&str, &str)], file_field: &str, filename: &str, file_bytes: &[u8]) -> (Vec<u8>, String) {
+pub(super) fn build_multipart(
+    fields: &[(&str, &str)],
+    file_field: &str,
+    filename: &str,
+    file_bytes: &[u8],
+) -> (Vec<u8>, String) {
     let boundary = format!(
         "----forge-{}",
         std::time::SystemTime::now()
@@ -114,13 +119,19 @@ pub async fn channel_fetch_file(kind: String, token: String, file_ref: String, n
                 .map_err(|e| redact(e, &token))?;
             let json: serde_json::Value =
                 serde_json::from_str(&resp.into_string().unwrap_or_default()).unwrap_or_default();
-            let path = json["result"]["file_path"].as_str().ok_or("Telegram didn't return the file.")?;
+            let path = json["result"]["file_path"]
+                .as_str()
+                .ok_or("Telegram didn't return the file.")?;
             format!("{}/file/bot{token}/{path}", telegram_api())
         } else {
             // Debug builds may point at a fake Discord (see api_root) — its
             // attachments are served from the same fake.
-            let test_cdn = cfg!(debug_assertions) && std::env::var("FORGE_DISCORD_API").is_ok_and(|a| file_ref.starts_with(&a));
-            if !test_cdn && !file_ref.starts_with("https://cdn.discordapp.com/") && !file_ref.starts_with("https://media.discordapp.net/") {
+            let test_cdn =
+                cfg!(debug_assertions) && std::env::var("FORGE_DISCORD_API").is_ok_and(|a| file_ref.starts_with(&a));
+            if !test_cdn
+                && !file_ref.starts_with("https://cdn.discordapp.com/")
+                && !file_ref.starts_with("https://media.discordapp.net/")
+            {
                 return Err("Refusing to fetch a Discord attachment from an unexpected host.".into());
             }
             file_ref.clone()

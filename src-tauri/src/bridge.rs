@@ -136,7 +136,11 @@ impl BridgeState {
 fn respond_json(request: tiny_http::Request, status: u16, body: &Value) {
     let data = body.to_string();
     let header = tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
-    let _ = request.respond(tiny_http::Response::from_string(data).with_status_code(status).with_header(header));
+    let _ = request.respond(
+        tiny_http::Response::from_string(data)
+            .with_status_code(status)
+            .with_header(header),
+    );
 }
 
 fn respond_empty(request: tiny_http::Request, status: u16) {
@@ -148,7 +152,10 @@ fn handle(mut request: tiny_http::Request, inner: &Arc<Inner>, secret: &str, emi
         .headers()
         .iter()
         .any(|h| h.field.equiv("Authorization") && h.value.as_str() == format!("Bearer {secret}"));
-    let Some(run_id) = request.url().strip_prefix("/mcp/").map(|s| s.split('?').next().unwrap_or("").to_string())
+    let Some(run_id) = request
+        .url()
+        .strip_prefix("/mcp/")
+        .map(|s| s.split('?').next().unwrap_or("").to_string())
     else {
         return respond_empty(request, 404);
     };
@@ -245,7 +252,15 @@ fn forward_call(run_id: &str, name: String, args: Value, inner: &Arc<Inner>, emi
     let call_id = inner.next_call.fetch_add(1, Ordering::Relaxed);
     let (tx, rx) = mpsc::channel();
     inner.pending.lock().unwrap().insert(call_id, tx);
-    emit(inner.clone(), BridgeCall { call_id, run_id: run_id.to_string(), name: name.clone(), args });
+    emit(
+        inner.clone(),
+        BridgeCall {
+            call_id,
+            run_id: run_id.to_string(),
+            name: name.clone(),
+            args,
+        },
+    );
 
     let result = rx.recv_timeout(CALL_TIMEOUT);
     inner.pending.lock().unwrap().remove(&call_id);
@@ -285,7 +300,10 @@ mod tests {
         let inner = Inner::default();
         inner.runs.lock().unwrap().insert(
             run.into(),
-            RunTools { tools: vec![json!({ "name": "remember", "inputSchema": { "type": "object" } })], approvals },
+            RunTools {
+                tools: vec![json!({ "name": "remember", "inputSchema": { "type": "object" } })],
+                approvals,
+            },
         );
         inner
     }
@@ -369,8 +387,14 @@ mod tests {
         let _ = std::fs::remove_file(&cfg);
         let stdout = String::from_utf8_lossy(&out.stdout);
         let names = calls.lock().unwrap().clone();
-        assert!(names.iter().any(|n| n == PERMISSION_TOOL), "no permission prompt reached Forge: {names:?}\n{stdout}");
-        assert!(names.iter().any(|n| n == "remember"), "Forge tool never called: {names:?}\n{stdout}");
+        assert!(
+            names.iter().any(|n| n == PERMISSION_TOOL),
+            "no permission prompt reached Forge: {names:?}\n{stdout}"
+        );
+        assert!(
+            names.iter().any(|n| n == "remember"),
+            "Forge tool never called: {names:?}\n{stdout}"
+        );
         assert!(marker.exists(), "approved command did not run\n{stdout}");
         let _ = std::fs::remove_file(&marker);
     }

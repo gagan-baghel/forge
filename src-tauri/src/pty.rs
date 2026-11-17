@@ -27,12 +27,7 @@ fn default_shell() -> String {
 }
 
 #[tauri::command]
-pub fn pty_spawn(
-    app: tauri::AppHandle,
-    state: State<PtyState>,
-    cols: u16,
-    rows: u16,
-) -> Result<(), String> {
+pub fn pty_spawn(app: tauri::AppHandle, state: State<PtyState>, cols: u16, rows: u16) -> Result<(), String> {
     let pty_system = native_pty_system();
     let pair = pty_system
         .openpty(PtySize {
@@ -77,10 +72,7 @@ pub fn pty_spawn(
 #[tauri::command]
 pub fn pty_write(state: State<PtyState>, data: String) -> Result<(), String> {
     if let Some(handle) = state.inner.lock().unwrap().as_mut() {
-        handle
-            .writer
-            .write_all(data.as_bytes())
-            .map_err(|e| e.to_string())?;
+        handle.writer.write_all(data.as_bytes()).map_err(|e| e.to_string())?;
         handle.writer.flush().map_err(|e| e.to_string())?;
     }
     Ok(())

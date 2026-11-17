@@ -22,7 +22,6 @@ pub mod discord;
 pub mod files;
 pub mod telegram;
 
-
 #[derive(Default)]
 pub struct ChannelState {
     running: Mutex<HashMap<String, Arc<AtomicBool>>>,
@@ -114,7 +113,6 @@ pub struct BotInfo {
     pub username: String,
 }
 
-
 /// Provider API roots. Overridable (debug builds only) so an end-to-end test
 /// can stand a local fake in for the real service; release builds always talk
 /// to the real one.
@@ -134,7 +132,6 @@ fn telegram_api() -> String {
 fn discord_api() -> String {
     api_root("FORGE_DISCORD_API", "https://discord.com/api/v10")
 }
-
 
 /// Show "typing…" on the phone while the agent works. Best effort: both
 /// providers expire the indicator after a few seconds, so callers repeat it.

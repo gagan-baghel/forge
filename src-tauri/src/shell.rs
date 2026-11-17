@@ -65,7 +65,9 @@ pub fn shell_cancel(id: String) -> Result<(), String> {
         }
         #[cfg(windows)]
         {
-            let _ = Command::new("taskkill").args(["/T", "/F", "/PID", &pid.to_string()]).status();
+            let _ = Command::new("taskkill")
+                .args(["/T", "/F", "/PID", &pid.to_string()])
+                .status();
         }
     }
     Ok(())

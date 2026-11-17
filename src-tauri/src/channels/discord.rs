@@ -1,7 +1,7 @@
 //! Discord bot: poll a channel, post replies and files, plus plain webhooks.
 
-use super::*;
 use super::files::{build_multipart, read_file_capped};
+use super::*;
 
 /// Start polling a Discord channel with a bot token. Only messages posted
 /// after the poller starts are delivered (no history replay). `trigger` is
@@ -59,7 +59,10 @@ pub async fn discord_start(
         let agent = ureq_agent();
         // Baseline: newest message id at start, so history isn't replayed.
         let mut last_id: u64 = agent
-            .get(&format!("{}/channels/{discord_channel_id}/messages?limit=1", discord_api()))
+            .get(&format!(
+                "{}/channels/{discord_channel_id}/messages?limit=1",
+                discord_api()
+            ))
             .set("Authorization", &auth)
             .call()
             .ok()
@@ -73,7 +76,10 @@ pub async fn discord_start(
         // latency or rate limits ever matter.
         while stop.load(Ordering::Relaxed) {
             std::thread::sleep(Duration::from_secs(3));
-            let url = format!("{}/channels/{discord_channel_id}/messages?after={last_id}&limit=50", discord_api());
+            let url = format!(
+                "{}/channels/{discord_channel_id}/messages?after={last_id}&limit=50",
+                discord_api()
+            );
             let Ok(resp) = agent.get(&url).set("Authorization", &auth).call() else {
                 continue;
             };
@@ -85,7 +91,11 @@ pub async fn discord_start(
 
             // Discord returns newest first; process oldest first.
             for msg in messages.iter().rev() {
-                if let Some(id) = msg.get("id").and_then(|v| v.as_str()).and_then(|s| s.parse::<u64>().ok()) {
+                if let Some(id) = msg
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<u64>().ok())
+                {
                     if id > last_id {
                         last_id = id;
                     }

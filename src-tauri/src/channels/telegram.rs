@@ -1,7 +1,7 @@
 //! Telegram bot: long-poll updates, send, edit, upload.
 
-use super::*;
 use super::files::{build_multipart, read_file_capped};
+use super::*;
 
 fn telegram_files(msg: &serde_json::Value) -> Vec<FileRef> {
     let mut files = Vec::new();
@@ -16,8 +16,14 @@ fn telegram_files(msg: &serde_json::Value) -> Vec<FileRef> {
     // Photos arrive as several sizes; the last is the largest.
     if let Some(sizes) = msg.get("photo").and_then(|p| p.as_array()) {
         if let Some(id) = sizes.last().and_then(|p| p["file_id"].as_str()) {
-            let uid = sizes.last().and_then(|p| p["file_unique_id"].as_str()).unwrap_or("photo");
-            files.push(FileRef { file_ref: id.into(), name: format!("photo_{uid}.jpg") });
+            let uid = sizes
+                .last()
+                .and_then(|p| p["file_unique_id"].as_str())
+                .unwrap_or("photo");
+            files.push(FileRef {
+                file_ref: id.into(),
+                name: format!("photo_{uid}.jpg"),
+            });
         }
     }
     for key in ["video", "audio", "voice"] {
@@ -57,7 +63,11 @@ fn telegram_inbound(channel_id: &str, upd: &serde_json::Value, since: i64) -> Op
     if msg["date"].as_i64().is_some_and(|d| d < since) {
         return None;
     }
-    let text = msg["text"].as_str().or(msg["caption"].as_str()).unwrap_or("").to_string();
+    let text = msg["text"]
+        .as_str()
+        .or(msg["caption"].as_str())
+        .unwrap_or("")
+        .to_string();
     let files = telegram_files(msg);
     if text.is_empty() && files.is_empty() {
         return None;
@@ -72,7 +82,6 @@ fn telegram_inbound(channel_id: &str, upd: &serde_json::Value, since: i64) -> Op
         files,
     })
 }
-
 
 /// Start polling a Telegram bot. Emits `channel://message` per inbound message
 /// or button press. Validates the token first so a typo fails loudly instead
@@ -100,16 +109,18 @@ pub async fn telegram_start(
             let json: serde_json::Value =
                 serde_json::from_str(&resp.into_string().unwrap_or_default()).unwrap_or_default();
             // The "/" menu on the phone. Best effort: a bot works without it.
-            let _ = ureq_agent().post(&format!("{base}/setMyCommands")).send_json(ureq::json!({
-                "commands": [
-                    { "command": "status", "description": "What the agent is doing" },
-                    { "command": "stop", "description": "Stop the current task" },
-                    { "command": "new", "description": "Start a fresh conversation" },
-                    { "command": "screenshot", "description": "See your screen" },
-                    { "command": "lock", "description": "End an Allow-15-min window" },
-                    { "command": "help", "description": "What I can do" },
-                ]
-            }));
+            let _ = ureq_agent()
+                .post(&format!("{base}/setMyCommands"))
+                .send_json(ureq::json!({
+                    "commands": [
+                        { "command": "status", "description": "What the agent is doing" },
+                        { "command": "stop", "description": "Stop the current task" },
+                        { "command": "new", "description": "Start a fresh conversation" },
+                        { "command": "screenshot", "description": "See your screen" },
+                        { "command": "lock", "description": "End an Allow-15-min window" },
+                        { "command": "help", "description": "What I can do" },
+                    ]
+                }));
             Ok(BotInfo {
                 id: json["result"]["id"].as_i64().map(|n| n.to_string()).unwrap_or_default(),
                 username: json["result"]["username"].as_str().unwrap_or("").into(),
@@ -261,8 +272,12 @@ pub async fn telegram_send_file(token: String, chat_id: String, path: String) ->
 pub async fn telegram_send_photo(token: String, chat_id: String, path: String, caption: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let (bytes, filename) = read_file_capped(&path)?;
-        let (body, content_type) =
-            build_multipart(&[("chat_id", &chat_id), ("caption", &caption)], "photo", &filename, &bytes);
+        let (body, content_type) = build_multipart(
+            &[("chat_id", &chat_id), ("caption", &caption)],
+            "photo",
+            &filename,
+            &bytes,
+        );
         ureq_agent()
             .post(&format!("{}/bot{token}/sendPhoto", telegram_api()))
             .set("Content-Type", &content_type)
@@ -288,9 +303,18 @@ mod tests {
             }
         });
         let m = telegram_inbound("c", &upd, 0).unwrap();
-        assert_eq!((m.chat_id.as_str(), m.sender_id.as_str(), m.text.as_str()), ("99", "7", "save this"));
+        assert_eq!(
+            (m.chat_id.as_str(), m.sender_id.as_str(), m.text.as_str()),
+            ("99", "7", "save this")
+        );
         assert_eq!(m.kind, "message");
-        assert_eq!(m.files, vec![FileRef { file_ref: "F1".into(), name: "notes.pdf".into() }]);
+        assert_eq!(
+            m.files,
+            vec![FileRef {
+                file_ref: "F1".into(),
+                name: "notes.pdf".into()
+            }]
+        );
     }
 
     #[test]
@@ -303,16 +327,24 @@ mod tests {
             }
         });
         let m = telegram_inbound("c", &upd, 0).unwrap();
-        assert_eq!((m.kind.as_str(), m.text.as_str(), m.sender_id.as_str()), ("callback", "fa:ok:abc", "7"));
+        assert_eq!(
+            (m.kind.as_str(), m.text.as_str(), m.sender_id.as_str()),
+            ("callback", "fa:ok:abc", "7")
+        );
     }
 
     #[test]
     fn messages_from_before_the_poller_started_are_not_replayed() {
-        let upd = |date: i64| serde_json::json!({
-            "update_id": 3,
-            "message": { "date": date, "chat": { "id": 1 }, "from": { "id": 7, "first_name": "G" }, "text": "rm -rf ~/work" }
-        });
-        assert!(telegram_inbound("c", &upd(999), 1000).is_none(), "an old message must not run again");
+        let upd = |date: i64| {
+            serde_json::json!({
+                "update_id": 3,
+                "message": { "date": date, "chat": { "id": 1 }, "from": { "id": 7, "first_name": "G" }, "text": "rm -rf ~/work" }
+            })
+        };
+        assert!(
+            telegram_inbound("c", &upd(999), 1000).is_none(),
+            "an old message must not run again"
+        );
         assert!(telegram_inbound("c", &upd(1000), 1000).is_some());
         assert!(telegram_inbound("c", &upd(1500), 1000).is_some());
     }
