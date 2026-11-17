@@ -1,13 +1,22 @@
 /**
- * Connector tools: one provider → one API tool. Adding a provider is one entry
- * in CONNECTOR_TOOLS; a provider without one simply contributes no tool.
+ * Connected services. Each provider is one entry in CONNECTORS: what the UI
+ * shows, how its token is checked, and the API tool it gives the agent.
+ * Adding a provider is one entry; removing one is deleting it.
  */
 import type { Agent, Connector } from "@/types/domain";
 import { httpFetch } from "../http";
+import { errorMessage } from "../runError";
 import { RESPONSE_LIMIT } from "./shared";
 import type { ClientTool } from "./types";
 
 type ConnectorTool = (token: string) => ClientTool;
+
+const GITHUB_HEADERS = { Accept: "application/vnd.github+json", "User-Agent": "Forge" };
+const notionHeaders = (token: string) => ({
+  Authorization: `Bearer ${token}`,
+  "Notion-Version": "2022-06-28",
+  "Content-Type": "application/json",
+});
 
 const github: ConnectorTool = (token) => ({
   def: {
@@ -27,11 +36,7 @@ const github: ConnectorTool = (token) => ({
     const r = await httpFetch({
       method: (input.method as string | undefined) ?? "GET",
       url: `https://api.github.com${String(input.path)}`,
-      headers: {
-        Accept: "application/vnd.github+json",
-        "User-Agent": "Forge",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers: { ...GITHUB_HEADERS, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: input.body as string | undefined,
     });
     return `HTTP ${r.status}\n${r.body.slice(0, RESPONSE_LIMIT)}`;
@@ -69,23 +74,95 @@ const notion: ConnectorTool = (token) => ({
     const r = await httpFetch({
       method: "POST",
       url: "https://api.notion.com/v1/search",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Notion-Version": "2022-06-28",
-        "Content-Type": "application/json",
-      },
+      headers: notionHeaders(token),
       body: JSON.stringify({ query: input.query }),
     });
     return r.body.slice(0, RESPONSE_LIMIT);
   },
 });
 
-const CONNECTOR_TOOLS: Partial<Record<Connector["provider"], ConnectorTool>> = { github, slack, notion };
+export interface ConnectorSpec {
+  provider: Connector["provider"];
+  label: string;
+  tokenLabel: string;
+  tool: ConnectorTool;
+  /** Checks a token against the live API: null when it works, else why not. */
+  validate: (token: string) => Promise<string | null>;
+}
+
+function slackOk(body: string): boolean {
+  try {
+    return JSON.parse(body).ok === true;
+  } catch {
+    return false;
+  }
+}
+
+export const CONNECTORS: ConnectorSpec[] = [
+  {
+    provider: "github",
+    label: "GitHub",
+    tokenLabel: "Personal access token",
+    tool: github,
+    validate: async (token) => {
+      const r = await httpFetch({
+        url: "https://api.github.com/user",
+        headers: { ...GITHUB_HEADERS, Authorization: `Bearer ${token}` },
+      });
+      return r.ok ? null : `GitHub rejected the token (HTTP ${r.status}).`;
+    },
+  },
+  {
+    provider: "slack",
+    label: "Slack",
+    tokenLabel: "Bot token (xoxb-…)",
+    tool: slack,
+    validate: async (token) => {
+      const r = await httpFetch({
+        method: "POST",
+        url: "https://slack.com/api/auth.test",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return slackOk(r.body) ? null : "Slack rejected the token.";
+    },
+  },
+  {
+    provider: "notion",
+    label: "Notion",
+    tokenLabel: "Integration token",
+    tool: notion,
+    validate: async (token) => {
+      const r = await httpFetch({
+        method: "POST",
+        url: "https://api.notion.com/v1/search",
+        headers: notionHeaders(token),
+        body: "{}",
+      });
+      return r.ok ? null : `Notion rejected the token (HTTP ${r.status}).`;
+    },
+  },
+];
+
+const byProvider = new Map(CONNECTORS.map((c) => [c.provider, c]));
+
+/** Validate a token for a provider; never throws. */
+export async function validateConnector(provider: Connector["provider"], token: string): Promise<string | null> {
+  try {
+    return (await byProvider.get(provider)?.validate(token)) ?? null;
+  } catch (e) {
+    return `Validation failed: ${errorMessage(e)}`;
+  }
+}
+
+/** The tool name a provider gives the agent, for the UI. */
+export function connectorToolName(spec: ConnectorSpec): string {
+  return spec.tool("").def.name;
+}
 
 export function connectorTools(agent: Agent): ClientTool[] {
   const tools: ClientTool[] = [];
   for (const c of agent.connectors) {
-    const make = c.status === "connected" ? CONNECTOR_TOOLS[c.provider] : undefined;
+    const make = c.status === "connected" ? byProvider.get(c.provider)?.tool : undefined;
     // The token is stored in scopes[0] (see ConnectionsTab).
     if (make) tools.push(make(c.scopes?.[0] ?? ""));
   }

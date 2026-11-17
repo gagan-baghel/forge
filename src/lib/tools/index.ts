@@ -31,6 +31,7 @@ export type { ClientTool, Executor, ToolContext, ToolImage, ToolInput, ToolOutpu
 export { outputText } from "./types";
 export { sendImageToChannel } from "./computer";
 export { cliResultIsUntrusted } from "./untrusted";
+export { CONNECTORS, connectorToolName, validateConnector, type ConnectorSpec } from "./connectors";
 
 const SKILL_TOOLS: Partial<Record<Skill["kind"], ClientTool[]>> = {
   http: [httpTool],
