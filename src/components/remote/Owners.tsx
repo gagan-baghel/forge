@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useNow } from "@/hooks/useNow";
 import type { Agent, Channel } from "@/types/domain";
 import { Button } from "@/components/ui";
 import { Icon } from "@/components/Icon";
@@ -23,18 +24,12 @@ export function Owners({
   const pairing = useChannelRuntime((s) => s.pairing[key]);
   const { confirm } = useDialog();
   const owners = channel.owners ?? [];
-  const [now, setNow] = useState(() => Date.now());
-
-  // Count the code down; drop it when it expires.
+  // Count the code down while one is showing; drop it when it expires.
+  const now = useNow(1000, !!pairing);
+  const expired = !!pairing && pairing.expiresAt < now;
   useEffect(() => {
-    if (!pairing) return;
-    const t = setInterval(() => {
-      const at = Date.now();
-      if (pairing.expiresAt < at) cancelPairing(agent, channel);
-      setNow(at);
-    }, 1000);
-    return () => clearInterval(t);
-  }, [pairing, agent, channel]);
+    if (expired) cancelPairing(agent, channel);
+  }, [expired, agent, channel]);
 
   const unpair = async (id: string, name: string) => {
     const ok = await confirm({

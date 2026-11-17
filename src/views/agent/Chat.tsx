@@ -9,6 +9,7 @@ import { Icon } from "@/components/Icon";
 import { Avatar, Button, Spinner } from "@/components/ui";
 import { fmtUsd, fmtTokens, relativeTime } from "@/lib/format";
 import { describeStep, elapsed } from "@/lib/activity";
+import { useNow } from "@/hooks/useNow";
 
 export function Chat({ agent }: { agent: Agent }) {
   const ensureConversation = useConversations((s) => s.ensureConversation);
@@ -210,16 +211,6 @@ export function Chat({ agent }: { agent: Agent }) {
       </div>
     </div>
   );
-}
-
-/** A clock that re-renders its owner every `ms` while mounted. */
-function useNow(ms: number): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), ms);
-    return () => clearInterval(t);
-  }, [ms]);
-  return now;
 }
 
 /**
