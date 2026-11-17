@@ -53,7 +53,7 @@ pub fn run() {
             shell::shell_cancel,
             claude_code::claude_code_detect,
             claude_code::claude_code_install,
-            claude_code::claude_code_run,
+            claude_code::run::claude_code_run,
             claude_code::claude_code_cancel,
             bridge::bridge_respond,
             net::http_fetch,
