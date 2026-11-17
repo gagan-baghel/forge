@@ -5,6 +5,7 @@ import { currentModel } from "@/types/domain";
 import type { Agent, Connector, Channel, Gap, KnowledgeDoc, MarketplaceListing, Skill } from "@/types/domain";
 import { starterGaps } from "@/lib/seed";
 import { stripSecrets } from "@/lib/gapfile";
+import { slugify } from "@/lib/format";
 
 const now = () => Date.now();
 
@@ -55,11 +56,7 @@ export const useGaps = create<GapStore>()(
         const id = nanoid(10);
         const gap: Gap = {
           id,
-          slug:
-            input.name
-              .toLowerCase()
-              .replace(/[^a-z0-9]+/g, "-")
-              .replace(/^-|-$/g, "") || id,
+          slug: slugify(input.name) || id,
           name: input.name,
           description: input.description,
           emoji: input.emoji ?? "📦",

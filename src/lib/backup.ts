@@ -11,6 +11,8 @@
 
 import type { Gap } from "@/types/domain";
 import { stripSecrets as stripGapSecrets } from "./gapfile";
+import { normalizeGap } from "./gapSchema";
+import { InvalidPayload } from "./validate";
 
 /** A persisted channel or connector, as raw JSON: only its id is relied on. */
 type Stored = { id: string } & Record<string, unknown>;
@@ -87,11 +89,46 @@ export function collectBackup(store: Storage = localStorage): Record<string, str
 }
 
 /**
+ * Check a backup before anything on this device is touched: restoring wipes
+ * the current data first, so a file that fails halfway must fail up front.
+ * Returns the entries to write, with every pack normalized.
+ */
+export function validateBackup(data: unknown): Record<string, string> {
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+    throw new InvalidPayload("Not a Forge backup file.");
+  }
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(data)) {
+    // Only Forge's own keys: a backup must not plant anything else in storage.
+    if (!isForgeKey(key)) continue;
+    if (typeof value !== "string") throw new InvalidPayload(`Backup entry ${key} is not text.`);
+    out[key] = value;
+  }
+  if (out[GAPS_KEY]) {
+    let parsed: { state?: { gaps?: unknown } } & Record<string, unknown>;
+    try {
+      parsed = JSON.parse(out[GAPS_KEY]);
+    } catch {
+      throw new InvalidPayload("The backup's packs are corrupt.");
+    }
+    const gaps = parsed?.state?.gaps;
+    if (gaps != null && !Array.isArray(gaps)) throw new InvalidPayload("The backup's packs are corrupt.");
+    if (Array.isArray(gaps)) {
+      parsed.state = { ...parsed.state, gaps: gaps.map((g) => normalizeGap(g, { allowNoAgents: true })) };
+      out[GAPS_KEY] = JSON.stringify(parsed);
+    }
+  }
+  return out;
+}
+
+/**
  * Replace Forge data with a backup's contents. The credentials already on this
  * device are preserved: a backup file carries none, so restoring one blindly
  * would log the user out of their own API key every time.
  */
-export function applyBackup(data: Record<string, string>, store: Storage = localStorage): void {
+export function applyBackup(raw: unknown, store: Storage = localStorage): void {
+  // Validate first: nothing is removed unless the whole backup is usable.
+  const data = validateBackup(raw);
   const secrets = deviceSecrets(store);
   const current = store.getItem(SETTINGS_KEY);
   const keep: Record<string, string> = {};

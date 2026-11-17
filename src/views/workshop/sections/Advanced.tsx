@@ -5,6 +5,7 @@ import { useDialog } from "@/hooks/useDialog";
 import { useGaps } from "@/stores/gaps";
 import { encodeShareCode } from "@/lib/gapfile";
 import { errorMessage } from "@/lib/runError";
+import { normalizeGap } from "@/lib/gapSchema";
 import type { Gap } from "@/types/domain";
 import { useExportGap } from "../useExportGap";
 
@@ -23,11 +24,14 @@ export function AdvancedSection({ gap }: { gap: Gap }) {
   const save = () => {
     setError("");
     try {
-      const parsed = JSON.parse(text) as Gap;
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        throw new Error("The manifest must be a JSON object.");
+      let json: unknown;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        throw new Error("The manifest is not valid JSON.");
       }
-      if (!Array.isArray(parsed.agents)) throw new Error("`agents` must be an array.");
+      // A pack you're editing may have no agents yet; everything else is checked.
+      const parsed = normalizeGap(json, { allowNoAgents: true });
       // The id is the store key — it can't be renamed here. Agents always
       // belong to this pack regardless of what the buffer says.
       updateGap(gap.id, {

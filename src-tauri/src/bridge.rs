@@ -148,10 +148,11 @@ fn respond_empty(request: tiny_http::Request, status: u16) {
 }
 
 fn handle(mut request: tiny_http::Request, inner: &Arc<Inner>, secret: &str, emit: &Emit) {
+    let expected = format!("Bearer {secret}");
     let authorised = request
         .headers()
         .iter()
-        .any(|h| h.field.equiv("Authorization") && h.value.as_str() == format!("Bearer {secret}"));
+        .any(|h| h.field.equiv("Authorization") && constant_time_eq(h.value.as_str().as_bytes(), expected.as_bytes()));
     let Some(run_id) = request
         .url()
         .strip_prefix("/mcp/")
@@ -183,6 +184,12 @@ fn handle(mut request: tiny_http::Request, inner: &Arc<Inner>, secret: &str, emi
     };
     let reply = dispatch(&run_id, &msg, id, inner, emit);
     respond_json(request, 200, &reply);
+}
+
+/// Compare secrets without an early exit, so response timing says nothing
+/// about how much of a guessed token was right.
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    a.len() == b.len() && a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
 fn rpc_error(id: Value, code: i64, message: &str) -> Value {
@@ -294,6 +301,13 @@ fn respond(inner: &Inner, call_id: u64, content: Value, is_error: bool) {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn secret_comparison_needs_an_exact_match() {
+        assert!(constant_time_eq(b"Bearer abc", b"Bearer abc"));
+        assert!(!constant_time_eq(b"Bearer abd", b"Bearer abc"));
+        assert!(!constant_time_eq(b"Bearer ab", b"Bearer abc"));
+    }
     use super::*;
 
     fn inner_with(run: &str, approvals: bool) -> Inner {

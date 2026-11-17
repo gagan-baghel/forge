@@ -5,7 +5,7 @@
  */
 
 import type { Agent, Gap } from "@/types/domain";
-import { asAgentSeeds, asRecord, asString } from "@/lib/validate";
+import { normalizeGap } from "./gapSchema";
 import { saveTextFile } from "./saveFile";
 
 const MAGIC = "forge.gap/v1";
@@ -69,11 +69,8 @@ export function parseGapFile(text: string): Gap {
     throw new Error("Not a valid .gap file.");
   }
   // The magic string only proves intent, not shape — a hand-edited or
-  // truncated pack still has to satisfy the fields the app dereferences.
-  const gap = asRecord(data.gap, "gap");
-  asString(gap.name, "gap.name", { max: 200 });
-  asAgentSeeds(gap.agents, "gap.agents");
-  return data.gap;
+  // truncated pack still has to satisfy every field the app dereferences.
+  return normalizeGap(data.gap);
 }
 
 /** Encode a GAP as a portable share code (base64 of the .gap JSON). */
@@ -85,10 +82,19 @@ export function encodeShareCode(gap: Gap): string {
   return `forge:${btoa(bin)}`;
 }
 
+/** Far above any real pack, far below a payload that would freeze the decode. */
+const MAX_SHARE_CODE = 20_000_000;
+
 /** Decode a share code back into a GAP. */
 export function decodeShareCode(code: string): Gap {
   const raw = code.trim().replace(/^forge:/, "");
-  const bin = atob(raw);
+  if (raw.length > MAX_SHARE_CODE) throw new Error("That share code is too large.");
+  let bin: string;
+  try {
+    bin = atob(raw);
+  } catch {
+    throw new Error("Not a valid share code.");
+  }
   const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
   return parseGapFile(new TextDecoder().decode(bytes));
 }
