@@ -140,7 +140,10 @@ function ConnectService({ agent }: { agent: Agent }) {
   const owned = new Set(agent.connectors.map((c) => c.provider));
   const [active, setActive] = useState<Connector["provider"] | null>(null);
   return (
-    <ListCard title="Connect a service" hint="Tokens are validated against the live API and stored only on this device.">
+    <ListCard
+      title="Connect a service"
+      hint="Tokens are validated against the live API and stored only on this device."
+    >
       {CONNECTORS.map((spec) => (
         <ConnectRow
           key={spec.provider}
