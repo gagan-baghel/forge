@@ -36,3 +36,9 @@ export const ERROR_LABELS: Record<ErrorKind, string> = {
   cancelled: "Cancelled",
   other: "Other",
 };
+
+/** The readable message of anything thrown: an Error, a string, a Tauri error. */
+export function errorMessage(err: unknown): string {
+  if (err && typeof err === "object" && "message" in err) return String((err as { message: unknown }).message);
+  return String(err);
+}
