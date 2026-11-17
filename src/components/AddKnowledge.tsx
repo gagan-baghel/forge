@@ -121,7 +121,10 @@ function AddDocumentDialog({ agentId, onClose }: { agentId?: string; onClose: ()
         </label>
 
         {error && (
-          <p role="alert" className="whitespace-pre-line rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger">
+          <p
+            role="alert"
+            className="whitespace-pre-line rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger"
+          >
             {error}
           </p>
         )}
@@ -130,10 +133,20 @@ function AddDocumentDialog({ agentId, onClose }: { agentId?: string; onClose: ()
           <span className="h-px flex-1 bg-border" /> or paste text <span className="h-px flex-1 bg-border" />
         </div>
         <Field label="Title">
-          <input className="input" value={title} placeholder="Refund policy" onChange={(e) => setTitle(e.target.value)} />
+          <input
+            className="input"
+            value={title}
+            placeholder="Refund policy"
+            onChange={(e) => setTitle(e.target.value)}
+          />
         </Field>
         <Field label="Text">
-          <textarea className="input min-h-[120px] resize-y" value={content} placeholder="Paste anything the agent should know…" onChange={(e) => setContent(e.target.value)} />
+          <textarea
+            className="input min-h-[120px] resize-y"
+            value={content}
+            placeholder="Paste anything the agent should know…"
+            onChange={(e) => setContent(e.target.value)}
+          />
         </Field>
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Cancel</Button>
@@ -176,7 +189,10 @@ function AddMemoryDialog({ agentId, onClose }: { agentId?: string; onClose: () =
     <Modal open onClose={onClose} title="Add memory">
       <div className="space-y-4">
         {!agentId && <AgentPicker value={target} onChange={setTarget} />}
-        <Field label="What should the agent remember?" hint="A short fact, preference or decision. The agent sees the relevant ones before every answer.">
+        <Field
+          label="What should the agent remember?"
+          hint="A short fact, preference or decision. The agent sees the relevant ones before every answer."
+        >
           <textarea
             className="input min-h-[90px] resize-y"
             autoFocus

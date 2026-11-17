@@ -69,8 +69,7 @@ export const useMemory = create<MemoryStore>()(
           .map((x) => x.n);
       },
       forAgent: (agentId) => get().notes.filter((n) => n.agentId === agentId),
-      pendingFor: (agentId) =>
-        get().notes.filter((n) => n.agentId === agentId && n.status === "pending"),
+      pendingFor: (agentId) => get().notes.filter((n) => n.agentId === agentId && n.status === "pending"),
       remove: (id) => set((s) => ({ notes: s.notes.filter((n) => n.id !== id) })),
       clearAgent: (agentId) => set((s) => ({ notes: s.notes.filter((n) => n.agentId !== agentId) })),
     }),

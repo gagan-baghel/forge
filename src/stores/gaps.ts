@@ -2,15 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import { currentModel } from "@/types/domain";
-import type {
-  Agent,
-  Connector,
-  Channel,
-  Gap,
-  KnowledgeDoc,
-  MarketplaceListing,
-  Skill,
-} from "@/types/domain";
+import type { Agent, Connector, Channel, Gap, KnowledgeDoc, MarketplaceListing, Skill } from "@/types/domain";
 import { starterGaps } from "@/lib/seed";
 import { stripSecrets } from "@/lib/gapfile";
 
@@ -63,7 +55,11 @@ export const useGaps = create<GapStore>()(
         const id = nanoid(10);
         const gap: Gap = {
           id,
-          slug: input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || id,
+          slug:
+            input.name
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-|-$/g, "") || id,
           name: input.name,
           description: input.description,
           emoji: input.emoji ?? "📦",
@@ -143,9 +139,7 @@ export const useGaps = create<GapStore>()(
           updatedAt: now(),
         };
         set((s) => ({
-          gaps: s.gaps.map((g) =>
-            g.id === gapId ? touch({ ...g, agents: [...g.agents, agent] }) : g,
-          ),
+          gaps: s.gaps.map((g) => (g.id === gapId ? touch({ ...g, agents: [...g.agents, agent] }) : g)),
         }));
         return agent;
       },
@@ -209,9 +203,7 @@ export const useGaps = create<GapStore>()(
         if (!a) return;
         const exists = a.channels.some((c) => c.id === channel.id);
         get().updateAgent(agentId, {
-          channels: exists
-            ? a.channels.map((c) => (c.id === channel.id ? channel : c))
-            : [...a.channels, channel],
+          channels: exists ? a.channels.map((c) => (c.id === channel.id ? channel : c)) : [...a.channels, channel],
         });
       },
       removeChannel: (agentId, channelId) => {

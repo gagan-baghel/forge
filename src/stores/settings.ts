@@ -42,8 +42,7 @@ export const useSettings = create<SettingsStore>()(
       setTheme: (theme) => set({ theme }),
       setUserName: (userName) => set({ userName }),
       setKeepAwake: (keepAwake) => set({ keepAwake }),
-      setPriceOverride: (model, price) =>
-        set((s) => ({ priceOverrides: { ...s.priceOverrides, [model]: price } })),
+      setPriceOverride: (model, price) => set((s) => ({ priceOverrides: { ...s.priceOverrides, [model]: price } })),
       completeOnboarding: () => set({ onboarded: true }),
       reset: () => set(initial),
     }),

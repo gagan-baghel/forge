@@ -48,10 +48,17 @@ const components: Components = {
     <th className="whitespace-nowrap border-b border-border px-3 py-2 font-medium text-ink" style={style} {...props} />
   ),
   td: ({ style, ...props }) => (
-    <td className="border-b border-border px-3 py-2 align-top text-ink-2 [tr:last-child>&]:border-b-0" style={style} {...props} />
+    <td
+      className="border-b border-border px-3 py-2 align-top text-ink-2 [tr:last-child>&]:border-b-0"
+      style={style}
+      {...props}
+    />
   ),
   pre: (props) => (
-    <pre className="my-2 overflow-x-auto rounded-md border border-border bg-bg p-3 font-mono text-xs leading-relaxed" {...props} />
+    <pre
+      className="my-2 overflow-x-auto rounded-md border border-border bg-bg p-3 font-mono text-xs leading-relaxed"
+      {...props}
+    />
   ),
   code: ({ className, children, ...props }: ComponentProps<"code">) => {
     // Fenced blocks carry a language-* class (or sit in <pre>); inline code is bare.

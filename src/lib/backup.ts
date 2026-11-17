@@ -32,7 +32,11 @@ function stripSecrets(key: string, value: string): string {
     const parsed = JSON.parse(value);
     if (key === SETTINGS_KEY && parsed?.state) for (const f of SECRET_FIELDS) delete parsed.state[f];
     if (key === GAPS_KEY && Array.isArray(parsed?.state?.gaps)) {
-      parsed.state.gaps = parsed.state.gaps.map((g: Gap) => ({ ...stripGapSecrets(g), env: g.env, mcpServers: g.mcpServers }));
+      parsed.state.gaps = parsed.state.gaps.map((g: Gap) => ({
+        ...stripGapSecrets(g),
+        env: g.env,
+        mcpServers: g.mcpServers,
+      }));
     }
     return JSON.stringify(parsed);
   } catch {
@@ -50,7 +54,13 @@ function deviceSecrets(store: Storage): Map<string, ChannelSecrets | string[] | 
     const gaps: Gap[] = JSON.parse(store.getItem(GAPS_KEY) ?? "null")?.state?.gaps ?? [];
     for (const g of gaps)
       for (const a of g.agents) {
-        for (const c of a.channels) out.set(`${a.id}/ch/${c.id}`, { token: c.token, config: c.config, owners: c.owners, remoteControl: c.remoteControl });
+        for (const c of a.channels)
+          out.set(`${a.id}/ch/${c.id}`, {
+            token: c.token,
+            config: c.config,
+            owners: c.owners,
+            remoteControl: c.remoteControl,
+          });
         for (const c of a.connectors) if (c.scopes) out.set(`${a.id}/co/${c.id}`, c.scopes);
       }
   } catch {

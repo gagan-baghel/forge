@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { resetStores } from "@/test/reset";
 import { useRoutines } from "@/stores/routines";
 
-const runAgentHeadless = vi.hoisted(() => vi.fn(async () => ({ text: "ok", inputTokens: 0, outputTokens: 0, costUsd: 0 })));
+const runAgentHeadless = vi.hoisted(() =>
+  vi.fn(async () => ({ text: "ok", inputTokens: 0, outputTokens: 0, costUsd: 0 })),
+);
 vi.mock("@/lib/agentRun", () => ({ runAgentHeadless }));
 vi.mock("@/lib/runner", () => ({ recordRun: (_a: unknown, _k: unknown, fn: () => Promise<unknown>) => fn() }));
 
@@ -17,7 +19,9 @@ beforeEach(() => {
   runAgentHeadless.mockClear();
   const gap = useGaps.getState().createGap({ name: "G", description: "" });
   const agent = useGaps.getState().addAgent(gap.id, { name: "A", role: "r" });
-  useRoutines.getState().add({ name: "R", agentId: agent.id, agentName: "A", cron: "0 9 * * *", prompt: "p", enabled: true });
+  useRoutines
+    .getState()
+    .add({ name: "R", agentId: agent.id, agentName: "A", cron: "0 9 * * *", prompt: "p", enabled: true });
 });
 
 describe("scheduler tick", () => {

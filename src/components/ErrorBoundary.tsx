@@ -51,8 +51,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="min-w-0">
               <h2 className="text-[13px] font-semibold">{title}</h2>
               <p className="mt-1 text-[13px] text-ink-3">
-                This screen hit an unexpected error. Your GAPs, chats and keys are stored
-                locally and were not affected.
+                This screen hit an unexpected error. Your GAPs, chats and keys are stored locally and were not affected.
               </p>
               <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-bg p-3 font-mono text-xs text-danger">
                 {error.message || String(error)}

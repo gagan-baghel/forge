@@ -21,7 +21,10 @@ function makeAgent(memorySkill = false) {
   return useGaps.getState().findAgent(a.id)!.agent;
 }
 
-const systemOf = (spy: any) => JSON.parse(spy.mock.calls[0][1].body).system.map((b: any) => b.text).join("\n");
+const systemOf = (spy: any) =>
+  JSON.parse(spy.mock.calls[0][1].body)
+    .system.map((b: any) => b.text)
+    .join("\n");
 
 beforeEach(() => {
   resetStores();
@@ -52,7 +55,9 @@ describe("what an agent knows reaches every answer", () => {
 
   it("includes matching documents", async () => {
     const agent = makeAgent();
-    useGaps.getState().addKnowledge(agent.id, { title: "Policy", content: "Refunds are issued within 14 days.", bytes: 34 });
+    useGaps
+      .getState()
+      .addKnowledge(agent.id, { title: "Policy", content: "Refunds are issued within 14 days.", bytes: 34 });
     const spy = mockStreamingFetch([textTurn("ok")]);
 
     await runAgentHeadless(useGaps.getState().findAgent(agent.id)!.agent, "how long do refunds take?");
@@ -77,7 +82,12 @@ describe("remember", () => {
   it("saves straight away when review is off", async () => {
     const agent = makeAgent(true);
     await runTool("remember", { text: "ship on Friday" }, buildTools(agent).executors, { agent });
-    expect(useMemory.getState().forAgent(agent.id).map((n) => n.status)).toEqual([undefined]);
+    expect(
+      useMemory
+        .getState()
+        .forAgent(agent.id)
+        .map((n) => n.status),
+    ).toEqual([undefined]);
   });
 
   it("waits for the user's OK when review is on", async () => {
@@ -122,7 +132,12 @@ describe("folding old brains into agents", () => {
       expect(agent.systemPrompt).toMatch(/Answer tersely\.$/);
       expect(agent.knowledge.map((d: any) => d.title)).toEqual(["Glossary"]);
       expect(agent.reviewMemory).toBe(true);
-      expect(useMemory.getState().forAgent(id).map((n) => n.text)).toEqual(["Team prefers metric units"]);
+      expect(
+        useMemory
+          .getState()
+          .forAgent(id)
+          .map((n) => n.text),
+      ).toEqual(["Team prefers metric units"]);
     }
     expect(useMemory.getState().forAgent("brain:br")).toHaveLength(0);
     expect(localStorage.getItem("forge.brains")).toBeNull();

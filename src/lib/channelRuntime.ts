@@ -21,7 +21,13 @@
 import { nanoid } from "nanoid";
 import type { Agent, Channel, ChannelOwner } from "@/types/domain";
 import { invoke, isDesktop } from "./platform";
-import { setRemoteApprover, UNTRUSTED_WARNING, type ApprovalRequest, type ApprovalResult, type ChannelRef } from "./approval";
+import {
+  setRemoteApprover,
+  UNTRUSTED_WARNING,
+  type ApprovalRequest,
+  type ApprovalResult,
+  type ChannelRef,
+} from "./approval";
 import { runConversationTurn } from "./conversationTurn";
 import { sendImageToChannel } from "./tools";
 import { useGaps } from "@/stores/gaps";
@@ -55,7 +61,12 @@ export async function sendText(ref: ChannelRef, text: string, buttons?: [string,
   if (ref.kind === "discord") {
     return invoke<string>("discord_send_bot", { token: ref.token, channelId: ref.chatId, text });
   }
-  const id = await invoke<number>("telegram_send", { token: ref.token, chatId: ref.chatId, text, buttons: buttons ?? null });
+  const id = await invoke<number>("telegram_send", {
+    token: ref.token,
+    chatId: ref.chatId,
+    text,
+    buttons: buttons ?? null,
+  });
   return String(id);
 }
 
@@ -212,7 +223,7 @@ const HELP = [
   "/stop — stop the current task",
   "/new — start a fresh conversation",
   "/screenshot — see your screen right now",
-  "/lock — end an \"Allow 15 min\" window",
+  '/lock — end an "Allow 15 min" window',
   "/unpair — disconnect this chat",
 ].join("\n");
 
@@ -240,7 +251,14 @@ async function fetchFiles(ref: ChannelRef, files: InboundMessage["files"]): Prom
   const paths: string[] = [];
   for (const f of files) {
     try {
-      paths.push(await invoke<string>("channel_fetch_file", { kind: ref.kind, token: ref.token, fileRef: f.file_ref, name: f.name }));
+      paths.push(
+        await invoke<string>("channel_fetch_file", {
+          kind: ref.kind,
+          token: ref.token,
+          fileRef: f.file_ref,
+          name: f.name,
+        }),
+      );
     } catch (e: any) {
       rt().log(ref.key, "system", `Couldn't download ${f.name}: ${e?.message ?? e}`);
     }
@@ -268,7 +286,9 @@ async function runForChat(agent: Agent, ref: ChannelRef, msg: InboundMessage): P
     const paths = await fetchFiles(ref, msg.files);
     const prompt =
       (msg.text || "(no text — see the attached files)") +
-      (paths.length ? `\n\n[The user sent ${paths.length} file(s), saved on this computer at:\n${paths.map((p) => `- ${p}`).join("\n")}]` : "");
+      (paths.length
+        ? `\n\n[The user sent ${paths.length} file(s), saved on this computer at:\n${paths.map((p) => `- ${p}`).join("\n")}]`
+        : "");
     const convId = useConversations
       .getState()
       .conversationFor(agent.id, { kind: ref.kind, key: chatKey, from: msg.from });
@@ -361,7 +381,14 @@ export async function handleInbound(msg: InboundMessage): Promise<void> {
     const verdict = checkPairCode(ref.key, pair[1]);
     if (verdict !== "ok") {
       rt().log(ref.key, "security", `Rejected a pairing attempt from ${msg.from} (id ${msg.sender_id})`);
-      quiet(sendText(ref, verdict === "none" ? "No pairing is open. Start one in Forge → Remote → Pair a phone." : "That code isn't right."));
+      quiet(
+        sendText(
+          ref,
+          verdict === "none"
+            ? "No pairing is open. Start one in Forge → Remote → Pair a phone."
+            : "That code isn't right.",
+        ),
+      );
       return;
     }
     const owner: ChannelOwner = { id: msg.sender_id, name: msg.from, chatId: msg.chat_id, pairedAt: Date.now() };
@@ -455,7 +482,9 @@ export function syncKeepAwake(): void {
     useSettings.getState().keepAwake &&
     useGaps
       .getState()
-      .gaps.some((g) => g.agents.some((a) => a.channels.some((c) => c.remoteControl && running[channelKey(a.id, c.id)])));
+      .gaps.some((g) =>
+        g.agents.some((a) => a.channels.some((c) => c.remoteControl && running[channelKey(a.id, c.id)])),
+      );
   quiet(invoke("keep_awake", { on }));
 }
 
@@ -505,7 +534,11 @@ export async function resumeChannels(): Promise<void> {
   for (const gap of useGaps.getState().gaps) {
     for (const agent of gap.agents) {
       for (const channel of agent.channels) {
-        if (channel.status === "active" && channel.token && (channel.kind === "telegram" || channel.kind === "discord")) {
+        if (
+          channel.status === "active" &&
+          channel.token &&
+          (channel.kind === "telegram" || channel.kind === "discord")
+        ) {
           await startChannel(agent, channel);
         }
       }

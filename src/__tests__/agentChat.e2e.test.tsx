@@ -46,10 +46,7 @@ describe("agent chat (end to end)", () => {
 
   it("runs the tool-use loop: tool turn → tool result → final answer", async () => {
     // Turn 1 calls the `remember` tool (no network); turn 2 returns final text.
-    mockStreamingFetch([
-      toolTurn("remember", { text: "user likes tea" }),
-      textTurn("Noted — I'll remember that."),
-    ]);
+    mockStreamingFetch([toolTurn("remember", { text: "user likes tea" }), textTurn("Noted — I'll remember that.")]);
 
     const gap = useGaps.getState().createGap({ name: "P", description: "" });
     const agent = useGaps.getState().addAgent(gap.id, {

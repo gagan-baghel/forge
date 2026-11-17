@@ -149,7 +149,12 @@ export function ChannelCard({ agent, kind, showAgent }: { agent: Agent; kind: Ch
         {connected && <StatusDot status={running ? "live" : "draft"} pulse={running} />}
         <SetupGuide kind={kind} />
         {connected && !editing && (
-          <Button variant={running ? "outline" : "primary"} icon={running ? "pause" : "play"} disabled={!desktop || busy} onClick={toggleRun}>
+          <Button
+            variant={running ? "outline" : "primary"}
+            icon={running ? "pause" : "play"}
+            disabled={!desktop || busy}
+            onClick={toggleRun}
+          >
             {running ? "Stop" : "Start"}
           </Button>
         )}
@@ -161,10 +166,17 @@ export function ChannelCard({ agent, kind, showAgent }: { agent: Agent; kind: Ch
             Bots run on your computer, so they need the desktop app.
           </p>
         )}
-        {error && <p className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p>}
+        {error && (
+          <p className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p>
+        )}
 
         {editing || !connected ? (
-          <CredentialsForm kind={kind} channel={channel} onCancel={connected ? () => setEditing(false) : undefined} onSave={save} />
+          <CredentialsForm
+            kind={kind}
+            channel={channel}
+            onCancel={connected ? () => setEditing(false) : undefined}
+            onSave={save}
+          />
         ) : (
           <>
             <Toggle
@@ -174,7 +186,13 @@ export function ChannelCard({ agent, kind, showAgent }: { agent: Agent; kind: Ch
               description="Paired phones can have this agent act on this Mac — each action needs your approval on the phone."
             />
             <Owners agent={agent} channel={channel!} running={running} bot={bot} />
-            {kind === "discord" && <DiscordWebhook agent={agent} channel={channel!} onSave={(webhook) => save({ config: { webhook } }, false)} />}
+            {kind === "discord" && (
+              <DiscordWebhook
+                agent={agent}
+                channel={channel!}
+                onSave={(webhook) => save({ config: { webhook } }, false)}
+              />
+            )}
             <div className="flex items-center justify-between border-t border-border pt-3">
               <button className="text-xs text-ink-3 hover:text-ink-2" onClick={() => setEditing(true)}>
                 Change token{kind === "discord" ? " or channel" : ""}
@@ -233,7 +251,12 @@ function CredentialsForm({
         </Field>
         {kind === "discord" && (
           <Field label="Channel ID">
-            <input className="input font-mono" placeholder="123456789012345678" value={channelId} onChange={(e) => setChannelId(e.target.value)} />
+            <input
+              className="input font-mono"
+              placeholder="123456789012345678"
+              value={channelId}
+              onChange={(e) => setChannelId(e.target.value)}
+            />
           </Field>
         )}
       </div>
@@ -308,7 +331,13 @@ function Owners({ agent, channel, running, bot }: { agent: Agent; channel: Chann
       <div className="flex items-center justify-between">
         <span className="label">Paired phones</span>
         {!pairing && (
-          <Button variant="ghost" icon="plus" className="h-7 px-2" disabled={!running} onClick={() => startPairing(agent, channel)}>
+          <Button
+            variant="ghost"
+            icon="plus"
+            className="h-7 px-2"
+            disabled={!running}
+            onClick={() => startPairing(agent, channel)}
+          >
             Pair a phone
           </Button>
         )}
@@ -325,7 +354,9 @@ function Owners({ agent, channel, running, bot }: { agent: Agent; channel: Chann
             </button>
           </div>
           <div className="mt-2 flex items-end justify-between">
-            <code className="select-all font-mono text-2xl font-semibold tracking-[0.12em] text-ink">/pair {pairing.code}</code>
+            <code className="select-all font-mono text-2xl font-semibold tracking-[0.12em] text-ink">
+              /pair {pairing.code}
+            </code>
             <span className="font-mono text-xs text-ink-3">
               {Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}
             </span>
@@ -335,7 +366,9 @@ function Owners({ agent, channel, running, bot }: { agent: Agent; channel: Chann
 
       {owners.length === 0 && !pairing ? (
         <p className="text-xs text-ink-3">
-          {running ? "No phone paired yet — nobody can use this bot until you pair one." : "Start the bot, then pair your phone."}
+          {running
+            ? "No phone paired yet — nobody can use this bot until you pair one."
+            : "Start the bot, then pair your phone."}
         </p>
       ) : (
         <ul className="divide-y divide-border rounded-lg border border-border">
@@ -379,7 +412,12 @@ function DiscordWebhook({ agent, channel, onSave }: { agent: Agent; channel: Cha
       </summary>
       <div className="space-y-2 border-t border-border p-3">
         <Field label="Webhook URL" hint="Scheduled routines also post their results here.">
-          <input className="input font-mono" placeholder="https://discord.com/api/webhooks/…" value={webhook} onChange={(e) => setWebhook(e.target.value)} />
+          <input
+            className="input font-mono"
+            placeholder="https://discord.com/api/webhooks/…"
+            value={webhook}
+            onChange={(e) => setWebhook(e.target.value)}
+          />
         </Field>
         {note && <p className="text-xs text-ink-3">{note}</p>}
         <div className="flex justify-end gap-2">
@@ -413,7 +451,12 @@ function SetupGuide({ kind }: { kind: ChannelKind }) {
   const title = `Set up ${PROVIDER[kind].name}`;
   return (
     <>
-      <button className="btn-ghost h-7 px-1.5 text-ink-3" onClick={() => setOpen(true)} aria-label={`How to set up ${PROVIDER[kind].name}`} title={title}>
+      <button
+        className="btn-ghost h-7 px-1.5 text-ink-3"
+        onClick={() => setOpen(true)}
+        aria-label={`How to set up ${PROVIDER[kind].name}`}
+        title={title}
+      >
         <Icon name="info" size={15} />
       </button>
       <Modal open={open} onClose={() => setOpen(false)} title={title}>
@@ -421,20 +464,21 @@ function SetupGuide({ kind }: { kind: ChannelKind }) {
           {kind === "telegram" ? (
             <>
               <Step n={1}>
-                In Telegram, open <strong className="text-ink">@BotFather</strong> and send <code className="font-mono">/newbot</code>.
+                In Telegram, open <strong className="text-ink">@BotFather</strong> and send{" "}
+                <code className="font-mono">/newbot</code>.
               </Step>
               <Step n={2}>Pick a display name, then a username ending in “bot”.</Step>
               <Step n={3}>
-                Copy the token BotFather sends (<code className="font-mono">123456:ABC…</code>), paste it here, and press{" "}
-                <strong className="text-ink">Connect &amp; start</strong>.
+                Copy the token BotFather sends (<code className="font-mono">123456:ABC…</code>), paste it here, and
+                press <strong className="text-ink">Connect &amp; start</strong>.
               </Step>
               <Step n={4}>
-                Press <strong className="text-ink">Pair a phone</strong>, then send the <code className="font-mono">/pair</code> code to your bot
-                from Telegram. Only paired phones can use it.
+                Press <strong className="text-ink">Pair a phone</strong>, then send the{" "}
+                <code className="font-mono">/pair</code> code to your bot from Telegram. Only paired phones can use it.
               </Step>
               <Step n={5}>
-                Turn on <strong className="text-ink">Remote control</strong> if this agent should be able to act on this Mac. Every action
-                asks your phone first.
+                Turn on <strong className="text-ink">Remote control</strong> if this agent should be able to act on this
+                Mac. Every action asks your phone first.
               </Step>
             </>
           ) : (
@@ -447,19 +491,24 @@ function SetupGuide({ kind }: { kind: ChannelKind }) {
                 <strong className="text-ink">Message Content Intent</strong>.
               </Step>
               <Step n={3}>
-                In <strong className="text-ink">OAuth2 → URL Generator</strong> tick <em>bot</em> with <em>View Channels</em>,{" "}
-                <em>Send Messages</em>, <em>Attach Files</em>, <em>Read Message History</em>; open the URL to invite it.
+                In <strong className="text-ink">OAuth2 → URL Generator</strong> tick <em>bot</em> with{" "}
+                <em>View Channels</em>, <em>Send Messages</em>, <em>Attach Files</em>, <em>Read Message History</em>;
+                open the URL to invite it.
               </Step>
               <Step n={4}>
-                Enable Developer Mode (Settings → Advanced), right-click the channel → <strong className="text-ink">Copy Channel ID</strong>.
+                Enable Developer Mode (Settings → Advanced), right-click the channel →{" "}
+                <strong className="text-ink">Copy Channel ID</strong>.
               </Step>
               <Step n={5}>
                 Paste both here, <strong className="text-ink">Connect &amp; start</strong>, then pair: post the{" "}
-                <code className="font-mono">/pair</code> code in that channel. Approvals are answered by replying yes, trust or no.
+                <code className="font-mono">/pair</code> code in that channel. Approvals are answered by replying yes,
+                trust or no.
               </Step>
             </>
           )}
-          <p className="text-xs text-ink-3">Tokens stay on this device. They are removed from exported packs and backups.</p>
+          <p className="text-xs text-ink-3">
+            Tokens stay on this device. They are removed from exported packs and backups.
+          </p>
         </div>
       </Modal>
     </>

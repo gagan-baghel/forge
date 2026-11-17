@@ -26,7 +26,9 @@ function agent(partial: Partial<Agent>): Agent {
 
 describe("buildTools", () => {
   it("adds the current web_search tool for a Claude 5 model", () => {
-    const { defs } = buildTools(agent({ skills: [{ id: "s", name: "Web", kind: "web_search", description: "", enabled: true }] }));
+    const { defs } = buildTools(
+      agent({ skills: [{ id: "s", name: "Web", kind: "web_search", description: "", enabled: true }] }),
+    );
     expect(defs.some((d) => (d as any).type === "web_search_20260209")).toBe(true);
   });
 
@@ -57,7 +59,9 @@ describe("buildTools", () => {
   });
 
   it("ignores disabled skills", () => {
-    const { defs } = buildTools(agent({ skills: [{ id: "1", name: "HTTP", kind: "http", description: "", enabled: false }] }));
+    const { defs } = buildTools(
+      agent({ skills: [{ id: "1", name: "HTTP", kind: "http", description: "", enabled: false }] }),
+    );
     expect(defs).toHaveLength(0);
   });
 

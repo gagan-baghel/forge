@@ -29,7 +29,10 @@ function tokenize(s: string): string[] {
 }
 
 function chunk(text: string, size = 600): string[] {
-  const paras = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const paras = text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
   const out: string[] = [];
   let buf = "";
   for (const p of paras) {

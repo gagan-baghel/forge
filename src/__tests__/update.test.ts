@@ -46,7 +46,10 @@ describe("self-update", () => {
   });
 
   it("keeps the offer and explains when installing fails", async () => {
-    check.mockResolvedValue({ version: "1.0.1", downloadAndInstall: vi.fn(async () => Promise.reject(new Error("bad signature"))) });
+    check.mockResolvedValue({
+      version: "1.0.1",
+      downloadAndInstall: vi.fn(async () => Promise.reject(new Error("bad signature"))),
+    });
     await useUpdate.getState().check();
     await useUpdate.getState().install();
     expect(useUpdate.getState()).toMatchObject({ status: "available", error: "Update failed: bad signature" });

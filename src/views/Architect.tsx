@@ -69,8 +69,12 @@ function parseDraft(raw: string): Draft {
   const name = asString(o.name, "name", { max: 200 });
   return {
     name,
-    slug: asString(o.slug, "slug", { max: 120, fallback: "" }) ||
-      name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+    slug:
+      asString(o.slug, "slug", { max: 120, fallback: "" }) ||
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, ""),
     description: asString(o.description, "description", { max: 2000, fallback: "" }),
     emoji: asString(o.emoji, "emoji", { max: 16, fallback: "📦" }),
     color: /^#[0-9a-fA-F]{3,8}$/.test(String(o.color ?? "")) ? String(o.color) : "#D9703A",
@@ -148,7 +152,11 @@ export function ArchitectView() {
 
   return (
     <div>
-      <PageHeader back={{ to: "/gaps", label: "Packs" }} title="Architect" subtitle="Describe what you want — Claude designs a pack you can install" />
+      <PageHeader
+        back={{ to: "/gaps", label: "Packs" }}
+        title="Architect"
+        subtitle="Describe what you want — Claude designs a pack you can install"
+      />
       <PageBody className="max-w-3xl space-y-6">
         <Card className="space-y-4">
           <Field label="What should this pack do?">
@@ -161,11 +169,24 @@ export function ArchitectView() {
           </Field>
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs text-ink-3">Powered by Opus 4.8 · uses your API key</span>
-            <Button variant="primary" icon={busy ? undefined : "spark"} onClick={design} disabled={busy || !goal.trim()}>
-              {busy ? <><Spinner size={14} /> Designing…</> : "Design pack"}
+            <Button
+              variant="primary"
+              icon={busy ? undefined : "spark"}
+              onClick={design}
+              disabled={busy || !goal.trim()}
+            >
+              {busy ? (
+                <>
+                  <Spinner size={14} /> Designing…
+                </>
+              ) : (
+                "Design pack"
+              )}
             </Button>
           </div>
-          {error && <div className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>}
+          {error && (
+            <div className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</div>
+          )}
         </Card>
 
         {draft && (

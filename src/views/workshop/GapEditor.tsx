@@ -96,7 +96,9 @@ export function GapEditorView() {
             >
               <Icon name={s.icon} size={15} className={section === s.id ? "text-brand" : "text-ink-3"} />
               {s.label}
-              {s.id === "agents" && <span className="ml-auto font-mono text-[10px] text-ink-3">{gap.agents.length}</span>}
+              {s.id === "agents" && (
+                <span className="ml-auto font-mono text-[10px] text-ink-3">{gap.agents.length}</span>
+              )}
               {s.id === "mcp" && (gap.mcpServers?.length ?? 0) > 0 && (
                 <span className="ml-auto font-mono text-[10px] text-ink-3">{gap.mcpServers?.length}</span>
               )}
@@ -126,11 +128,7 @@ function IdentitySection({ gap }: { gap: Gap }) {
       <CardHeader title="Details" hint="How this pack appears in lists, the Marketplace and exported files." />
       <div className="grid grid-cols-1 gap-4">
         <Field label="Name">
-          <input
-            className="input"
-            value={gap.name}
-            onChange={(e) => updateGap(gap.id, { name: e.target.value })}
-          />
+          <input className="input" value={gap.name} onChange={(e) => updateGap(gap.id, { name: e.target.value })} />
         </Field>
       </div>
       <Field label="Description">
@@ -149,11 +147,7 @@ function IdentitySection({ gap }: { gap: Gap }) {
           />
         </Field>
         <Field label="Author">
-          <input
-            className="input"
-            value={gap.author}
-            onChange={(e) => updateGap(gap.id, { author: e.target.value })}
-          />
+          <input className="input" value={gap.author} onChange={(e) => updateGap(gap.id, { author: e.target.value })} />
         </Field>
       </div>
       <Field label="Tags" hint="Comma-separated.">
@@ -161,7 +155,12 @@ function IdentitySection({ gap }: { gap: Gap }) {
           className="input"
           value={gap.tags.join(", ")}
           onChange={(e) =>
-            updateGap(gap.id, { tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) })
+            updateGap(gap.id, {
+              tags: e.target.value
+                .split(",")
+                .map((t) => t.trim())
+                .filter(Boolean),
+            })
           }
         />
       </Field>
@@ -172,7 +171,10 @@ function IdentitySection({ gap }: { gap: Gap }) {
               key={c}
               onClick={() => updateGap(gap.id, { color: c })}
               aria-pressed={gap.color === c}
-              className={clsx("h-6 w-6 rounded-full ring-offset-2 ring-offset-surface", gap.color === c && "ring-2 ring-ink-2")}
+              className={clsx(
+                "h-6 w-6 rounded-full ring-offset-2 ring-offset-surface",
+                gap.color === c && "ring-2 ring-ink-2",
+              )}
               style={{ background: c }}
               aria-label={c}
             />
@@ -244,7 +246,13 @@ function AgentRow({ agent, tint }: { agent: Agent; tint: string }) {
         className="btn-ghost h-7 w-7 shrink-0 px-0 text-ink-3 hover:text-danger"
         aria-label={`Remove ${agent.name}`}
         onClick={async () => {
-          if (await confirm({ title: `Remove ${agent.name}?`, body: "The agent, its chats and its documents are deleted.", confirmLabel: "Remove" }))
+          if (
+            await confirm({
+              title: `Remove ${agent.name}?`,
+              body: "The agent, its chats and its documents are deleted.",
+              confirmLabel: "Remove",
+            })
+          )
             deleteAgent(agent.id);
         }}
       >
@@ -262,8 +270,7 @@ function McpSection({ gap }: { gap: Gap }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
   const update = (next: McpServer[]) => updateGap(gap.id, { mcpServers: next });
-  const patch = (id: string, p: Partial<McpServer>) =>
-    update(servers.map((s) => (s.id === id ? { ...s, ...p } : s)));
+  const patch = (id: string, p: Partial<McpServer>) => update(servers.map((s) => (s.id === id ? { ...s, ...p } : s)));
 
   const add = () => {
     const server: McpServer = { id: nanoid(8), name: "", transport: "stdio", command: "", args: [], enabled: true };
@@ -279,7 +286,8 @@ function McpSection({ gap }: { gap: Gap }) {
           hint={
             <>
               Model Context Protocol servers mounted for every agent in this pack. On the Claude Code runtime the CLI
-              spawns/connects them and their tools become available as <code className="font-mono">mcp__&lt;server&gt;__*</code>.
+              spawns/connects them and their tools become available as{" "}
+              <code className="font-mono">mcp__&lt;server&gt;__*</code>.
             </>
           }
           action={
@@ -289,7 +297,9 @@ function McpSection({ gap }: { gap: Gap }) {
           }
         />
         {servers.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-ink-3">No MCP servers yet.</p>
+          <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-ink-3">
+            No MCP servers yet.
+          </p>
         ) : (
           <div className="divide-y divide-border rounded-lg border border-border">
             {servers.map((s) => {
@@ -305,13 +315,21 @@ function McpSection({ gap }: { gap: Gap }) {
                     <span className="flex-1 truncate font-mono text-[13px]">{s.name || "unnamed server"}</span>
                     <Badge>{s.transport}</Badge>
                     <Badge tone={s.enabled ? "success" : "neutral"}>{s.enabled ? "enabled" : "off"}</Badge>
-                    <Icon name="chevron" size={14} className={clsx("text-ink-3 transition-transform", open && "rotate-90")} />
+                    <Icon
+                      name="chevron"
+                      size={14}
+                      className={clsx("text-ink-3 transition-transform", open && "rotate-90")}
+                    />
                   </button>
                   {open && (
                     <div className="space-y-3 border-t border-border bg-surface-2/30 p-3.5">
                       <div className="grid grid-cols-2 gap-3">
                         <Field label="Name" hint="Tool namespace, e.g. github.">
-                          <input className="input font-mono" value={s.name} onChange={(e) => patch(s.id, { name: e.target.value })} />
+                          <input
+                            className="input font-mono"
+                            value={s.name}
+                            onChange={(e) => patch(s.id, { name: e.target.value })}
+                          />
                         </Field>
                         <Field label="Transport">
                           <select
@@ -327,7 +345,11 @@ function McpSection({ gap }: { gap: Gap }) {
                       {s.transport === "stdio" ? (
                         <>
                           <Field label="Command" hint="Executable to spawn, e.g. npx.">
-                            <input className="input font-mono" value={s.command ?? ""} onChange={(e) => patch(s.id, { command: e.target.value })} />
+                            <input
+                              className="input font-mono"
+                              value={s.command ?? ""}
+                              onChange={(e) => patch(s.id, { command: e.target.value })}
+                            />
                           </Field>
                           <Field label="Arguments" hint="Space-separated, e.g. -y @modelcontextprotocol/server-github.">
                             <input
@@ -345,7 +367,11 @@ function McpSection({ gap }: { gap: Gap }) {
                         </>
                       ) : (
                         <Field label="URL" hint="Remote MCP endpoint.">
-                          <input className="input font-mono" value={s.url ?? ""} onChange={(e) => patch(s.id, { url: e.target.value })} />
+                          <input
+                            className="input font-mono"
+                            value={s.url ?? ""}
+                            onChange={(e) => patch(s.id, { url: e.target.value })}
+                          />
                         </Field>
                       )}
                       <div className="flex items-center justify-between border-t border-border pt-3">
@@ -354,7 +380,13 @@ function McpSection({ gap }: { gap: Gap }) {
                           variant="danger"
                           icon="trash"
                           onClick={async () => {
-                            if (await confirm({ title: `Remove MCP server "${s.name || "unnamed"}"?`, confirmLabel: "Remove" })) update(servers.filter((x) => x.id !== s.id));
+                            if (
+                              await confirm({
+                                title: `Remove MCP server "${s.name || "unnamed"}"?`,
+                                confirmLabel: "Remove",
+                              })
+                            )
+                              update(servers.filter((x) => x.id !== s.id));
                           }}
                         >
                           Remove
@@ -381,7 +413,10 @@ function EnvironmentSection({ gap }: { gap: Gap }) {
   const updateGap = useGaps((s) => s.updateGap);
   return (
     <Card>
-      <CardHeader title="Environment" hint="Variables injected into this pack's Claude Code runs and its MCP servers. Stored locally with the pack." />
+      <CardHeader
+        title="Environment"
+        hint="Variables injected into this pack's Claude Code runs and its MCP servers. Stored locally with the pack."
+      />
       <EnvRows label="Variables" env={gap.env ?? {}} onChange={(env) => updateGap(gap.id, { env })} />
     </Card>
   );
@@ -400,9 +435,7 @@ function EnvRows({
   onChange: (env: Record<string, string>) => void;
 }) {
   // Local row state so keys can be edited without immediately re-keying the map.
-  const [rows, setRows] = useState<{ k: string; v: string }[]>(() =>
-    Object.entries(env).map(([k, v]) => ({ k, v })),
-  );
+  const [rows, setRows] = useState<{ k: string; v: string }[]>(() => Object.entries(env).map(([k, v]) => ({ k, v })));
 
   const commit = (next: { k: string; v: string }[]) => {
     setRows(next);
@@ -509,13 +542,17 @@ function AdvancedSection({ gap }: { gap: Gap }) {
       <Card>
         <CardHeader title="Share" hint="Hand this pack to anyone as a file or a share code." />
         <div className="flex gap-2">
-          <Button className="flex-1" icon="download" onClick={async () => {
+          <Button
+            className="flex-1"
+            icon="download"
+            onClick={async () => {
               try {
                 await downloadGap(gap);
               } catch (e) {
                 notify("Export failed", (e as Error).message);
               }
-            }}>
+            }}
+          >
             Export .gap file
           </Button>
           <Button
@@ -539,7 +576,12 @@ function AdvancedSection({ gap }: { gap: Gap }) {
             variant="danger"
             icon="trash"
             onClick={async () => {
-              if (await confirm({ title: `Delete "${gap.name}"?`, body: `This pack and its ${gap.agents.length} agent(s), with their chats and knowledge, are deleted.` })) {
+              if (
+                await confirm({
+                  title: `Delete "${gap.name}"?`,
+                  body: `This pack and its ${gap.agents.length} agent(s), with their chats and knowledge, are deleted.`,
+                })
+              ) {
                 deleteGap(gap.id);
                 navigate("/workshop");
               }

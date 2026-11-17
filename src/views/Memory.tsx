@@ -135,7 +135,12 @@ export function MemoryView() {
                         <Button variant="ghost" className="h-7 px-2 text-xs" onClick={() => reject(n.id)}>
                           Discard
                         </Button>
-                        <Button variant="primary" icon="check" className="h-7 px-2 text-xs" onClick={() => approve(n.id)}>
+                        <Button
+                          variant="primary"
+                          icon="check"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => approve(n.id)}
+                        >
                           Keep
                         </Button>
                       </div>
@@ -145,7 +150,9 @@ export function MemoryView() {
               </section>
             )}
 
-            {visible.length === 0 && query && <p className="py-6 text-[13px] text-ink-3">No memories match “{query}”.</p>}
+            {visible.length === 0 && query && (
+              <p className="py-6 text-[13px] text-ink-3">No memories match “{query}”.</p>
+            )}
 
             {visible.map((pool) => (
               <section key={pool.key}>
@@ -162,7 +169,14 @@ export function MemoryView() {
                     variant="ghost"
                     className="h-7 px-2 text-xs hover:text-danger"
                     onClick={async () => {
-                      if (await confirm({ title: `Forget everything ${pool.title} remembers?`, body: `All ${pool.notes.length} memories are deleted. This can't be undone.`, confirmLabel: "Forget all" })) clearAgent(pool.key);
+                      if (
+                        await confirm({
+                          title: `Forget everything ${pool.title} remembers?`,
+                          body: `All ${pool.notes.length} memories are deleted. This can't be undone.`,
+                          confirmLabel: "Forget all",
+                        })
+                      )
+                        clearAgent(pool.key);
                     }}
                   >
                     Forget all

@@ -73,7 +73,12 @@ describe("structured outputs", () => {
   it("carries a schema even on a model with no effort support", async () => {
     const spy = mockStreamingFetch([textTurn("ok")]);
     await streamChat(
-      { ...base, model: "some-unknown-model" as any, messages: msgs, outputConfig: { format: { type: "json_schema", schema: {} } } },
+      {
+        ...base,
+        model: "some-unknown-model" as any,
+        messages: msgs,
+        outputConfig: { format: { type: "json_schema", schema: {} } },
+      },
       { onText: () => {} },
     );
     const oc = bodyOf(spy).output_config;

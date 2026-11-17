@@ -6,14 +6,7 @@
  * set turns "12 failures" into "9 rate limits and 3 timeouts", which is the
  * difference between knowing something broke and knowing what to do.
  */
-export type ErrorKind =
-  | "timeout"
-  | "rate_limit"
-  | "auth"
-  | "network"
-  | "malformed"
-  | "cancelled"
-  | "other";
+export type ErrorKind = "timeout" | "rate_limit" | "auth" | "network" | "malformed" | "cancelled" | "other";
 
 export function classifyError(err: unknown): ErrorKind {
   const e = err as { name?: string; message?: string } | undefined;

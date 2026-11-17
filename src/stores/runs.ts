@@ -40,9 +40,7 @@ export const useRuns = create<RunStore>()(
       },
       finishRun: (id, patch) =>
         set((s) => ({
-          runs: s.runs.map((r) =>
-            r.id === id ? { ...r, ...patch, endedAt: Date.now() } : r,
-          ),
+          runs: s.runs.map((r) => (r.id === id ? { ...r, ...patch, endedAt: Date.now() } : r)),
         })),
       clear: () => set({ runs: [] }),
     }),

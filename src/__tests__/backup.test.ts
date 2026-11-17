@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { collectBackup, applyBackup } from "@/lib/backup";
 
-const settings = (extra: Record<string, unknown>) =>
-  JSON.stringify({ state: { theme: "dusk", ...extra }, version: 0 });
+const settings = (extra: Record<string, unknown>) => JSON.stringify({ state: { theme: "dusk", ...extra }, version: 0 });
 
 beforeEach(() => localStorage.clear());
 

@@ -20,8 +20,7 @@ export const useRoutines = create<RoutineStore>()(
         set((s) => ({ routines: [routine, ...s.routines] }));
         return routine;
       },
-      update: (id, patch) =>
-        set((s) => ({ routines: s.routines.map((r) => (r.id === id ? { ...r, ...patch } : r)) })),
+      update: (id, patch) => set((s) => ({ routines: s.routines.map((r) => (r.id === id ? { ...r, ...patch } : r)) })),
       remove: (id) => set((s) => ({ routines: s.routines.filter((r) => r.id !== id) })),
       toggle: (id) => {
         const r = get().routines.find((x) => x.id === id);

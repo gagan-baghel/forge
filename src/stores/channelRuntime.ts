@@ -55,7 +55,7 @@ interface ChannelRuntimeStore {
 
 const ACTIVITY_CAP = 200;
 
-const without = <T,>(rec: Record<string, T>, key: string) => {
+const without = <T>(rec: Record<string, T>, key: string) => {
   const next = { ...rec };
   delete next[key];
   return next;

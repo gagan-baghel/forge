@@ -44,9 +44,7 @@ function friendlyCcError(raw: string): string {
   return raw;
 }
 
-type InstallEvent =
-  | { kind: "line"; text: string }
-  | { kind: "done"; info: ClaudeCodeInfo; error: string | null };
+type InstallEvent = { kind: "line"; text: string } | { kind: "done"; info: ClaudeCodeInfo; error: string | null };
 
 /**
  * Install the Claude Code CLI from inside the app (desktop only). Streams
@@ -143,10 +141,7 @@ export interface ClaudeCodeResult {
 }
 
 /** Run one turn through the CLI, streaming text deltas. */
-export async function streamClaudeCode(
-  req: ClaudeCodeRequest,
-  cb: ClaudeCodeCallbacks,
-): Promise<ClaudeCodeResult> {
+export async function streamClaudeCode(req: ClaudeCodeRequest, cb: ClaudeCodeCallbacks): Promise<ClaudeCodeResult> {
   if (!isDesktop()) {
     throw new Error("Claude Code runtime needs the desktop app (the CLI runs on your machine).");
   }
@@ -178,40 +173,42 @@ export async function streamClaudeCode(
     }
 
     initBridge()
-      .then(() => listen<CcEvent>("cc://event", (e) => {
-      const ev = e.payload;
-      if (ev.run_id !== runId) return;
-      if (ev.kind === "text") {
-        cb.onText(ev.text);
-      } else if (ev.kind === "tool") {
-        // Bridged tools report themselves (with richer detail) from bridge.ts.
-        if (ev.name.startsWith("mcp__forge__")) return;
-        if (ev.name) toolNames.set(ev.id, ev.name);
-        const name = ev.name || toolNames.get(ev.id) || "tool";
-        if (name.startsWith("mcp__forge__")) return;
-        cb.onTool?.({
-          id: ev.id,
-          name,
-          input: ev.input ?? undefined,
-          output: ev.output ?? undefined,
-          status: ev.status,
-        });
-      } else if (ev.kind === "done") {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        if (ev.error) {
-          reject(new Error(friendlyCcError(ev.error)));
-        } else {
-          resolve({
-            text: ev.text,
-            sessionId: ev.session_id,
-            inputTokens: ev.input_tokens,
-            outputTokens: ev.output_tokens,
-          });
-        }
-      }
-    }))
+      .then(() =>
+        listen<CcEvent>("cc://event", (e) => {
+          const ev = e.payload;
+          if (ev.run_id !== runId) return;
+          if (ev.kind === "text") {
+            cb.onText(ev.text);
+          } else if (ev.kind === "tool") {
+            // Bridged tools report themselves (with richer detail) from bridge.ts.
+            if (ev.name.startsWith("mcp__forge__")) return;
+            if (ev.name) toolNames.set(ev.id, ev.name);
+            const name = ev.name || toolNames.get(ev.id) || "tool";
+            if (name.startsWith("mcp__forge__")) return;
+            cb.onTool?.({
+              id: ev.id,
+              name,
+              input: ev.input ?? undefined,
+              output: ev.output ?? undefined,
+              status: ev.status,
+            });
+          } else if (ev.kind === "done") {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            if (ev.error) {
+              reject(new Error(friendlyCcError(ev.error)));
+            } else {
+              resolve({
+                text: ev.text,
+                sessionId: ev.session_id,
+                inputTokens: ev.input_tokens,
+                outputTokens: ev.output_tokens,
+              });
+            }
+          }
+        }),
+      )
       .then((un) => {
         unlisten = un;
         if (cb.signal?.aborted) return onAbort();

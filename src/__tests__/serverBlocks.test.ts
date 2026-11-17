@@ -18,10 +18,22 @@ function searchTurn(stop: string) {
     { type: "content_block_delta", index: 0, delta: { type: "thinking_delta", thinking: "plan" } },
     { type: "content_block_delta", index: 0, delta: { type: "signature_delta", signature: "sig" } },
     { type: "content_block_stop", index: 0 },
-    { type: "content_block_start", index: 1, content_block: { type: "server_tool_use", id: "srv_1", name: "web_search", input: {} } },
+    {
+      type: "content_block_start",
+      index: 1,
+      content_block: { type: "server_tool_use", id: "srv_1", name: "web_search", input: {} },
+    },
     { type: "content_block_delta", index: 1, delta: { type: "input_json_delta", partial_json: '{"query":"x"}' } },
     { type: "content_block_stop", index: 1 },
-    { type: "content_block_start", index: 2, content_block: { type: "web_search_tool_result", tool_use_id: "srv_1", content: [{ type: "web_search_result", url: "u" }] } },
+    {
+      type: "content_block_start",
+      index: 2,
+      content_block: {
+        type: "web_search_tool_result",
+        tool_use_id: "srv_1",
+        content: [{ type: "web_search_result", url: "u" }],
+      },
+    },
     { type: "content_block_stop", index: 2 },
     { type: "content_block_start", index: 3, content_block: { type: "text", text: "" } },
     { type: "content_block_delta", index: 3, delta: { type: "text_delta", text: "part one. " } },
@@ -74,7 +86,13 @@ describe("agent loop", () => {
 describe("pruneImages", () => {
   const img = { type: "image", source: { type: "base64", media_type: "image/png", data: "x" } };
   const step = (id: string) => [
-    { role: "assistant", content: [{ type: "thinking", thinking: "t", signature: "s" }, { type: "tool_use", id, name: "screenshot", input: {} }] },
+    {
+      role: "assistant",
+      content: [
+        { type: "thinking", thinking: "t", signature: "s" },
+        { type: "tool_use", id, name: "screenshot", input: {} },
+      ],
+    },
     { role: "user", content: [{ type: "tool_result", tool_use_id: id, content: [img] }] },
   ];
 
@@ -99,8 +117,7 @@ describe("pruneImages", () => {
 
 describe("new tools", () => {
   const skill = (kind: any) => ({ id: kind, name: kind, kind, description: "", enabled: true });
-  const mk = (model: any, kinds: string[]) =>
-    ({ model, skills: kinds.map(skill), connectors: [] }) as unknown as Agent;
+  const mk = (model: any, kinds: string[]) => ({ model, skills: kinds.map(skill), connectors: [] }) as unknown as Agent;
   const types = (a: Agent) => buildTools(a).defs.map((d: any) => d.type ?? d.name);
 
   it("pairs web search with full-page fetch at the matching version", () => {

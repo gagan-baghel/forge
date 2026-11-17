@@ -124,9 +124,11 @@ export function initBridge(): Promise<void> {
       } catch (err: any) {
         reply = { content: [{ type: "text", text: `Error: ${err?.message ?? err}` }], isError: true };
       }
-      await invoke("bridge_respond", { callId: e.payload.call_id, content: reply.content, isError: reply.isError }).catch(
-        () => {},
-      );
+      await invoke("bridge_respond", {
+        callId: e.payload.call_id,
+        content: reply.content,
+        isError: reply.isError,
+      }).catch(() => {});
     });
   })();
   return listening;

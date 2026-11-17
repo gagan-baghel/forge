@@ -17,9 +17,7 @@ describe("history windowing", () => {
   });
 
   it("drops the oldest turns once the budget is exceeded", () => {
-    const h = Array.from({ length: 40 }, (_, i) =>
-      msg(i % 2 === 0 ? "user" : "assistant", "x".repeat(400), i),
-    );
+    const h = Array.from({ length: 40 }, (_, i) => msg(i % 2 === 0 ? "user" : "assistant", "x".repeat(400), i));
     // 40 × 400 chars = 16k chars; a 1k-token (4k-char) budget must trim.
     const kept = windowHistory(h, 1_000);
     expect(kept.length).toBeGreaterThan(0);
@@ -30,9 +28,7 @@ describe("history windowing", () => {
 
   it("always opens on a user turn — the API rejects anything else", () => {
     // Real histories end on the user's newest message.
-    const h = Array.from({ length: 21 }, (_, i) =>
-      msg(i % 2 === 0 ? "user" : "assistant", "y".repeat(500), i),
-    );
+    const h = Array.from({ length: 21 }, (_, i) => msg(i % 2 === 0 ? "user" : "assistant", "y".repeat(500), i));
     for (const budget of [200, 500, 1_000, 2_000, 100_000]) {
       const kept = windowHistory(h, budget);
       expect(kept.length, `budget ${budget}`).toBeGreaterThan(0);

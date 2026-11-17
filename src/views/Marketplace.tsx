@@ -40,7 +40,12 @@ export function MarketplaceView() {
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative mr-1 w-64">
             <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
-            <input className="input pl-8" placeholder="Search packs…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input
+              className="input pl-8"
+              placeholder="Search packs…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
           </div>
           {categories.map((c) => (
             <button

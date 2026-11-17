@@ -10,7 +10,16 @@ describe("runs persist migration", () => {
       JSON.stringify({
         state: {
           runs: [
-            { id: "a", agentId: "x", agentName: "Old", status: "success", startedAt: 1, endedAt: 2, tokensIn: 10, tokensOut: 20 },
+            {
+              id: "a",
+              agentId: "x",
+              agentName: "Old",
+              status: "success",
+              startedAt: 1,
+              endedAt: 2,
+              tokensIn: 10,
+              tokensOut: 20,
+            },
           ],
         },
         version: 0,

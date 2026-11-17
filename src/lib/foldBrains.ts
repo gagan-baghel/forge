@@ -49,7 +49,8 @@ export function foldBrainsIntoAgents(storage: Storage = localStorage): number {
       if (brain.maxTokens !== undefined) patch.maxTokens = brain.maxTokens;
       if (brain.systemAppend?.trim()) patch.systemPrompt = `${agent.systemPrompt}\n\n${brain.systemAppend.trim()}`;
       // Fresh ids: the same brain document now lives on several agents.
-      if (brain.knowledge?.length) patch.knowledge = [...agent.knowledge, ...brain.knowledge.map((d) => ({ ...d, id: nanoid(8) }))];
+      if (brain.knowledge?.length)
+        patch.knowledge = [...agent.knowledge, ...brain.knowledge.map((d) => ({ ...d, id: nanoid(8) }))];
       if (brain.reviewLearning) patch.reviewMemory = true;
     }
     gaps.updateAgent(agent.id, patch);

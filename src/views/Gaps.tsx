@@ -16,11 +16,14 @@ export function GapsView() {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
 
-
   // Imported MCP servers arrive switched off; say so, or they look broken.
   const noteDisabledServers = (gap: Gap) => {
     const n = gap.mcpServers?.length ?? 0;
-    if (n) notify("Review before enabling", `${n} MCP server${n === 1 ? "" : "s"} in this pack run commands on your Mac. They're off until you check and enable them in the pack editor.`);
+    if (n)
+      notify(
+        "Review before enabling",
+        `${n} MCP server${n === 1 ? "" : "s"} in this pack run commands on your Mac. They're off until you check and enable them in the pack editor.`,
+      );
   };
 
   const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,7 +123,6 @@ export function GapsView() {
           </div>
         )}
       </PageBody>
-
     </div>
   );
 }

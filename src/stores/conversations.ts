@@ -68,10 +68,7 @@ export const useConversations = create<ConversationStore>()(
                   ...c,
                   messages: [...c.messages, msg],
                   // First user message becomes the title.
-                  title:
-                    c.messages.length === 0 && msg.role === "user"
-                      ? msg.content.slice(0, 48)
-                      : c.title,
+                  title: c.messages.length === 0 && msg.role === "user" ? msg.content.slice(0, 48) : c.title,
                   updatedAt: Date.now(),
                 }
               : c,
@@ -101,8 +98,7 @@ export const useConversations = create<ConversationStore>()(
           conversations: s.conversations.map((c) => (c.id === convId ? { ...c, title } : c)),
         })),
 
-      remove: (convId) =>
-        set((s) => ({ conversations: s.conversations.filter((c) => c.id !== convId) })),
+      remove: (convId) => set((s) => ({ conversations: s.conversations.filter((c) => c.id !== convId) })),
     }),
     { name: "forge.conversations" },
   ),

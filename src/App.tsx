@@ -62,7 +62,10 @@ export function App() {
   useEffect(() => {
     const media = window.matchMedia?.("(prefers-color-scheme: light)");
     const apply = () =>
-      document.documentElement.setAttribute("data-theme", theme === "system" ? (media?.matches ? "paper" : "dusk") : theme);
+      document.documentElement.setAttribute(
+        "data-theme",
+        theme === "system" ? (media?.matches ? "paper" : "dusk") : theme,
+      );
     apply();
     if (theme !== "system" || !media?.addEventListener) return;
     media.addEventListener("change", apply);

@@ -13,7 +13,14 @@ import type { Agent, ChatMessage } from "@/types/domain";
 import { CHARS_PER_TOKEN, HISTORY_TOKEN_BUDGET } from "./aiConfig";
 import { costFor, streamMessage, type ApiContent, type ApiMessage } from "./claude";
 import { streamClaudeCode } from "./claudeCode";
-import { buildCliBridgeTools, buildTools, cliResultIsUntrusted, runTool, type ToolContext, type ToolOutput } from "./tools";
+import {
+  buildCliBridgeTools,
+  buildTools,
+  cliResultIsUntrusted,
+  runTool,
+  type ToolContext,
+  type ToolOutput,
+} from "./tools";
 import { newTurn, type ChannelRef } from "./approval";
 import type { ToolResultBlock } from "./claude";
 import { retrieveAsync } from "./knowledge";
@@ -61,17 +68,7 @@ export interface AgentTurnOpts {
  * tools its parent gave up, and WebFetch is an exfiltration path — denying
  * Read alone just makes the model reach for the next one along.
  */
-const CLI_MACHINE_TOOLS = [
-  "Bash",
-  "Read",
-  "Write",
-  "Edit",
-  "NotebookEdit",
-  "Grep",
-  "Glob",
-  "Task",
-  "WebFetch",
-];
+const CLI_MACHINE_TOOLS = ["Bash", "Read", "Write", "Edit", "NotebookEdit", "Grep", "Glob", "Task", "WebFetch"];
 
 export interface AgentTurnResult {
   text: string;
@@ -331,7 +328,13 @@ export async function runAgentTurn(
       opts.onTool?.({ id: tu.id, name: tu.name, input: tu.input, status: "running" });
       const out = await runTool(tu.name, tu.input, executors, ctx);
       const text = typeof out === "string" ? out : out.text;
-      opts.onTool?.({ id: tu.id, name: tu.name, input: tu.input, output: text, status: text.startsWith("Error") ? "error" : "done" });
+      opts.onTool?.({
+        id: tu.id,
+        name: tu.name,
+        input: tu.input,
+        output: text,
+        status: text.startsWith("Error") ? "error" : "done",
+      });
       results.push({ type: "tool_result", tool_use_id: tu.id, content: toResultContent(out) });
     }
     messages.push({ role: "user", content: results });
@@ -352,9 +355,7 @@ export async function runAgentHeadless(
     channel?: ChannelRef;
   },
 ): Promise<AgentTurnResult> {
-  const history: ChatMessage[] = [
-    { id: "u", role: "user", content: userText, createdAt: Date.now() },
-  ];
+  const history: ChatMessage[] = [{ id: "u", role: "user", content: userText, createdAt: Date.now() }];
   return runAgentTurn(agent, history, {
     onText: opts?.onText ?? (() => {}),
     signal: opts?.signal,

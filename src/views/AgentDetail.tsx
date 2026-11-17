@@ -4,7 +4,19 @@ import clsx from "clsx";
 import { useGaps } from "@/stores/gaps";
 import { useRuns } from "@/stores/runs";
 import { MODELS, type Agent, type Connector, type Skill } from "@/types/domain";
-import { Avatar, Button, Card, CardHeader, Badge, EmptyState, Field, StatusDot, Spinner, Tabs, Toggle } from "@/components/ui";
+import {
+  Avatar,
+  Button,
+  Card,
+  CardHeader,
+  Badge,
+  EmptyState,
+  Field,
+  StatusDot,
+  Spinner,
+  Tabs,
+  Toggle,
+} from "@/components/ui";
 import { PageBody } from "@/components/Shell";
 import { Icon } from "@/components/Icon";
 import { Chat } from "./agent/Chat";
@@ -47,13 +59,19 @@ export function AgentDetailView() {
   if (!found) {
     return (
       <PageBody>
-        <EmptyState icon="agents" title="Agent not found" action={<Button onClick={() => navigate("/agents")}>Back to agents</Button>} />
+        <EmptyState
+          icon="agents"
+          title="Agent not found"
+          action={<Button onClick={() => navigate("/agents")}>Back to agents</Button>}
+        />
       </PageBody>
     );
   }
   const { agent, gap } = found;
   const bots = agent.channels.filter((c) => (c.kind === "telegram" || c.kind === "discord") && c.token).length;
-  const tabs = TABS.map((t) => (t.id === "skills" ? { ...t, count: agent.skills.length + agent.connectors.length } : t));
+  const tabs = TABS.map((t) =>
+    t.id === "skills" ? { ...t, count: agent.skills.length + agent.connectors.length } : t,
+  );
   const paused = agent.status === "paused";
 
   return (
@@ -78,7 +96,9 @@ export function AgentDetailView() {
           <Link
             to={`/remote?agent=${agent.id}`}
             className="btn-outline gap-2"
-            title={bots ? "Reachable from your phone — manage on the Remote page" : "Set up phone access on the Remote page"}
+            title={
+              bots ? "Reachable from your phone — manage on the Remote page" : "Set up phone access on the Remote page"
+            }
           >
             <Icon name="phone" size={14} className={bots ? "text-success" : "text-ink-3"} />
             {bots ? "On your phone" : "Add to phone"}
@@ -87,7 +107,11 @@ export function AgentDetailView() {
             role="switch"
             aria-checked={!paused}
             onClick={() => updateAgent(agent.id, { status: paused ? "active" : "paused" })}
-            title={paused ? "Paused: schedules don't run and phone messages are declined" : "Active: runs its schedules and answers your phone"}
+            title={
+              paused
+                ? "Paused: schedules don't run and phone messages are declined"
+                : "Active: runs its schedules and answers your phone"
+            }
             className="btn-outline gap-2"
           >
             <StatusDot status={agent.status} pulse={!paused && bots > 0} />
@@ -164,10 +188,18 @@ function ConfigTab({ agent }: { agent: Agent }) {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Field label="Name">
-              <input className="input" value={agent.name} onChange={(e) => updateAgent(agent.id, { name: e.target.value })} />
+              <input
+                className="input"
+                value={agent.name}
+                onChange={(e) => updateAgent(agent.id, { name: e.target.value })}
+              />
             </Field>
             <Field label="Role">
-              <input className="input" value={agent.role} onChange={(e) => updateAgent(agent.id, { role: e.target.value })} />
+              <input
+                className="input"
+                value={agent.role}
+                onChange={(e) => updateAgent(agent.id, { role: e.target.value })}
+              />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -276,17 +308,32 @@ function SkillsTab({ agent }: { agent: Agent }) {
 
   return (
     <div className="space-y-6">
-      <ListCard title="Enabled skills" hint={`${agent.skills.length} installed`} empty={agent.skills.length === 0 && "No skills yet. Add one below."}>
+      <ListCard
+        title="Enabled skills"
+        hint={`${agent.skills.length} installed`}
+        empty={agent.skills.length === 0 && "No skills yet. Add one below."}
+      >
         {agent.skills.map((s) => (
           <li key={s.id} className={ROW}>
             <div className="min-w-0 flex-1">
-              <Toggle checked={s.enabled} onChange={() => toggleSkill(agent.id, s.id)} label={s.name} description={s.description} />
+              <Toggle
+                checked={s.enabled}
+                onChange={() => toggleSkill(agent.id, s.id)}
+                label={s.name}
+                description={s.description}
+              />
             </div>
             <button
               className={ICON_BTN}
               aria-label={`Remove skill ${s.name}`}
               onClick={async () => {
-                if (await confirm({ title: `Remove "${s.name}"?`, body: "The agent loses this ability on its next turn.", confirmLabel: "Remove" }))
+                if (
+                  await confirm({
+                    title: `Remove "${s.name}"?`,
+                    body: "The agent loses this ability on its next turn.",
+                    confirmLabel: "Remove",
+                  })
+                )
                   removeSkill(agent.id, s.id);
               }}
             >
@@ -303,7 +350,9 @@ function SkillsTab({ agent }: { agent: Agent }) {
             <button
               key={k.kind}
               disabled={owned.has(k.kind) && k.kind !== "custom"}
-              onClick={() => addSkill(agent.id, { name: k.label, kind: k.kind, description: k.description, enabled: true })}
+              onClick={() =>
+                addSkill(agent.id, { name: k.label, kind: k.kind, description: k.description, enabled: true })
+              }
               className="rounded-lg border border-border px-3 py-2.5 text-left transition-colors hover:border-border-strong hover:bg-surface-2/50 disabled:opacity-40"
             >
               <div className="flex items-center gap-1.5 text-[13px] font-medium">
@@ -352,7 +401,12 @@ function DocumentsSection({ agent }: { agent: Agent }) {
             className={ICON_BTN}
             aria-label={`Delete document ${d.title}`}
             onClick={async () => {
-              if (await confirm({ title: `Delete "${d.title}"?`, body: "The document is removed from this agent's knowledge. This cannot be undone." }))
+              if (
+                await confirm({
+                  title: `Delete "${d.title}"?`,
+                  body: "The document is removed from this agent's knowledge. This cannot be undone.",
+                })
+              )
                 removeKnowledge(agent.id, d.id);
             }}
           >
@@ -399,7 +453,11 @@ async function validateConnector(provider: Connector["provider"], token: string)
       const r = await httpFetch({
         method: "POST",
         url: "https://api.notion.com/v1/search",
-        headers: { Authorization: `Bearer ${token}`, "Notion-Version": "2022-06-28", "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Notion-Version": "2022-06-28",
+          "Content-Type": "application/json",
+        },
         body: "{}",
       });
       return r.ok ? null : `Notion rejected the token (HTTP ${r.status}).`;
@@ -456,7 +514,13 @@ function ConnectionsTab({ agent }: { agent: Agent }) {
               className={ICON_BTN}
               aria-label={`Disconnect ${c.label}`}
               onClick={async () => {
-                if (await confirm({ title: `Disconnect ${c.label}?`, body: "Its stored token is deleted and the agent loses the tool.", confirmLabel: "Disconnect" }))
+                if (
+                  await confirm({
+                    title: `Disconnect ${c.label}?`,
+                    body: "Its stored token is deleted and the agent loses the tool.",
+                    confirmLabel: "Disconnect",
+                  })
+                )
                   removeConnector(agent.id, c.id);
               }}
             >
@@ -466,7 +530,10 @@ function ConnectionsTab({ agent }: { agent: Agent }) {
         ))}
       </ListCard>
 
-      <ListCard title="Connect a service" hint="Tokens are validated against the live API and stored only on this device.">
+      <ListCard
+        title="Connect a service"
+        hint="Tokens are validated against the live API and stored only on this device."
+      >
         {CONNECTORS.map((c) => {
           const connected = owned.has(c.provider);
           const open = active === c.provider;
@@ -486,7 +553,11 @@ function ConnectionsTab({ agent }: { agent: Agent }) {
                 {connected ? (
                   <Badge tone="success">connected</Badge>
                 ) : (
-                  <Icon name="chevron" size={14} className={clsx("text-ink-3 transition-transform", open && "rotate-90")} />
+                  <Icon
+                    name="chevron"
+                    size={14}
+                    className={clsx("text-ink-3 transition-transform", open && "rotate-90")}
+                  />
                 )}
               </button>
               {open && !connected && (
@@ -500,7 +571,11 @@ function ConnectionsTab({ agent }: { agent: Agent }) {
                       value={token}
                       onChange={(e) => setToken(e.target.value)}
                     />
-                    <Button variant="primary" onClick={() => connect(c.provider, c.label)} disabled={busy || !token.trim()}>
+                    <Button
+                      variant="primary"
+                      onClick={() => connect(c.provider, c.label)}
+                      disabled={busy || !token.trim()}
+                    >
                       {busy ? <Spinner size={14} /> : "Validate & connect"}
                     </Button>
                   </div>
@@ -535,7 +610,8 @@ function MemorySection({ agent }: { agent: Agent }) {
   const selfSaving = !!skill?.enabled;
   const setSelfSaving = (on: boolean) => {
     if (skill) toggleSkill(agent.id, skill.id);
-    else if (on) addSkill(agent.id, { name: "Memory", kind: "memory", description: "Save facts to remember", enabled: true });
+    else if (on)
+      addSkill(agent.id, { name: "Memory", kind: "memory", description: "Save facts to remember", enabled: true });
   };
 
   return (
@@ -549,7 +625,13 @@ function MemorySection({ agent }: { agent: Agent }) {
               variant="ghost"
               className="hover:text-danger"
               onClick={async () => {
-                if (await confirm({ title: `Forget everything ${agent.name} remembers?`, body: `All ${mine.length} memories are deleted. This can't be undone.`, confirmLabel: "Forget all" }))
+                if (
+                  await confirm({
+                    title: `Forget everything ${agent.name} remembers?`,
+                    body: `All ${mine.length} memories are deleted. This can't be undone.`,
+                    confirmLabel: "Forget all",
+                  })
+                )
                   clearAgent(agent.id);
               }}
             >
@@ -619,16 +701,30 @@ function LogsTab({ agent }: { agent: Agent }) {
     <ListCard title="Runs" hint={`${runs.length} for this agent`}>
       {runs.map((r) => (
         <li key={r.id} className={ROW}>
-          <StatusDot status={r.status === "success" ? "live" : r.status === "error" ? "error" : r.status === "running" ? "ready" : "draft"} />
+          <StatusDot
+            status={
+              r.status === "success"
+                ? "live"
+                : r.status === "error"
+                  ? "error"
+                  : r.status === "running"
+                    ? "ready"
+                    : "draft"
+            }
+          />
           <div className="min-w-0 flex-1">
             <div className="truncate text-[13px]">{r.summary || r.trigger}</div>
             <div className="text-[11px] text-ink-3">
               {r.trigger} · {relativeTime(r.startedAt)} · {r.endedAt ? fmtDuration(r.endedAt - r.startedAt) : "running"}
             </div>
           </div>
-          <span className="hidden w-16 text-right font-mono text-[11px] text-ink-3 sm:block">{fmtTokens(r.tokensIn + r.tokensOut)} tok</span>
+          <span className="hidden w-16 text-right font-mono text-[11px] text-ink-3 sm:block">
+            {fmtTokens(r.tokensIn + r.tokensOut)} tok
+          </span>
           <span className="w-14 text-right font-mono text-[11px] text-ink-3">{fmtUsd(r.costUsd)}</span>
-          <Badge tone={r.status === "error" ? "danger" : r.status === "success" ? "success" : "neutral"}>{r.status}</Badge>
+          <Badge tone={r.status === "error" ? "danger" : r.status === "success" ? "success" : "neutral"}>
+            {r.status}
+          </Badge>
         </li>
       ))}
     </ListCard>

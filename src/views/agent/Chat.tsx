@@ -43,10 +43,7 @@ export function Chat({ agent }: { agent: Agent }) {
   };
 
   const messages = conv?.messages ?? [];
-  const totalTokens = messages.reduce(
-    (a, m) => a + (m.usage ? m.usage.inputTokens + m.usage.outputTokens : 0),
-    0,
-  );
+  const totalTokens = messages.reduce((a, m) => a + (m.usage ? m.usage.inputTokens + m.usage.outputTokens : 0), 0);
   const totalCost = messages.reduce((a, m) => a + (m.usage?.costUsd ?? 0), 0);
 
   return (
@@ -104,7 +101,8 @@ export function Chat({ agent }: { agent: Agent }) {
               <p className="mt-0.5 text-[13px] text-ink-3">{agent.role}</p>
               {conv?.origin && (
                 <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-ink-3">
-                  <Icon name="phone" size={12} /> {conv.origin.kind === "telegram" ? "Telegram" : "Discord"} · {conv.origin.from}
+                  <Icon name="phone" size={12} /> {conv.origin.kind === "telegram" ? "Telegram" : "Discord"} ·{" "}
+                  {conv.origin.from}
                 </p>
               )}
               {needsKey && (
@@ -182,14 +180,21 @@ export function Chat({ agent }: { agent: Agent }) {
                   <Icon name="stop" size={14} />
                 </button>
               ) : (
-                <button className="btn-primary h-8 w-8 px-0" onClick={submit} disabled={!draft.trim()} title="Send" aria-label="Send">
+                <button
+                  className="btn-primary h-8 w-8 px-0"
+                  onClick={submit}
+                  disabled={!draft.trim()}
+                  title="Send"
+                  aria-label="Send"
+                >
                   <Icon name="send" size={14} />
                 </button>
               )}
             </div>
             <div className="mt-1.5 flex justify-between px-1 text-[11px] text-ink-3">
               <span>
-                <kbd className="kbd">Enter</kbd> to send · <kbd className="kbd">Shift</kbd>+<kbd className="kbd">Enter</kbd> for newline
+                <kbd className="kbd">Enter</kbd> to send · <kbd className="kbd">Shift</kbd>+
+                <kbd className="kbd">Enter</kbd> for newline
               </span>
               {totalTokens > 0 && (
                 <span className="font-mono">
@@ -249,7 +254,11 @@ function ToolRow({ call }: { call: ToolCall }) {
     call.status === "running" ? (
       <Spinner size={12} />
     ) : (
-      <Icon name={call.status === "error" ? "x" : "check"} size={12} className={call.status === "error" ? "text-danger" : "text-success"} />
+      <Icon
+        name={call.status === "error" ? "x" : "check"}
+        size={12}
+        className={call.status === "error" ? "text-danger" : "text-success"}
+      />
     );
   const head = (
     <>
@@ -261,13 +270,19 @@ function ToolRow({ call }: { call: ToolCall }) {
     </>
   );
   if (!call.output) {
-    return <div className="flex items-center gap-2 border-b border-border px-2.5 py-1.5 text-xs last:border-b-0">{head}</div>;
+    return (
+      <div className="flex items-center gap-2 border-b border-border px-2.5 py-1.5 text-xs last:border-b-0">{head}</div>
+    );
   }
   return (
     <details className="group border-b border-border text-xs last:border-b-0">
       <summary className="flex cursor-pointer list-none items-center gap-2 px-2.5 py-1.5 hover:bg-surface-2/50 [&::-webkit-details-marker]:hidden">
         {head}
-        <Icon name="chevron" size={12} className="ml-auto shrink-0 text-ink-3 transition-transform group-open:rotate-90" />
+        <Icon
+          name="chevron"
+          size={12}
+          className="ml-auto shrink-0 text-ink-3 transition-transform group-open:rotate-90"
+        />
       </summary>
       <pre className="max-h-48 overflow-auto whitespace-pre-wrap border-t border-border bg-bg/60 px-2.5 py-2 font-mono text-[11px] text-ink-3">
         {call.output.slice(0, 1500)}

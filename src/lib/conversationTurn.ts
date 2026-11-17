@@ -47,7 +47,11 @@ export async function runConversationTurn(
 
   const conv = convs.get(conversationId);
   const history = conv?.messages.filter((m) => m.id !== assistantId) ?? [];
-  const current = () => useConversations.getState().get(conversationId)?.messages.find((m) => m.id === assistantId);
+  const current = () =>
+    useConversations
+      .getState()
+      .get(conversationId)
+      ?.messages.find((m) => m.id === assistantId);
   const patch = (p: Partial<ChatMessage>) => useConversations.getState().updateMessage(conversationId, assistantId, p);
 
   const onText = (delta: string) => patch({ content: (current()?.content ?? "") + delta });

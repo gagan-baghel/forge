@@ -20,7 +20,9 @@ describe("destructive actions ask first", () => {
 
   const renderWithRoutine = () => {
     act(() => {
-      useRoutines.getState().add({ name: "Digest", agentId: "a", agentName: "A", cron: "0 9 * * *", prompt: "", enabled: true });
+      useRoutines
+        .getState()
+        .add({ name: "Digest", agentId: "a", agentName: "A", cron: "0 9 * * *", prompt: "", enabled: true });
     });
     render(
       <MemoryRouter>

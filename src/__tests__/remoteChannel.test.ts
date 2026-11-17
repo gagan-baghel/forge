@@ -186,7 +186,12 @@ describe("phone approvals", () => {
     expect(rt().trustUntil[`${key}:${CHAT}`]).toBeGreaterThan(Date.now());
 
     invoke.mockClear();
-    const r = await remoteApprove({ title: "Click on your screen?", body: "at (1, 2)", turn: newTurn(), channel: ref() });
+    const r = await remoteApprove({
+      title: "Click on your screen?",
+      body: "at (1, 2)",
+      turn: newTurn(),
+      channel: ref(),
+    });
     expect(r).toBe("ok");
     expect(rt().approvals).toHaveLength(0);
     await vi.waitFor(() => expect(sent()).toHaveLength(1));

@@ -32,7 +32,11 @@ const blankAgent = (): DraftAgent => ({
 export function WorkshopView() {
   return (
     <div>
-      <PageHeader back={{ to: "/gaps", label: "Packs" }} title="New pack" subtitle="From a blank page to a working pack in three steps." />
+      <PageHeader
+        back={{ to: "/gaps", label: "Packs" }}
+        title="New pack"
+        subtitle="From a blank page to a working pack in three steps."
+      />
       <PageBody className="max-w-3xl space-y-6">
         <PackBuilder />
       </PageBody>
@@ -70,7 +74,10 @@ function PackBuilder() {
       description: desc.trim(),
       emoji,
       color,
-      tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
+      tags: tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
     });
     for (const a of validAgents) {
       addAgent(gap.id, {
@@ -98,13 +105,21 @@ function PackBuilder() {
                   aria-current={i === step ? "step" : undefined}
                   className={clsx(
                     "flex h-6 items-center gap-1.5 rounded-md px-2 text-xs transition-colors",
-                    i === step ? "bg-surface-2 font-medium text-ink" : i < step ? "text-ink-2 hover:text-ink" : "text-ink-3",
+                    i === step
+                      ? "bg-surface-2 font-medium text-ink"
+                      : i < step
+                        ? "text-ink-2 hover:text-ink"
+                        : "text-ink-3",
                   )}
                 >
                   <span
                     className={clsx(
                       "grid h-4 w-4 place-items-center rounded-full border text-[10px] font-medium",
-                      i < step ? "border-success bg-success text-bg" : i === step ? "border-ink-2 text-ink" : "border-border-strong",
+                      i < step
+                        ? "border-success bg-success text-bg"
+                        : i === step
+                          ? "border-ink-2 text-ink"
+                          : "border-border-strong",
                     )}
                   >
                     {i < step ? <Icon name="check" size={9} strokeWidth={3} /> : i + 1}

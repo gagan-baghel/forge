@@ -11,9 +11,7 @@ function Harness({ onResult }: { onResult: (v: boolean) => void }) {
   const { confirm, notify } = useDialog();
   return (
     <>
-      <button
-        onClick={async () => onResult(await confirm({ title: "Delete it?", body: "Cannot be undone." }))}
-      >
+      <button onClick={async () => onResult(await confirm({ title: "Delete it?", body: "Cannot be undone." }))}>
         danger
       </button>
       <button onClick={() => notify("Copied", "Share code is on the clipboard.")}>tell me</button>

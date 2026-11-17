@@ -15,7 +15,9 @@ const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)} KB`;
  */
 export function KnowledgeView() {
   const gaps = useGaps((s) => s.gaps);
-  const groups = gaps.flatMap((g) => g.agents.filter((a) => a.knowledge.length > 0).map((agent) => ({ agent, gap: g })));
+  const groups = gaps.flatMap((g) =>
+    g.agents.filter((a) => a.knowledge.length > 0).map((agent) => ({ agent, gap: g })),
+  );
   const count = groups.reduce((n, { agent }) => n + agent.knowledge.length, 0);
 
   return (
@@ -26,7 +28,11 @@ export function KnowledgeView() {
         subtitle="Documents your agents read before answering"
         actions={
           <>
-            {count > 0 && <span className="num text-xs text-ink-3">{count} document{count === 1 ? "" : "s"}</span>}
+            {count > 0 && (
+              <span className="num text-xs text-ink-3">
+                {count} document{count === 1 ? "" : "s"}
+              </span>
+            )}
             <AddDocumentButton />
           </>
         }
@@ -44,7 +50,10 @@ export function KnowledgeView() {
             <section key={agent.id}>
               <div className="mb-1 flex items-center gap-3 border-b border-border pb-2">
                 <Avatar name={agent.name} tint={gap.color} size={24} />
-                <Link to={`/agents/${agent.id}`} className="min-w-0 flex-1 truncate text-[13.5px] font-semibold hover:text-brand-2">
+                <Link
+                  to={`/agents/${agent.id}`}
+                  className="min-w-0 flex-1 truncate text-[13.5px] font-semibold hover:text-brand-2"
+                >
                   {agent.name}
                   <span className="ml-2 text-xs font-normal text-ink-3">{gap.name}</span>
                 </Link>

@@ -208,9 +208,7 @@ async function postStream(body: unknown, apiKey: string, signal?: AbortSignal): 
 
     const retryAfter = Number(res.headers?.get?.("retry-after"));
     const waitMs =
-      Number.isFinite(retryAfter) && retryAfter > 0
-        ? retryAfter * 1000
-        : 2 ** attempt * 500 + Math.random() * 250;
+      Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2 ** attempt * 500 + Math.random() * 250;
     await sleep(waitMs, signal);
   }
 
@@ -279,8 +277,7 @@ export type PassthroughBlock = {
 
 /** Rich tool-result content: text plus images (a screenshot, say). */
 export type ToolResultBlock =
-  | { type: "text"; text: string }
-  | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
+  { type: "text"; text: string } | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
 
 export interface ApiMessage {
   role: "user" | "assistant";
@@ -438,7 +435,10 @@ function toApiMessages(messages: ChatMessage[]) {
  * Stream a completion. Resolves with the full text + usage once the stream
  * closes. Calls `onText` with each delta so the UI can render live.
  */
-export async function streamChat(req: ChatRequest, cb: StreamCallbacks): Promise<{
+export async function streamChat(
+  req: ChatRequest,
+  cb: StreamCallbacks,
+): Promise<{
   text: string;
   inputTokens: number;
   outputTokens: number;

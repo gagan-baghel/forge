@@ -87,7 +87,10 @@ export function SettingsView() {
             action={<Badge tone={s.apiKey ? "success" : "neutral"}>{s.apiKey ? "configured" : "not set"}</Badge>}
           />
           <div className="space-y-4">
-            <Field label="API key" hint="Stored on this device only, and stripped out of exported backups. Sent only to Anthropic.">
+            <Field
+              label="API key"
+              hint="Stored on this device only, and stripped out of exported backups. Sent only to Anthropic."
+            >
               <div className="flex gap-2">
                 <input
                   className="input font-mono"
@@ -105,7 +108,11 @@ export function SettingsView() {
               </div>
             </Field>
             <Field label="Default model">
-              <select className="input" value={s.defaultModel} onChange={(e) => s.setDefaultModel(e.target.value as any)}>
+              <select
+                className="input"
+                value={s.defaultModel}
+                onChange={(e) => s.setDefaultModel(e.target.value as any)}
+              >
                 {MODELS.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.label} — {m.blurb}
@@ -155,7 +162,9 @@ export function SettingsView() {
                     onClick={() => s.setTheme(t.id)}
                     className={clsx(
                       "flex items-center gap-2.5 rounded-md border px-3 py-2 text-left text-[13px] transition-colors",
-                      s.theme === t.id ? "border-border-strong bg-surface-2 text-ink" : "border-border text-ink-2 hover:bg-surface-2/50",
+                      s.theme === t.id
+                        ? "border-border-strong bg-surface-2 text-ink"
+                        : "border-border text-ink-2 hover:bg-surface-2/50",
                     )}
                   >
                     <ThemeSwatch theme={t.id} />
@@ -165,7 +174,12 @@ export function SettingsView() {
               </div>
             </Field>
             <Field label="Display name">
-              <input className="input" value={s.userName} placeholder="Your name" onChange={(e) => s.setUserName(e.target.value)} />
+              <input
+                className="input"
+                value={s.userName}
+                placeholder="Your name"
+                onChange={(e) => s.setUserName(e.target.value)}
+              />
             </Field>
           </div>
         </Card>
@@ -173,7 +187,10 @@ export function SettingsView() {
         {/* Pricing */}
         <Card className="p-0">
           <div className="px-5 pt-4">
-            <CardHeader title="Price overrides" hint="USD per million tokens. Used for cost estimates in runs and chats." />
+            <CardHeader
+              title="Price overrides"
+              hint="USD per million tokens. Used for cost estimates in runs and chats."
+            />
           </div>
           <ul className="divide-y divide-border border-t border-border">
             {MODELS.map((m) => {
@@ -209,7 +226,10 @@ export function SettingsView() {
 
         {/* Data */}
         <Card>
-          <CardHeader title="Data & backup" hint="Back up everything to a file, or restore from one. Credentials are excluded." />
+          <CardHeader
+            title="Data & backup"
+            hint="Back up everything to a file, or restore from one. Credentials are excluded."
+          />
           <DataStats />
           <div className="mt-4 flex flex-wrap gap-2">
             <Button icon="download" onClick={exportBackup}>
@@ -226,7 +246,9 @@ export function SettingsView() {
             </p>
           )}
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-            <span className="text-[13px] text-ink-2">Delete everything Forge has stored on this device. This cannot be undone.</span>
+            <span className="text-[13px] text-ink-2">
+              Delete everything Forge has stored on this device. This cannot be undone.
+            </span>
             <Button variant="danger" icon="trash" onClick={resetAll}>
               Clear All My Data
             </Button>
@@ -247,8 +269,11 @@ const THEMES: { id: ThemeName; label: string }[] = [
 function ThemeSwatch({ theme }: { theme: ThemeName }) {
   const dark = "linear-gradient(135deg, #11100e 0 100%)";
   const light = "linear-gradient(135deg, #f6f3ed 0 100%)";
-  const bg = theme === "dusk" ? dark : theme === "paper" ? light : "linear-gradient(135deg, #f6f3ed 0 50%, #11100e 50% 100%)";
-  return <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-border-strong" style={{ background: bg }} />;
+  const bg =
+    theme === "dusk" ? dark : theme === "paper" ? light : "linear-gradient(135deg, #f6f3ed 0 50%, #11100e 50% 100%)";
+  return (
+    <span aria-hidden className="h-4 w-4 shrink-0 rounded border border-border-strong" style={{ background: bg }} />
+  );
 }
 
 /** One selectable runtime: title, blurb, status badge and a radio mark. */
@@ -338,7 +363,9 @@ function RuntimeSection() {
                 {installing ? "Installing…" : "Install Claude Code"}
               </Button>
             </div>
-            {installing && <p className="text-xs text-ink-3">This needs an internet connection and may take a minute.</p>}
+            {installing && (
+              <p className="text-xs text-ink-3">This needs an internet connection and may take a minute.</p>
+            )}
             {installLog.length > 0 && (
               <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-md bg-surface-2 p-3 font-mono text-xs text-ink-3">
                 {installLog.join("\n")}
@@ -359,12 +386,14 @@ function RuntimeSection() {
               <Badge tone={ccToken ? "success" : "warn"}>{ccToken ? "connected" : "not set"}</Badge>
             </div>
             <p className="text-xs leading-relaxed text-ink-3">
-              Not an API key — this is your existing Claude Code subscription, still $0 and nothing metered.
-              Being signed in to <code className="font-mono">claude</code> in a terminal is normally enough, but that session&apos;s
-              token is short-lived and background runs can&apos;t refresh it, so they start failing while your
-              terminal keeps working. A long-lived token off the same subscription fixes it for good:
+              Not an API key — this is your existing Claude Code subscription, still $0 and nothing metered. Being
+              signed in to <code className="font-mono">claude</code> in a terminal is normally enough, but that
+              session&apos;s token is short-lived and background runs can&apos;t refresh it, so they start failing while
+              your terminal keeps working. A long-lived token off the same subscription fixes it for good:
             </p>
-            <pre className="overflow-x-auto rounded-md border border-border bg-bg px-3 py-2 font-mono text-xs text-ink-2">claude setup-token</pre>
+            <pre className="overflow-x-auto rounded-md border border-border bg-bg px-3 py-2 font-mono text-xs text-ink-2">
+              claude setup-token
+            </pre>
             <div className="flex gap-2">
               <input
                 className="input flex-1 font-mono"
@@ -373,7 +402,11 @@ function RuntimeSection() {
                 value={ccDraft}
                 onChange={(e) => setCcDraft(e.target.value)}
               />
-              <Button variant="primary" onClick={() => setCcToken(ccDraft.trim())} disabled={ccDraft.trim() === ccToken}>
+              <Button
+                variant="primary"
+                onClick={() => setCcToken(ccDraft.trim())}
+                disabled={ccDraft.trim() === ccToken}
+              >
                 Save
               </Button>
               {ccToken && (
@@ -439,7 +472,11 @@ function UpdateCheck() {
   return (
     <div className="flex items-center gap-3">
       {status === "current" && <span className="text-xs text-ink-3">You're on the latest version</span>}
-      {status === "error" && <span className="max-w-[260px] truncate text-xs text-danger" title={error}>Couldn't check: {error}</span>}
+      {status === "error" && (
+        <span className="max-w-[260px] truncate text-xs text-danger" title={error}>
+          Couldn't check: {error}
+        </span>
+      )}
       <Button icon="download" disabled={status === "checking"} onClick={() => void check()}>
         {status === "checking" ? "Checking…" : "Check for updates"}
       </Button>

@@ -177,9 +177,7 @@ const listFilesTool: ClientTool = {
       const { readDir } = await import("@tauri-apps/plugin-fs");
       const entries = await readDir(path);
       if (!entries.length) return "(empty folder)";
-      const lines = entries
-        .map((e) => (e.isDirectory ? `${e.name}/` : e.name))
-        .sort((a, b) => a.localeCompare(b));
+      const lines = entries.map((e) => (e.isDirectory ? `${e.name}/` : e.name)).sort((a, b) => a.localeCompare(b));
       const shown = lines.slice(0, 500);
       return shown.join("\n") + (lines.length > shown.length ? `\n… ${lines.length - shown.length} more` : "");
     } catch (e: any) {
@@ -213,7 +211,6 @@ const rememberTool: ClientTool = {
   },
 };
 
-
 /* --------------------------- Connector tools -------------------------- */
 
 function connectorTools(agent: Agent): ClientTool[] {
@@ -226,11 +223,14 @@ function connectorTools(agent: Agent): ClientTool[] {
         tools.push({
           def: {
             name: "github_api",
-            description:
-              "Call the GitHub REST API. Provide a path like '/repos/owner/repo/issues'. Returns JSON.",
+            description: "Call the GitHub REST API. Provide a path like '/repos/owner/repo/issues'. Returns JSON.",
             input_schema: {
               type: "object",
-              properties: { path: { type: "string" }, method: { type: "string", default: "GET" }, body: { type: "string" } },
+              properties: {
+                path: { type: "string" },
+                method: { type: "string", default: "GET" },
+                body: { type: "string" },
+              },
               required: ["path"],
             },
           },
@@ -332,11 +332,7 @@ const shellTool: ClientTool = {
     const cwd = input.cwd ? String(input.cwd) : undefined;
     const purpose = input.purpose ? `${String(input.purpose)}\n\n` : "";
 
-    const ok = await ask(
-      ctx,
-      "Run a command on your computer?",
-      `${purpose}${command}${cwd ? `\n\nin ${cwd}` : ""}`,
-    );
+    const ok = await ask(ctx, "Run a command on your computer?", `${purpose}${command}${cwd ? `\n\nin ${cwd}` : ""}`);
     if (ok !== "ok") return refusal(ok, "command");
 
     const { invoke } = await import("@tauri-apps/api/core");
@@ -413,8 +409,10 @@ const sendFileTool: ClientTool = {
   run: async (input, ctx) => {
     if (!isDesktop()) return "Error: send_file is only available in the desktop app.";
     if (!ctx.channel) {
-      return "Error: this conversation isn't connected to a channel, so there's nowhere to send " +
-        "the file. Tell the user to ask from Discord or Telegram instead.";
+      return (
+        "Error: this conversation isn't connected to a channel, so there's nowhere to send " +
+        "the file. Tell the user to ask from Discord or Telegram instead."
+      );
     }
     const path = String(input.path ?? "").trim();
     if (!path) return "Error: no path given.";
@@ -473,7 +471,9 @@ const screenshotTool: ClientTool = {
     const ok = await ask(
       ctx,
       "Show the agent your screen?",
-      toUser ? `A screenshot is taken and also sent to your ${ctx.channel!.kind} chat.` : "A screenshot is taken so the agent can see it.",
+      toUser
+        ? `A screenshot is taken and also sent to your ${ctx.channel!.kind} chat.`
+        : "A screenshot is taken so the agent can see it.",
     );
     if (ok !== "ok") return refusal(ok, "screenshot");
     try {
@@ -520,10 +520,19 @@ const clickTool: ClientTool = {
     const y = Number(input.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return "Error: x and y must be numbers.";
     const what = input.target ? `${String(input.target)}\n\n` : "";
-    const ok = await ask(ctx, "Click on your screen?", `${what}${input.double ? "Double-click" : "Click"} at (${Math.round(x)}, ${Math.round(y)})`);
+    const ok = await ask(
+      ctx,
+      "Click on your screen?",
+      `${what}${input.double ? "Double-click" : "Click"} at (${Math.round(x)}, ${Math.round(y)})`,
+    );
     if (ok !== "ok") return refusal(ok, "click");
     try {
-      await native("input_click", { x, y, button: input.button === "right" ? "right" : "left", clicks: input.double ? 2 : 1 });
+      await native("input_click", {
+        x,
+        y,
+        button: input.button === "right" ? "right" : "left",
+        clicks: input.double ? 2 : 1,
+      });
       return "Clicked. Take a screenshot to check the result.";
     } catch (e: any) {
       return `Error clicking: ${e?.message ?? e}`;
@@ -564,7 +573,9 @@ const keyTool: ClientTool = {
       "'cmd+shift+t', 'down'. Modifiers: cmd, shift, alt, ctrl.",
     input_schema: {
       type: "object",
-      properties: { key: { type: "string", description: "Key or shortcut, '+'-separated, e.g. 'escape' or 'cmd+space'" } },
+      properties: {
+        key: { type: "string", description: "Key or shortcut, '+'-separated, e.g. 'escape' or 'cmd+space'" },
+      },
       required: ["key"],
     },
   },
@@ -602,7 +613,11 @@ const scrollTool: ClientTool = {
   run: async (input) => {
     if (!isDesktop()) return DESKTOP_ONLY;
     try {
-      await native("input_scroll", { x: Number(input.x), y: Number(input.y), amount: Math.round(Number(input.amount ?? 5)) });
+      await native("input_scroll", {
+        x: Number(input.x),
+        y: Number(input.y),
+        amount: Math.round(Number(input.amount ?? 5)),
+      });
       return "Scrolled.";
     } catch (e: any) {
       return `Error scrolling: ${e?.message ?? e}`;
@@ -640,7 +655,12 @@ export function buildTools(agent: Agent): AssembledTools {
     // Server-side tools, executed by Anthropic — no client executor. Search
     // finds pages; fetch reads them in full instead of working from snippets.
     defs.push({ type: searchType, name: "web_search", max_uses: 5 } as AnyTool);
-    defs.push({ type: webFetchToolType(agent.model), name: "web_fetch", max_uses: 5, max_content_tokens: 20_000 } as AnyTool);
+    defs.push({
+      type: webFetchToolType(agent.model),
+      name: "web_fetch",
+      max_uses: 5,
+      max_content_tokens: 20_000,
+    } as AnyTool);
   }
   // The newer web tools already run a code sandbox for filtering; declaring a
   // second one alongside them confuses the model, so it only rides alone.
@@ -770,4 +790,3 @@ function runInWorker(code: string, timeoutMs = 4000): Promise<string> {
     worker.postMessage(code);
   });
 }
-

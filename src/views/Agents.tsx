@@ -42,7 +42,12 @@ export function AgentsView() {
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <div className="relative min-w-[200px] max-w-xs flex-1">
             <Icon name="search" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3" />
-            <input className="input pl-8" placeholder="Search agents…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input
+              className="input pl-8"
+              placeholder="Search agents…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
           </div>
           <select className="input w-auto" value={gapFilter} onChange={(e) => setGapFilter(e.target.value)}>
             <option value="">All packs</option>
@@ -70,9 +75,15 @@ export function AgentsView() {
             <EmptyState
               icon="agents"
               title={q || gapFilter || statusFilter ? "No matching agents" : "No agents yet"}
-              body={q || gapFilter || statusFilter ? "Try different search or filters." : "Create a pack and add agents to it."}
+              body={
+                q || gapFilter || statusFilter
+                  ? "Try different search or filters."
+                  : "Create a pack and add agents to it."
+              }
               action={
-                !q && !gapFilter && !statusFilter && (
+                !q &&
+                !gapFilter &&
+                !statusFilter && (
                   <Button variant="primary" icon="store" onClick={() => navigate("/marketplace")}>
                     Browse Marketplace
                   </Button>
@@ -93,7 +104,9 @@ export function AgentsView() {
                       <div className="truncate text-xs text-ink-3">{agent.role}</div>
                     </div>
                     <span className="hidden w-40 truncate text-xs text-ink-2 md:block">{gap.name}</span>
-                    <span className="hidden w-24 truncate text-right text-[11px] text-ink-3 sm:block">{modelLabel(agent.model)}</span>
+                    <span className="hidden w-24 truncate text-right text-[11px] text-ink-3 sm:block">
+                      {modelLabel(agent.model)}
+                    </span>
                     <span className="flex w-20 items-center justify-end gap-1.5 text-xs capitalize text-ink-2">
                       <StatusDot status={agent.status} />
                       {agent.status}

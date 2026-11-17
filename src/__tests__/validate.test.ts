@@ -41,7 +41,12 @@ describe("agent validation", () => {
   });
 
   it("caps a runaway roster", () => {
-    expect(() => asAgentSeeds(Array.from({ length: 99 }, () => ({ name: "a" })), "agents")).toThrow(/more than/);
+    expect(() =>
+      asAgentSeeds(
+        Array.from({ length: 99 }, () => ({ name: "a" })),
+        "agents",
+      ),
+    ).toThrow(/more than/);
   });
 
   it("fills optional fields rather than failing on them", () => {
