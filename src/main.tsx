@@ -11,6 +11,9 @@ import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "./styles/globals.css";
 import { foldBrainsIntoAgents } from "./lib/foldBrains";
+import { installGlobalErrorHandlers } from "./lib/log";
+
+installGlobalErrorHandlers();
 
 // Stores hydrate synchronously from localStorage, so this sees the saved data.
 foldBrainsIntoAgents();

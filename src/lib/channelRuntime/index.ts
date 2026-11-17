@@ -21,6 +21,7 @@ import { channelKey } from "@/stores/channelRuntime";
 import { remoteApprove, settleWhere } from "./approvals";
 import { handleInbound } from "./inbound";
 import { quiet, rt, type InboundMessage } from "./send";
+import { logger } from "../log";
 
 export { sendText, discordSend, type InboundMessage } from "./send";
 export { remoteApprove, answerApproval, TRUST_MS, REMOTE_APPROVAL_TIMEOUT_MS } from "./approvals";
@@ -39,7 +40,7 @@ export async function initChannelListener(): Promise<void> {
   const { listen } = await import("@tauri-apps/api/event");
   await listen<InboundMessage>("channel://message", (e) => {
     // An inbound message must never take the listener down.
-    handleInbound(e.payload).catch(() => {});
+    handleInbound(e.payload).catch((error) => logger("channels").error("inbound message failed", { error }));
   });
 }
 
@@ -77,6 +78,7 @@ export async function startChannel(agent: Agent, channel: Channel): Promise<void
     rt().log(key, "system", `${agent.name} is live on ${channel.kind}${bot.username ? ` as @${bot.username}` : ""}`);
     useGaps.getState().upsertChannel(agent.id, { ...channel, status: "active" });
   } catch (e) {
+    logger("channels").warn("bot failed to start", { key, kind: channel.kind, error: e });
     rt().setError(key, errorMessage(e));
     rt().setRunning(key, false);
   }

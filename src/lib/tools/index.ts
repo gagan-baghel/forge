@@ -26,6 +26,7 @@ import { computerTools } from "./computer";
 import { connectorTools } from "./connectors";
 import { UNTRUSTED_OUTPUT, fenceUntrusted, shellOutputHasContent } from "./untrusted";
 import type { ClientTool, Executor, ToolContext, ToolInput, ToolOutput } from "./types";
+import { logger } from "../log";
 
 export type { ClientTool, Executor, ToolContext, ToolImage, ToolInput, ToolOutput } from "./types";
 export { outputText } from "./types";
@@ -125,6 +126,7 @@ export async function runTool(
     if (name !== "run_shell" || shellOutputHasContent(out)) ctx.turn.untrusted = true;
     return fenceUntrusted(name, out);
   } catch (e) {
+    logger("tools").error("tool threw", { tool: name, agentId: ctx.agent.id, error: e });
     return `Error running ${name}: ${errorMessage(e)}`;
   }
 }

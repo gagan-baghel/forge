@@ -5,6 +5,7 @@ import { useDialog } from "@/hooks/useDialog";
 import { collectBackup, applyBackup, BACKUP_MAGIC } from "@/lib/backup";
 import { saveTextFile } from "@/lib/saveFile";
 import { errorMessage } from "@/lib/runError";
+import { exportLogs } from "@/lib/log";
 import { useGaps } from "@/stores/gaps";
 import { useConversations } from "@/stores/conversations";
 import { useRuns } from "@/stores/runs";
@@ -35,6 +36,17 @@ export function DataSection() {
       if (saved) setNotice(path ? `Backup saved to ${path}` : "Backup saved.");
     } catch (e) {
       setNotice(`Backup failed: ${errorMessage(e)}`);
+    }
+  };
+
+  // Logs are already redacted when written, so the file is safe to attach to a bug report.
+  const saveLogs = async () => {
+    const name = `forge-logs-${new Date().toISOString().slice(0, 10)}.jsonl`;
+    try {
+      const { saved, path } = await saveTextFile(name, exportLogs(), { name: "Forge logs", extensions: ["jsonl"] });
+      if (saved) setNotice(path ? `Logs saved to ${path}` : "Logs saved.");
+    } catch (e) {
+      setNotice(`Saving logs failed: ${errorMessage(e)}`);
     }
   };
 
@@ -73,6 +85,9 @@ export function DataSection() {
           <Icon name="upload" size={15} /> Import
           <input type="file" accept=".json,.forge" hidden onChange={importBackup} />
         </label>
+        <Button variant="ghost" icon="download" onClick={saveLogs} title="Diagnostic log, secrets removed">
+          Export logs
+        </Button>
       </div>
       {notice && (
         <p className="mt-3 rounded-md bg-surface-2 px-3 py-2 text-[13px] text-ink-2" role="status">

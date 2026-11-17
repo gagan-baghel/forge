@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button, Card } from "./ui";
 import { Icon } from "./Icon";
+import { logger } from "@/lib/log";
 
 /**
  * Catches render/lifecycle throws so one bad view can't blank the whole window.
@@ -31,7 +32,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     // Keep the stack somewhere a user can find it when reporting a bug.
-    console.error("[forge] render error:", error, info.componentStack);
+    logger("ui").error("render error", { error, componentStack: info.componentStack });
   }
 
   private reset = () => this.setState({ error: null });

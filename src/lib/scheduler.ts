@@ -12,6 +12,7 @@ import { isDesktop } from "./platform";
 import type { Agent } from "@/types/domain";
 import { useRoutines } from "@/stores/routines";
 import { useGaps } from "@/stores/gaps";
+import { logger } from "./log";
 
 /** Deliver routine output to a Discord webhook if the agent has one. */
 async function deliverToDiscord(agent: Agent, text: string) {
@@ -20,8 +21,8 @@ async function deliverToDiscord(agent: Agent, text: string) {
   if (discord) {
     try {
       await discordSend(discord, text);
-    } catch {
-      /* best effort */
+    } catch (error) {
+      logger("schedules").warn("Discord delivery failed", { agentId: agent.id, error });
     }
   }
 }

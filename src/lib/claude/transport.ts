@@ -3,6 +3,9 @@
  * with exponential backoff, and frame decoding. Knows nothing about content.
  */
 import type { SseEvent } from "./types";
+import { logger } from "../log";
+
+const log = logger("claude");
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
@@ -175,6 +178,7 @@ export async function postStream(body: unknown, apiKey: string, signal?: AbortSi
         lastError = `Network error reaching Claude: ${(e as Error).message}`;
         if (last) throw new Error(lastError);
       }
+      log.warn("request failed, retrying", { attempt, error: lastError });
       await sleep(backoffMs(attempt), signal);
       continue;
     } finally {
@@ -187,6 +191,7 @@ export async function postStream(body: unknown, apiKey: string, signal?: AbortSi
     lastError = `Claude API error ${res.status}: ${detail || res.statusText}`;
     if (!RETRYABLE.has(res.status) || last) throw new Error(lastError);
 
+    log.warn("retryable API status", { attempt, status: res.status });
     const retryAfter = Number(res.headers?.get?.("retry-after"));
     await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : backoffMs(attempt), signal);
   }

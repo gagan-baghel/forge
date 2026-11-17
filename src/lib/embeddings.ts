@@ -7,6 +7,8 @@
  * run, etc.) callers fall back to keyword retrieval.
  */
 
+import { logger } from "./log";
+
 const MODEL = "Xenova/bge-small-en-v1.5";
 /** BGE retrieves best when the query (not the passage) carries this instruction. */
 const QUERY_PREFIX = "Represent this sentence for searching relevant passages: ";
@@ -26,7 +28,7 @@ async function getExtractor(): Promise<Extractor | null> {
       env.allowLocalModels = false;
       return pipeline("feature-extraction", MODEL);
     })().catch((e) => {
-      console.warn("Embeddings unavailable, falling back to keyword search:", e);
+      logger("embeddings").warn("unavailable, falling back to keyword search", { error: e });
       available = false;
       return null;
     });
@@ -65,7 +67,7 @@ export async function embed(text: string, kind: "passage" | "query" = "passage")
   } catch (e) {
     // A model that loads but can't run (bad runtime, OOM) must not fail the
     // agent's reply: switch to keyword search for the rest of the session.
-    console.warn("Embeddings failed, falling back to keyword search:", e);
+    logger("embeddings").warn("failed, falling back to keyword search", { error: e });
     available = false;
     return null;
   }

@@ -2,6 +2,7 @@
 import type { ChannelRef } from "../approval";
 import { invoke } from "../platform";
 import { useChannelRuntime } from "@/stores/channelRuntime";
+import { logger } from "../log";
 
 export interface InboundMessage {
   channel_id: string;
@@ -16,8 +17,10 @@ export interface InboundMessage {
 export const rt = () => useChannelRuntime.getState();
 export const chatKeyOf = (ref: Pick<ChannelRef, "key" | "chatId">) => `${ref.key}:${ref.chatId}`;
 
-/** Fire and forget: a failed notification must never break the flow that sent it. */
-export const quiet = (p: Promise<unknown>) => void p.catch(() => {});
+const log = logger("channels");
+
+/** Fire and forget: a failed notification must never break the flow that sent it, but it is logged. */
+export const quiet = (p: Promise<unknown>) => void p.catch((error) => log.warn("background send failed", { error }));
 
 /** Send text (chunked natively); Telegram buttons ride on the last chunk. */
 export async function sendText(ref: ChannelRef, text: string, buttons?: [string, string][]): Promise<string> {
