@@ -11,11 +11,53 @@ use std::sync::{Mutex, OnceLock};
 
 use serde::Serialize;
 
-/// Running commands by caller-supplied id, so `/stop` can end one: pid of the
-/// process-group leader (the shell), whose whole group is signalled.
-fn running() -> &'static Mutex<HashMap<String, u32>> {
-    static RUNNING: OnceLock<Mutex<HashMap<String, u32>>> = OnceLock::new();
+/// Where a command with a caller-supplied id is, so Stop can always reach it.
+///
+/// A Stop can land before the process exists: the first command after launch
+/// waits on the login-shell environment capture, and a quick Stop raced it and
+/// was dropped, leaving the command to run to completion. An early Stop is
+/// therefore recorded and applied the moment the process is spawned.
+enum Slot {
+    /// Requested, not spawned yet.
+    Starting,
+    /// Running; pid of the process-group leader (the shell), whose whole group is signalled.
+    Running(u32),
+    /// Stopped before it was spawned.
+    Cancelled,
+}
+
+fn running() -> &'static Mutex<HashMap<String, Slot>> {
+    static RUNNING: OnceLock<Mutex<HashMap<String, Slot>>> = OnceLock::new();
     RUNNING.get_or_init(Default::default)
+}
+
+/// Signal a command's whole process group: TERM now, KILL if still alive after 2s.
+fn kill_group(pid: u32) {
+    #[cfg(unix)]
+    {
+        // `--` before the negative id: macOS's kill reads `-<pid>` as a
+        // process group either way, but Linux's takes it for an option and
+        // fails, so Stop silently did nothing there.
+        let _ = Command::new("kill").args(["-TERM", "--", &format!("-{pid}")]).status();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            let _ = Command::new("kill").args(["-KILL", "--", &format!("-{pid}")]).status();
+        });
+    }
+    #[cfg(windows)]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/T", "/F", "/PID", &pid.to_string()])
+            .status();
+    }
+}
+
+fn stopped_before_start() -> ShellOutput {
+    ShellOutput {
+        stdout: String::new(),
+        stderr: "Stopped before it started.".into(),
+        code: -1,
+    }
 }
 
 /// Output cap per stream. A runaway command must not blow up the context window
@@ -54,23 +96,12 @@ pub async fn shell_exec(command: String, cwd: Option<String>, id: Option<String>
 /// End a running command and everything it started (its whole process group).
 #[tauri::command]
 pub fn shell_cancel(id: String) -> Result<(), String> {
-    if let Some(pid) = running().lock().unwrap().remove(&id) {
-        #[cfg(unix)]
-        {
-            // `--` before the negative id: macOS's kill reads `-<pid>` as a
-            // process group either way, but Linux's takes it for an option and
-            // fails, so Stop silently did nothing there.
-            let _ = Command::new("kill").args(["-TERM", "--", &format!("-{pid}")]).status();
-            std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_secs(2));
-                let _ = Command::new("kill").args(["-KILL", "--", &format!("-{pid}")]).status();
-            });
-        }
-        #[cfg(windows)]
-        {
-            let _ = Command::new("taskkill")
-                .args(["/T", "/F", "/PID", &pid.to_string()])
-                .status();
+    let mut slots = running().lock().unwrap();
+    match slots.remove(&id) {
+        Some(Slot::Running(pid)) => kill_group(pid),
+        // Not spawned yet (or the exec call hasn't arrived): remember it.
+        Some(Slot::Starting) | Some(Slot::Cancelled) | None => {
+            slots.insert(id, Slot::Cancelled);
         }
     }
     Ok(())
@@ -84,6 +115,14 @@ fn exec(command: String, cwd: Option<String>) -> Result<ShellOutput, String> {
 fn exec_tracked(command: String, cwd: Option<String>, id: Option<String>) -> Result<ShellOutput, String> {
     if command.trim().is_empty() {
         return Err("Empty command.".into());
+    }
+    if let Some(id) = &id {
+        let mut slots = running().lock().unwrap();
+        if matches!(slots.get(id), Some(Slot::Cancelled)) {
+            slots.remove(id);
+            return Ok(stopped_before_start());
+        }
+        slots.insert(id.clone(), Slot::Starting);
     }
 
     let shell = if cfg!(windows) { "powershell.exe" } else { "/bin/sh" };
@@ -109,9 +148,20 @@ fn exec_tracked(command: String, cwd: Option<String>, id: Option<String>) -> Res
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| format!("Failed to run command: {e}"))?;
+        .map_err(|e| {
+            if let Some(id) = &id {
+                running().lock().unwrap().remove(id);
+            }
+            format!("Failed to run command: {e}")
+        })?;
     if let Some(id) = &id {
-        running().lock().unwrap().insert(id.clone(), child.id());
+        let mut slots = running().lock().unwrap();
+        if matches!(slots.get(id), Some(Slot::Cancelled)) {
+            // Stopped while the environment was being prepared: end it now.
+            kill_group(child.id());
+        } else {
+            slots.insert(id.clone(), Slot::Running(child.id()));
+        }
     }
     let out = child.wait_with_output();
     if let Some(id) = &id {
@@ -165,6 +215,19 @@ mod tests {
         assert!(started.elapsed().as_secs() < 5, "cancel took {:?}", started.elapsed());
         assert_ne!(out.code, 0);
         assert!(!marker.exists());
+    }
+
+    #[test]
+    fn a_stop_that_arrives_before_the_command_is_not_lost() {
+        shell_cancel("early".into()).unwrap();
+        let started = std::time::Instant::now();
+        let out = exec_tracked("sleep 30".into(), None, Some("early".into())).unwrap();
+        assert!(started.elapsed().as_secs() < 5);
+        assert_eq!(out.code, -1);
+        assert!(
+            running().lock().unwrap().get("early").is_none(),
+            "the early stop must be consumed"
+        );
     }
 
     #[test]
