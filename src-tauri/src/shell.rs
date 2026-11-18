@@ -57,10 +57,13 @@ pub fn shell_cancel(id: String) -> Result<(), String> {
     if let Some(pid) = running().lock().unwrap().remove(&id) {
         #[cfg(unix)]
         {
-            let _ = Command::new("kill").args(["-TERM", &format!("-{pid}")]).status();
+            // `--` before the negative id: macOS's kill reads `-<pid>` as a
+            // process group either way, but Linux's takes it for an option and
+            // fails, so Stop silently did nothing there.
+            let _ = Command::new("kill").args(["-TERM", "--", &format!("-{pid}")]).status();
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_secs(2));
-                let _ = Command::new("kill").args(["-KILL", &format!("-{pid}")]).status();
+                let _ = Command::new("kill").args(["-KILL", "--", &format!("-{pid}")]).status();
             });
         }
         #[cfg(windows)]
