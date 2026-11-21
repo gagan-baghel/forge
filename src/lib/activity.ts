@@ -75,6 +75,8 @@ const RULES: Record<string, Rule> = {
   // Claude Code loads some of its own tools on demand before first use.
   ToolSearch: ["Getting its tools ready", "Got its tools ready", () => "", true],
   remember: ["Saving to memory", "Saved to memory", (o) => str(o, "text"), true],
+  // Pack chats
+  ask_teammate: ["Asking a teammate", "Asked a teammate", (o) => str(o, "teammate"), true],
 };
 
 export function describeStep(name: string, input: unknown): Step {

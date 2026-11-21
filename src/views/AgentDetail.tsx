@@ -1,8 +1,9 @@
 import { useState, type ComponentType } from "react";
+import { BotFace } from "@/components/BotFace";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useGaps } from "@/stores/gaps";
 import type { Agent } from "@/types/domain";
-import { Avatar, Button, EmptyState, StatusDot, Tabs } from "@/components/ui";
+import { Button, EmptyState, StatusDot, Tabs } from "@/components/ui";
 import { PageBody } from "@/components/Shell";
 import { Icon } from "@/components/Icon";
 import { Chat } from "./agent/Chat";
@@ -63,7 +64,7 @@ export function AgentDetailView() {
           <Link to="/agents" className="btn-ghost h-7 w-7 px-0" aria-label="Back to agents" title="Agents">
             <Icon name="chevron" size={16} className="rotate-180" />
           </Link>
-          <Avatar name={agent.name} size={32} />
+          <BotFace name={agent.name} size={34} />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[15px] font-semibold tracking-tight">{agent.name}</h1>
             <div className="flex min-w-0 items-center gap-1.5 text-xs text-ink-3">

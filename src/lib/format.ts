@@ -57,3 +57,13 @@ export function slugify(text: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 }
+
+/** Earthy marks that sit well on both themes. */
+const TINTS = ["#d9703a", "#c49a3c", "#7fa36b", "#6b8fa8", "#a8738f", "#b5654f", "#8a8f5a"];
+
+/** A stable tint for a name: the same name always gets the same colour. */
+export function tintFor(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return TINTS[h % TINTS.length];
+}

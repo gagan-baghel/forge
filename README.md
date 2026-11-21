@@ -141,9 +141,19 @@ model, prompt, skills (built-in abilities and connected services), and
 is edited in two places.
 
 - **Workbench** — what's live, what ran, what it cost, and what's left to set up
-- **Agents** — chat (streaming, tool-use loop, live progress), setup
-  (prompt, model, runtime), skills and connected services (GitHub, Slack,
-  Notion), knowledge and activity. Each agent is **Active** or **Paused**: a
+- **Agents** — every pack, each with a dropdown of its agents. Every agent
+  has its own small robot face, drawn from its name (the same face
+  everywhere, including the builder's preview); a pack shows its team's
+  faces side by side. In a chat the agent appears as a little full-body bot
+  that acts out what it's doing: it plays while idle (waves, hops, toddles,
+  hangs from a bar), thinks while working on a reply, bobs while the reply
+  streams in, and sleeps (z's, a drool drop) when paused. In a pack chat,
+  teammates being asked think alongside. All of it holds still for reduced
+  motion. Click a pack
+  to talk to the whole pack (see *Pack chat* below); click an agent to talk
+  to that agent alone. An agent's own page has chat (streaming, tool-use
+  loop, live progress), setup (prompt, model, runtime), skills and connected
+  services (GitHub, Slack, Notion), knowledge and activity. Each agent is **Active** or **Paused**: a
   paused agent skips its schedules and declines phone messages
 - **Packs** — one page per pack: its agents, details, MCP servers,
   environment, sharing (`.gap` file or share code) and a raw-JSON escape
@@ -152,10 +162,15 @@ is edited in two places.
   **Marketplace**
 - **Knowledge** — *Documents* agents read before answering (PDF, text,
   Markdown, CSV, JSON — read on this machine, matched with local semantic
-  search) and *Memory*, the short facts an agent keeps across conversations.
-  Add either by hand; agents with the Memory skill also save facts
-  themselves, optionally waiting for your OK. The relevant ones reach the
-  agent before every answer
+  search) and *Memory*, the short facts kept across conversations. Each
+  lives in one of two places: **the pack** (shared by every agent in it,
+  managed on the pack page's Knowledge section) or **one agent** (private to
+  it, on the agent's Knowledge tab, which also shows what the pack shares).
+  The Knowledge pages list both, by pack. An agent's own items and its
+  pack's are searched together, so sharing costs no extra tokens. Add either
+  by hand; agents with the Memory skill also save facts themselves — to the
+  pack during a pack chat, to the agent in a direct chat — optionally
+  waiting for your OK
 - **Skills** — web search and full-page reading, JavaScript and a Python
   sandbox, file browsing and reading, HTTP, memory, and **Computer**: an
   opt-in skill giving `run_shell`, `write_file`, `send_file` and desktop
@@ -165,26 +180,67 @@ is edited in two places.
   folders (`.ssh`, `.aws`, `.gnupg`, gcloud) blocked outright
 - **Claude Code runtime** — in-built bridge to the local CLI: auto-detect or
   in-app install, $0 API cost, pack MCP servers + env mounted per turn
-- **Remote** — message any agent from your phone over Telegram or Discord and
-  have it work on this Mac (see below)
+- **Remote** — message a pack or an agent from your phone over Telegram or
+  Discord and have it work on this Mac (see below)
 - **Schedules** — cron routines per agent; minutes missed while the window
   was throttled are caught up
 - **Activity** — every run with token and cost accounting, plus spend and
-  reliability over time
+  reliability over time. A message to a pack is one entry under the pack's
+  name that opens onto each agent it ran; an agent's own Activity tab shows
+  only what it did on its own (direct chats, phone, schedules)
 - **Terminal** — a real shell (desktop only)
 - **Settings** — runtime, API key, default model, theme, price overrides,
   backup and reset
+
+### Pack chat
+
+Talking to a pack instead of one agent. Built to cost nothing extra on an
+ordinary message:
+
+- **Who answers.** A message starting `@Name` goes to that agent. Otherwise
+  whoever answered last keeps the thread, and a new chat starts with the
+  pack's first active agent. No hidden routing call; the composer shows who
+  will reply before you send.
+- **Agents ask each other.** In a pack chat each agent sees a one-line roster
+  of its teammates (name and role) and an `ask_teammate` tool. It hands a task
+  over only when a teammate's role fits better, writing a self-contained
+  brief; the teammate answers that brief alone (its own knowledge, memory and
+  tools, not the whole chat) and the asking agent folds the answer into one
+  reply. Teammates asked in the same step work at the same time, so asking
+  two costs one wait. Teammates can't ask further, and a turn makes at most
+  3 hand-offs. Approval prompts that arrive together queue up, one at a time.
+  Each hand-off is recorded as the teammate's own run in Activity.
+- **One shared thread.** Every reply carries its author. An agent sees its
+  teammates' earlier replies tagged with their names; on the Claude Code
+  runtime, where each agent keeps its own session, it is handed what was said
+  since it last spoke (capped at ~6,000 characters).
+- **Same safety.** If a teammate read outside content (a page, a file,
+  command output), its answer comes back fenced as untrusted and the asking
+  agent's next approval is the louder one; a brief written after reading
+  outside content carries that flag to the teammate.
+- **One-agent packs** open straight into that agent's chat. Paused agents
+  are left off the roster and never answer unless you `@` them.
+
+A pack can have its own phone bot too (see below); schedules stay per agent.
 
 Packs you import from someone else arrive with channels, tokens and paired
 phones stripped and every MCP server switched off until you've reviewed it.
 
 ## Remote control from your phone
 
-Connect an agent to a Telegram or Discord bot (**Remote → Connect an agent**,
-or the agent's Remote tab), pair your phone, and message it from anywhere —
+Connect a pack or an agent to a Telegram or Discord bot (**Remote →
+Connect**), pair your phone, and message it from anywhere —
 "find the invoice PDF from last week and send it to me", "run the test suite
 and tell me what failed", "open Figma and screenshot the dashboard".
 
+- **Packs or agents.** A pack's bot reaches the whole team: messages go to
+  the pack chat, so the right agent answers, `@Name` picks one, and
+  teammates help, exactly as at the desk. An agent's bot reaches just that
+  agent. The Remote page lists them in two sections, *Packs* and *Agents*;
+  each bot is one row (live or not, paired phones, remote control) that
+  opens on a tap. With remote control on a pack's bot, only its agents that
+  have the Computer skill can act on this Mac. A routine on an agent without
+  its own bot reports to its pack's phone.
 - **Pairing.** A bot only answers people you pair. Press **Pair a phone** and
   send the one-time `/pair 123456` code to the bot. Codes expire after 10
   minutes, work once, and burn after 5 wrong guesses; everyone else gets a
@@ -200,7 +256,7 @@ and tell me what failed", "open Figma and screenshot the dashboard".
 - **Files both ways.** Send a file or photo to the bot and it lands in
   `~/Downloads/Forge`; ask for one and the agent sends it back.
 - **Same conversation everywhere.** A phone thread is a normal conversation in
-  the agent's chat list, streaming live on the desktop.
+  the agent's (or the pack's) chat list, streaming live on the desktop.
 - **Schedules report to you.** A routine on an agent with a paired phone
   delivers its result there, and any approval it needs goes there too.
 - **Stays reachable.** Bots that were live come back when Forge starts, the

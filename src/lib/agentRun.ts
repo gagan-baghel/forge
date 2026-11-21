@@ -18,6 +18,7 @@ import {
   buildTools,
   cliResultIsUntrusted,
   runTool,
+  type ClientTool,
   type ToolContext,
   type ToolOutput,
 } from "./tools";
@@ -30,6 +31,8 @@ import { useMemory } from "@/stores/memory";
 
 /** How many of an agent's memories ride along with each message. */
 const MEMORY_IN_PROMPT = 8;
+/** Tools safe to run side by side when one step calls several of them. */
+const PARALLEL_TOOLS = new Set(["ask_teammate"]);
 import { buildMcpConfig } from "./mcp";
 
 export interface ToolEvent {
@@ -59,6 +62,14 @@ export interface AgentTurnOpts {
    * prompt on the desktop and time out.
    */
   headless?: boolean;
+  /** Extra tools for this turn only (a pack chat adds ask_teammate). */
+  extraTools?: ClientTool[];
+  /** Extra system text for this turn only (a pack chat's team roster). */
+  extraSystem?: string;
+  /** Start the turn already tainted: its input came from a turn that read outside content. */
+  untrusted?: boolean;
+  /** Part of a pack chat: facts the agent saves go to the pack's shared memory. */
+  packChat?: boolean;
 }
 
 /**
@@ -77,6 +88,8 @@ export interface AgentTurnResult {
   costUsd: number;
   /** New Claude Code session id (CLI runtime only). */
   sessionId?: string;
+  /** The turn read outside content (a page, a file, command output). */
+  untrusted?: boolean;
 }
 
 /**
@@ -110,10 +123,49 @@ export function windowHistory(history: ChatMessage[], budgetTokens = HISTORY_TOK
   return kept;
 }
 
-function toApiMessages(history: ChatMessage[]): ApiMessage[] {
+/** Display name of whoever wrote a message other than `self`; undefined for the user and `self`. */
+function otherAuthor(m: ChatMessage, self: string): string | undefined {
+  if (m.role !== "assistant" || !m.agentId || m.agentId === self) return undefined;
+  return useGaps.getState().findAgent(m.agentId)?.agent.name ?? "Teammate";
+}
+
+/**
+ * In a pack chat several agents reply in one thread. A teammate's reply is
+ * tagged with its name so this agent doesn't take it for its own words.
+ */
+function toApiMessages(history: ChatMessage[], self: string): ApiMessage[] {
   return windowHistory(history)
     .filter((m) => m.role !== "system" && m.content.trim().length > 0)
-    .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+    .map((m) => {
+      const by = otherAuthor(m, self);
+      return { role: m.role as "user" | "assistant", content: by ? `[${by}] ${m.content}` : m.content };
+    });
+}
+
+/** Characters of missed pack chat a Claude Code turn is handed. Kept small: it is resent context. */
+const CATCH_UP_CHARS = 6000;
+
+/**
+ * The Claude Code runtime resumes its own session and is sent only the new
+ * message, so it never sees what teammates said in between. This is that gap:
+ * everything after this agent last spoke, newest kept when it runs long.
+ * Empty in an ordinary one-agent chat.
+ */
+export function catchUp(history: ChatMessage[], self: string): string {
+  const prior = history.slice(0, -1);
+  let start = prior.length;
+  while (start > 0 && !(prior[start - 1].role === "assistant" && (prior[start - 1].agentId ?? self) === self)) start--;
+  const lines: string[] = [];
+  let used = 0;
+  for (let i = prior.length - 1; i >= start; i--) {
+    const m = prior[i];
+    if (m.role === "system" || !m.content.trim()) continue;
+    const line = `${m.role === "user" ? "User" : (otherAuthor(m, self) ?? "You")}: ${m.content}`;
+    used += line.length;
+    if (used > CATCH_UP_CHARS) break;
+    lines.unshift(line);
+  }
+  return lines.length ? `[Earlier in this chat, while you weren't involved]\n${lines.join("\n\n")}\n\n[Now]\n` : "";
 }
 
 /**
@@ -199,7 +251,18 @@ export async function runAgentTurn(
   // shouting. Per-turn state (not a global) so a phone turn and a desktop
   // turn running at once can't taint each other.
   const turn = newTurn();
-  const ctx: ToolContext = { agent, onActivity: opts.onActivity, channel: opts.channel, turn, signal: opts.signal };
+  if (opts.untrusted) turn.untrusted = true;
+  const ctx: ToolContext = {
+    agent,
+    onActivity: opts.onActivity,
+    channel: opts.channel,
+    turn,
+    signal: opts.signal,
+    headless: opts.headless,
+    packChat: opts.packChat,
+  };
+  const extra = opts.extraTools ?? [];
+  const gap = useGaps.getState().findGap(agent.gapId);
   const runtime = agent.runtime ?? settings.runtime;
   const lastUser = [...history].reverse().find((m) => m.role === "user");
   const userText = lastUser?.content ?? "";
@@ -207,9 +270,11 @@ export async function runAgentTurn(
   const { model, temperature, maxTokens } = agent;
 
   // System prompt = identity + what the agent knows: documents matching this
-  // message, then its own memories (most relevant first, newest on ties).
-  const knowledge = await retrieveAsync(agent.knowledge, userText);
-  const memories = useMemory.getState().recall(agent.id, userText, MEMORY_IN_PROMPT);
+  // message, then memories (most relevant first, newest on ties). Its own and
+  // its pack's are searched together, so sharing adds no tokens: the same
+  // number of passages and notes ride along either way.
+  const knowledge = await retrieveAsync([...agent.knowledge, ...(gap?.knowledge ?? [])], userText);
+  const memories = useMemory.getState().recall(agent.id, userText, MEMORY_IN_PROMPT, agent.gapId);
   const system = [
     agent.systemPrompt,
     knowledge ? `\n\nRelevant knowledge (cite when used):\n${knowledge}` : "",
@@ -218,12 +283,12 @@ export async function runAgentTurn(
         memories.map((m) => `- ${m.text}`).join("\n")
       : "",
     opts.channel ? channelBrief(opts.channel) : "",
+    opts.extraSystem ?? "",
     TRUST_BOUNDARY,
   ].join("");
 
   if (runtime === "claude-code") {
     // The pack's MCP servers and environment ride along on every CLI turn.
-    const gap = useGaps.getState().findGap(agent.gapId);
     // Unattended: nobody can approve anything, so the CLI's own machine tools
     // are withheld. A remote-control channel has a human on the other end.
     const unattended = !!opts.headless && !opts.channel?.remote;
@@ -232,14 +297,14 @@ export async function runAgentTurn(
       {
         model,
         system,
-        prompt: userText,
+        prompt: catchUp(history, agent.id) + userText,
         resume: opts.resumeSessionId ?? "",
         mcpConfig: gap ? buildMcpConfig(gap) : undefined,
         env: gap?.env && Object.keys(gap.env).length > 0 ? gap.env : undefined,
         disallowedTools: unattended ? CLI_MACHINE_TOOLS : undefined,
         bridge: {
-          defs: bridged.defs as import("./claude").ToolDef[],
-          executors: bridged.executors,
+          defs: [...(bridged.defs as import("./claude").ToolDef[]), ...extra.map((t) => t.def)],
+          executors: { ...bridged.executors, ...Object.fromEntries(extra.map((t) => [t.def.name, t.run])) },
           ctx,
           onTool: opts.onTool,
           approvals: !unattended,
@@ -263,12 +328,17 @@ export async function runAgentTurn(
       // Claude Code runs on the subscription, not metered per-token.
       costUsd: 0,
       sessionId: result.sessionId,
+      untrusted: turn.untrusted,
     };
   }
 
   // API runtime: agentic tool-use loop.
   const { defs, executors } = buildTools(agent);
-  const messages = toApiMessages(history);
+  for (const t of extra) {
+    defs.push(t.def);
+    executors[t.def.name] = t.run;
+  }
+  const messages = toApiMessages(history, agent.id);
   // Driving a desktop is a screenshot → click → screenshot loop, which needs
   // headroom; the cap is a runaway guard, not a budget.
   const maxSteps = opts.maxSteps ?? 20;
@@ -323,8 +393,7 @@ export async function runAgentTurn(
 
     // Record the assistant's tool-call turn, then run tools and feed results.
     messages.push({ role: "assistant", content: turn.content });
-    const results: ApiContent[] = [];
-    for (const tu of clientToolUses) {
+    const call = async (tu: (typeof clientToolUses)[number]): Promise<ApiContent> => {
       opts.onTool?.({ id: tu.id, name: tu.name, input: tu.input, status: "running" });
       const out = await runTool(tu.name, tu.input, executors, ctx);
       const text = typeof out === "string" ? out : out.text;
@@ -335,14 +404,21 @@ export async function runAgentTurn(
         output: text,
         status: text.startsWith("Error") ? "error" : "done",
       });
-      results.push({ type: "tool_result", tool_use_id: tu.id, content: toResultContent(out) });
-    }
+      return { type: "tool_result", tool_use_id: tu.id, content: toResultContent(out) };
+    };
+    // Teammates asked in one step work at the same time: asking three costs
+    // the slowest one's wait, not all three. Other tools stay one at a time,
+    // in order, since they act on the machine.
+    const results: ApiContent[] = clientToolUses.every((t) => PARALLEL_TOOLS.has(t.name))
+      ? await Promise.all(clientToolUses.map(call))
+      : [];
+    if (results.length === 0) for (const tu of clientToolUses) results.push(await call(tu));
     messages.push({ role: "user", content: results });
     pruneImages(messages);
   }
 
   const costUsd = costFor(model, totalIn, totalOut, settings.priceOverrides);
-  return { text: finalText, inputTokens: totalIn, outputTokens: totalOut, costUsd };
+  return { text: finalText, inputTokens: totalIn, outputTokens: totalOut, costUsd, untrusted: turn.untrusted };
 }
 
 /** Headless single-shot run (channels, schedules): a fresh conversation. */

@@ -18,12 +18,14 @@ export const rememberTool: ClientTool = {
   run: async (input, ctx) => {
     const text = str(input.text);
     if (!text) return "Error: nothing to remember.";
+    // Learned in a pack chat, it belongs to the pack: every agent there sees it.
+    const owner = ctx.packChat ? { gapId: ctx.agent.gapId } : { agentId: ctx.agent.id };
     // With review on, the user approves each fact before it counts.
     if (ctx.agent.reviewMemory) {
-      useMemory.getState().propose(ctx.agent.id, text, ctx.agent.name);
+      useMemory.getState().propose(owner, text, ctx.agent.name);
       return "Queued for the user's approval; it will count once they keep it.";
     }
-    useMemory.getState().remember(ctx.agent.id, text);
+    useMemory.getState().remember(owner, text);
     return "Saved to memory.";
   },
 };

@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
+import { BotFace } from "@/components/BotFace";
 import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { PageBody, PageHeader } from "@/components/Shell";
-import { Avatar, Button, EmptyState, StatusDot } from "@/components/ui";
+import { Button, EmptyState, StatusDot } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useGaps } from "@/stores/gaps";
 import { useRuns } from "@/stores/runs";
@@ -12,6 +13,7 @@ import { useConversations } from "@/stores/conversations";
 import { useChannelRuntime, channelKey } from "@/stores/channelRuntime";
 import { fmtUsd, fmtTokens, relativeTime, DAY_MS } from "@/lib/format";
 import { MODELS } from "@/types/domain";
+import { groupRuns } from "@/lib/runGroups";
 
 /** One cell of the status readout: a mono figure over a quiet caption. */
 function Readout({
@@ -69,16 +71,22 @@ export function HomeView() {
     monthStart.setHours(0, 0, 0, 0);
     const dayAgo = now - DAY_MS;
     const month = runs.filter((r) => r.startedAt >= monthStart.getTime());
+    // A pack-chat message counts once, however many agents it ran.
+    const today = groupRuns(runs.filter((r) => r.startedAt >= dayAgo));
+    const status = (e: (typeof today)[number]) => (e.kind === "run" ? e.run.status : e.status);
     return {
-      today: runs.filter((r) => r.startedAt >= dayAgo).length,
-      failedToday: runs.filter((r) => r.startedAt >= dayAgo && r.status === "error").length,
+      today: today.length,
+      failedToday: today.filter((e) => status(e) === "error").length,
       spend: month.reduce((a, r) => a + r.costUsd, 0),
       tokens: month.reduce((a, r) => a + r.tokensIn + r.tokensOut, 0),
     };
   }, [runs, now]);
 
-  const bots = agents.flatMap(({ agent }) => agent.channels.filter((c) => c.token).map((c) => ({ agent, c })));
-  const liveBots = bots.filter(({ agent, c }) => running[channelKey(agent.id, c.id)]);
+  // Agents' bots and packs' bots alike.
+  const bots = [...gaps, ...agents.map(({ agent }) => agent)].flatMap((host) =>
+    (host.channels ?? []).filter((c) => c.token).map((c) => ({ hostId: host.id, c })),
+  );
+  const liveBots = bots.filter(({ hostId, c }) => running[channelKey(hostId, c.id)]);
   const paired = bots.some(({ c }) => (c.owners?.length ?? 0) > 0);
   const lastActive = (agentId: string) =>
     Math.max(0, ...runs.filter((r) => r.agentId === agentId).map((r) => r.startedAt));
@@ -193,7 +201,7 @@ export function HomeView() {
                             className="flex min-w-0 items-center gap-3"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <Avatar name={agent.name} tint={gap.color} size={28} />
+                            <BotFace name={agent.name} size={28} />
                             <span className="min-w-0">
                               <span className="flex items-center gap-1.5 text-[13.5px] font-medium">
                                 <span className="truncate">{agent.name}</span>
@@ -269,30 +277,44 @@ export function HomeView() {
                 <p className="py-6 text-[13px] text-ink-3">Nothing has run yet. Open an agent and say hello.</p>
               ) : (
                 <ul className="divide-y divide-border">
-                  {runs.slice(0, 7).map((r) => (
-                    <li key={r.id} className="flex items-start gap-3 py-2">
-                      <span className="mt-1.5">
-                        <StatusDot
-                          status={
-                            r.status === "success"
-                              ? "live"
-                              : r.status === "error"
-                                ? "error"
-                                : r.status === "running"
-                                  ? "ready"
-                                  : "draft"
-                          }
-                        />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-[13px]">{r.summary || r.agentName}</div>
-                        <div className="font-mono text-[10.5px] text-ink-3">
-                          {r.agentName} · {r.trigger} · {relativeTime(r.startedAt)}
+                  {groupRuns(runs.slice(0, 40))
+                    .slice(0, 7)
+                    .map((e) => {
+                      if (e.kind === "run") return e.run;
+                      const pack = gaps.find((g) => g.id === e.gapId)?.name ?? "Pack";
+                      const who = [...new Set(e.runs.map((x) => x.agentName))].join(" → ");
+                      return {
+                        ...e.runs[0],
+                        id: e.id,
+                        status: e.status,
+                        costUsd: e.costUsd,
+                        agentName: `${pack} · ${who}`,
+                      };
+                    })
+                    .map((r) => (
+                      <li key={r.id} className="flex items-start gap-3 py-2">
+                        <span className="mt-1.5">
+                          <StatusDot
+                            status={
+                              r.status === "success"
+                                ? "live"
+                                : r.status === "error"
+                                  ? "error"
+                                  : r.status === "running"
+                                    ? "ready"
+                                    : "draft"
+                            }
+                          />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[13px]">{r.summary || r.agentName}</div>
+                          <div className="font-mono text-[10.5px] text-ink-3">
+                            {r.agentName} · {r.trigger} · {relativeTime(r.startedAt)}
+                          </div>
                         </div>
-                      </div>
-                      {r.costUsd > 0 && <span className="num text-[11px] text-ink-3">{fmtUsd(r.costUsd)}</span>}
-                    </li>
-                  ))}
+                        {r.costUsd > 0 && <span className="num text-[11px] text-ink-3">{fmtUsd(r.costUsd)}</span>}
+                      </li>
+                    ))}
                 </ul>
               )}
             </Section>

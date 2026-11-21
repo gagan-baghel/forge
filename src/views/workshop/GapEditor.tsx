@@ -1,5 +1,5 @@
-import { useState, type ComponentType } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { type ComponentType } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import clsx from "clsx";
 import { Button, EmptyState } from "@/components/ui";
 import { PageBody, PageHeader } from "@/components/Shell";
@@ -12,9 +12,10 @@ import { IdentitySection } from "./sections/Identity";
 import { McpSection } from "./sections/Mcp";
 import { EnvironmentSection } from "./sections/Environment";
 import { AdvancedSection } from "./sections/Advanced";
+import { PackKnowledge } from "../agent/KnowledgeTab";
 import { useExportGap } from "./useExportGap";
 
-type Section = "identity" | "agents" | "mcp" | "environment" | "advanced";
+type Section = "identity" | "agents" | "knowledge" | "mcp" | "environment" | "advanced";
 /** Adding a section is one entry here plus its component in ./sections. */
 const SECTIONS: {
   id: Section;
@@ -24,6 +25,13 @@ const SECTIONS: {
   count?: (g: Gap) => number;
 }[] = [
   { id: "agents", label: "Agents", icon: "agents", Body: AgentsSection, count: (g) => g.agents.length },
+  {
+    id: "knowledge",
+    label: "Knowledge",
+    icon: "book",
+    Body: PackKnowledge,
+    count: (g) => g.knowledge?.length ?? 0,
+  },
   { id: "identity", label: "Details", icon: "edit", Body: IdentitySection },
   { id: "mcp", label: "MCP servers", icon: "plug", Body: McpSection, count: (g) => g.mcpServers?.length ?? 0 },
   { id: "environment", label: "Environment", icon: "terminal", Body: EnvironmentSection },
@@ -40,7 +48,10 @@ export function GapEditorView() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const gap = useGaps((s) => s.findGap(id));
-  const [section, setSection] = useState<Section>("agents");
+  // `?section=knowledge` opens a section directly (links from an agent's Knowledge tab).
+  const [params, setParams] = useSearchParams();
+  const section: Section = SECTIONS.find((s) => s.id === params.get("section"))?.id ?? "agents";
+  const setSection = (next: Section) => setParams({ section: next }, { replace: true });
   const publish = usePublished((s) => s.publish);
   const unpublish = usePublished((s) => s.unpublish);
   const published = usePublished((s) => (gap ? s.isPublished(gap.slug) : false));

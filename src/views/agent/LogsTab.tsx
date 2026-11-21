@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useRuns } from "@/stores/runs";
 import type { Agent, Run } from "@/types/domain";
 import { Badge, Card, EmptyState, StatusDot } from "@/components/ui";
@@ -8,19 +9,42 @@ const DOT: Partial<Record<Run["status"], string>> = { success: "live", error: "e
 
 const TONE: Partial<Record<Run["status"], "success" | "danger">> = { success: "success", error: "danger" };
 
-/** What an agent has done. */
+/**
+ * What an agent has done on its own: chats with it, its phone and its
+ * schedules. Its work inside pack chats lives under the pack in Activity.
+ */
 export function LogsTab({ agent }: { agent: Agent }) {
   const allRuns = useRuns((s) => s.runs);
-  const runs = allRuns.filter((r) => r.agentId === agent.id);
+  const mine = allRuns.filter((r) => r.agentId === agent.id);
+  const runs = mine.filter((r) => !r.group);
+  const inPack = mine.length - runs.length;
+  const packNote = inPack > 0 && (
+    <Link to="/runs" className="hover:text-ink">
+      +{inPack} in pack chats, under the pack in Activity →
+    </Link>
+  );
   if (runs.length === 0) {
     return (
       <Card>
-        <EmptyState icon="activity" title="No runs yet" body="Runs appear here after you chat with this agent." />
+        <EmptyState
+          icon="activity"
+          title="No runs on its own yet"
+          body="Runs appear here after you chat with this agent directly, or its schedules run."
+          action={packNote || undefined}
+        />
       </Card>
     );
   }
   return (
-    <ListCard title="Runs" hint={`${runs.length} for this agent`}>
+    <ListCard
+      title="Runs"
+      hint={
+        <>
+          {runs.length} on its own{packNote && " · "}
+          {packNote}
+        </>
+      }
+    >
       {runs.map((r) => (
         <li key={r.id} className={ROW}>
           <StatusDot status={DOT[r.status] ?? "draft"} />

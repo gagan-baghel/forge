@@ -56,8 +56,8 @@ describe("conversations store", () => {
 
 describe("memory store", () => {
   it("remembers and recalls relevant notes", () => {
-    useMemory.getState().remember("a1", "The launch date is in October");
-    useMemory.getState().remember("a1", "The mascot is a fox");
+    useMemory.getState().remember({ agentId: "a1" }, "The launch date is in October");
+    useMemory.getState().remember({ agentId: "a1" }, "The mascot is a fox");
     const hits = useMemory.getState().recall("a1", "when is launch");
     expect(hits[0].text).toMatch(/launch date/);
   });

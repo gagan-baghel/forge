@@ -6,7 +6,7 @@
  *     approval answers resolve the prompt they belong to;
  *  3. run — everything else becomes a turn in that chat's conversation.
  */
-import type { Agent, Channel, ChannelOwner } from "@/types/domain";
+import type { Channel, ChannelOwner } from "@/types/domain";
 import type { ChannelRef } from "../approval";
 import { useGaps } from "@/stores/gaps";
 import { channelKey } from "@/stores/channelRuntime";
@@ -14,23 +14,23 @@ import { settleFromChat, typedAnswer, type Decision } from "./approvals";
 import { HELP, commandFor } from "./commands";
 import { checkPairCode } from "./pairing";
 import { enqueue } from "./runs";
-import { chatKeyOf, quiet, rt, sendText, type InboundMessage } from "./send";
+import { chatKeyOf, hostChannels, quiet, rt, sendText, type Host, type InboundMessage } from "./send";
 
 const LOG_PREVIEW_CHARS = 140;
 
-function resolveChannel(channelId: string): { agent: Agent; channel: Channel } | undefined {
+function resolveChannel(channelId: string): { host: Host; channel: Channel } | undefined {
   // Match the whole key: nanoid ids can contain "_", so splitting on "__"
-  // would misroute an agent whose id ends in "_" or contains "__".
+  // would misroute a host whose id ends in "_" or contains "__".
   for (const g of useGaps.getState().gaps)
-    for (const agent of g.agents) {
-      const channel = agent.channels.find((c) => channelKey(agent.id, c.id) === channelId);
-      if (channel) return { agent, channel };
+    for (const host of [g, ...g.agents] as Host[]) {
+      const channel = hostChannels(host).find((c) => channelKey(host.id, c.id) === channelId);
+      if (channel) return { host, channel };
     }
   return undefined;
 }
 
 /** Strangers: pairing is the only thing they can do. */
-function handleStranger(agent: Agent, channel: Channel, ref: ChannelRef, msg: InboundMessage, text: string) {
+function handleStranger(host: Host, channel: Channel, ref: ChannelRef, msg: InboundMessage, text: string) {
   if (msg.kind === "callback") return;
   const who = `${msg.from} (id ${msg.sender_id})`;
   const pair = /^\/pair(?:@\w+)?\s+(\d{6})$/i.exec(text);
@@ -58,16 +58,16 @@ function handleStranger(agent: Agent, channel: Channel, ref: ChannelRef, msg: In
     return;
   }
   const owner: ChannelOwner = { id: msg.sender_id, name: msg.from, chatId: msg.chat_id, pairedAt: Date.now() };
-  useGaps.getState().upsertChannel(agent.id, { ...channel, owners: [...(channel.owners ?? []), owner] });
+  useGaps.getState().upsertChannel(host.id, { ...channel, owners: [...(channel.owners ?? []), owner] });
   rt().log(ref.key, "security", `Paired ${who}`);
-  quiet(sendText(ref, `✅ Paired with ${agent.name}.\n\n${HELP}`));
+  quiet(sendText(ref, `✅ Paired with ${host.name}.\n\n${HELP}`));
 }
 
 export async function handleInbound(msg: InboundMessage): Promise<void> {
   const found = resolveChannel(msg.channel_id);
   const token = found?.channel.token;
   if (!found || !token) return;
-  const { agent, channel } = found;
+  const { host, channel } = found;
   const ref: ChannelRef = {
     kind: channel.kind === "discord" ? "discord" : "telegram",
     token,
@@ -78,7 +78,7 @@ export async function handleInbound(msg: InboundMessage): Promise<void> {
   const text = msg.text.trim();
 
   if (!(channel.owners ?? []).some((o) => o.id === msg.sender_id)) {
-    handleStranger(agent, channel, ref, msg, text);
+    handleStranger(host, channel, ref, msg, text);
     return;
   }
 
@@ -93,8 +93,8 @@ export async function handleInbound(msg: InboundMessage): Promise<void> {
   rt().log(ref.key, "in", `${msg.from}: ${text.slice(0, LOG_PREVIEW_CHARS) || `${msg.files.length} file(s)`}`);
   const command = commandFor(text);
   if (command) {
-    await command({ agent, channel, ref, msg, chatKey: chatKeyOf(ref) });
+    await command({ host, channel, ref, msg, chatKey: chatKeyOf(ref) });
     return;
   }
-  enqueue(agent, ref, msg);
+  enqueue(host, ref, msg);
 }

@@ -146,8 +146,390 @@ body {
 
 /* ---- Motion ------------------------------------------------------------
  * Short, one-shot entrances that say where something came from: a page
- * settles, a dialog pops from the backdrop, a new chat message rises. Nothing
- * loops, and all of it is off for people who ask for reduced motion. */
+ * settles, a dialog pops from the backdrop, a new chat message rises. The one
+ * loop is an agent's face blinking every few seconds. All of it is off for
+ * people who ask for reduced motion. */
+@keyframes bot-blink {
+  0%,
+  94%,
+  100% {
+    transform: scaleY(1);
+  }
+  97% {
+    transform: scaleY(0.12);
+  }
+}
+.bot-blink {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bot-blink 5.5s ease-in-out infinite;
+}
+
+/* ---- BotBuddy: an agent acting out what it's doing -------------------
+ * Every action starts and ends in the standing pose and runs exactly as long
+ * as BotBuddy's ACTIONS says, so actions hand over without a jump. Parts only
+ * some poses use fade in and out rather than popping. */
+.bb g,
+.bb path,
+.bb text,
+.bb ellipse {
+  transform-box: view-box;
+}
+/* The eyes blink around their own centre, whatever the body is doing. */
+.bb .bot-blink {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.bb-bar,
+.bb-hang-arm,
+.bb-chin,
+.bb-bubble,
+.bb-zs,
+.bb-drool {
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.bb-arm-l,
+.bb-arm-r,
+.bb-shadow {
+  transition: opacity 0.35s ease;
+}
+.bb-all {
+  transform-origin: 32px 68px;
+  transition: transform 0.6s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+.bb-head {
+  transform-origin: 32px 44px;
+  transition: transform 0.45s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+.bb-arm-l {
+  transform-origin: 24px 46px;
+}
+.bb-arm-r {
+  transform-origin: 40px 46px;
+}
+.bb-leg-l {
+  transform-origin: 28px 58px;
+}
+.bb-leg-r {
+  transform-origin: 36px 58px;
+}
+.bb-hang-arm-l {
+  transform-origin: 24px 46px;
+}
+.bb-hang-arm-r {
+  transform-origin: 40px 46px;
+}
+.bb-breathe {
+  transform-origin: 32px 68px;
+  animation: bb-breathe 2.4s ease-in-out infinite;
+}
+@keyframes bb-breathe {
+  50% {
+    transform: scale(1.015, 1.03);
+  }
+}
+
+/* Wave (2.4s): the arm lifts, waves, and comes back down */
+.bb-wave .bb-arm-r {
+  animation: bb-wave 2.4s ease-in-out;
+}
+.bb-wave .bb-head {
+  transform: rotate(-5deg);
+}
+@keyframes bb-wave {
+  0%,
+  100% {
+    transform: none;
+  }
+  18% {
+    transform: rotate(-112deg);
+  }
+  30%,
+  54% {
+    transform: rotate(-96deg);
+  }
+  42%,
+  66% {
+    transform: rotate(-124deg);
+  }
+  80% {
+    transform: rotate(-112deg);
+  }
+}
+
+/* Jump (2.8s = two hops): crouch, hop, squash on landing */
+.bb-jump .bb-all {
+  animation: bb-jump 1.4s cubic-bezier(0.3, 0.6, 0.4, 1) 2;
+}
+.bb-jump .bb-shadow {
+  transform-origin: 32px 70px;
+  animation: bb-jump-shadow 1.4s cubic-bezier(0.3, 0.6, 0.4, 1) 2;
+}
+@keyframes bb-jump {
+  0%,
+  75%,
+  100% {
+    transform: none;
+  }
+  15% {
+    transform: scale(1.06, 0.92);
+  }
+  45% {
+    transform: translateY(-15px) scale(0.96, 1.05);
+  }
+  85% {
+    transform: scale(1.05, 0.93);
+  }
+}
+@keyframes bb-jump-shadow {
+  45% {
+    transform: scale(0.55);
+    opacity: 0.1;
+  }
+}
+
+/* Walk (4s): toddle one way, then the other, legs taking turns */
+.bb-walk .bb-all {
+  animation: bb-walk 4s ease-in-out;
+}
+@keyframes bb-walk {
+  25% {
+    transform: translateX(-11px);
+  }
+  75% {
+    transform: translateX(11px);
+  }
+}
+.bb-walk .bb-leg-l,
+.bb-walk .bb-leg-r {
+  animation: bb-step 0.5s ease-in-out 8 alternate;
+}
+.bb-walk .bb-leg-r {
+  animation-delay: -0.25s;
+}
+@keyframes bb-step {
+  to {
+    transform: translateY(-2.4px);
+  }
+}
+.bb-walk .bb-breathe {
+  animation: bb-bob 0.25s ease-in-out 16 alternate;
+}
+@keyframes bb-bob {
+  to {
+    transform: translateY(-1px);
+  }
+}
+
+/* Hang (4.2s): the bar slides open, the arms swing up and stretch to it,
+ * swing and kick, then the same in reverse. Nothing fades: half-faded pastel
+ * on a dark page reads as a grey smudge. */
+.bb-hang .bb-bar {
+  transform-origin: 32px 7px;
+  animation: bb-bar 4.2s ease-in-out;
+}
+@keyframes bb-bar {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scaleX(0);
+  }
+  10%,
+  90% {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* Short arms swing up to point at the bar… */
+.bb-hang .bb-arm-l {
+  animation: bb-raise-l 4.2s ease-in-out;
+}
+.bb-hang .bb-arm-r {
+  animation: bb-raise-r 4.2s ease-in-out;
+}
+@keyframes bb-raise-l {
+  0%,
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+  10%,
+  90% {
+    transform: rotate(148deg);
+    opacity: 1;
+  }
+  10.1%,
+  89.9% {
+    opacity: 0;
+  }
+}
+@keyframes bb-raise-r {
+  0%,
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+  10%,
+  90% {
+    transform: rotate(-148deg);
+    opacity: 1;
+  }
+  10.1%,
+  89.9% {
+    opacity: 0;
+  }
+}
+/* …then hand over to the long arms, which start that same length and stretch. */
+.bb-hang .bb-hang-arm {
+  animation: bb-reach 4.2s ease-in-out;
+}
+@keyframes bb-reach {
+  0%,
+  9.9%,
+  90.1%,
+  100% {
+    opacity: 0;
+    transform: scaleY(0.24);
+  }
+  10%,
+  90% {
+    opacity: 1;
+    transform: scaleY(0.24);
+  }
+  18%,
+  82% {
+    opacity: 1;
+    transform: none;
+  }
+}
+.bb-hang .bb-all {
+  transform-origin: 32px 7px;
+  animation: bb-swing 4.2s ease-in-out;
+}
+@keyframes bb-swing {
+  0%,
+  18%,
+  82%,
+  100% {
+    transform: none;
+  }
+  22%,
+  78% {
+    transform: translateY(-3px);
+  }
+  32%,
+  56% {
+    transform: translateY(-3px) rotate(-8deg);
+  }
+  44%,
+  68% {
+    transform: translateY(-3px) rotate(8deg);
+  }
+}
+.bb-hang .bb-leg-l {
+  animation: bb-kick 4.2s ease-in-out;
+}
+.bb-hang .bb-leg-r {
+  animation: bb-kick 4.2s ease-in-out reverse;
+}
+@keyframes bb-kick {
+  0%,
+  20%,
+  80%,
+  100% {
+    transform: none;
+  }
+  28%,
+  44%,
+  60% {
+    transform: rotate(16deg);
+  }
+  36%,
+  52%,
+  70% {
+    transform: rotate(-16deg);
+  }
+}
+.bb-hang .bb-shadow {
+  transform-origin: 32px 70px;
+  animation: bb-lift-shadow 4.2s ease-in-out;
+}
+@keyframes bb-lift-shadow {
+  22%,
+  78% {
+    transform: scale(0.8);
+    opacity: 0.08;
+  }
+}
+
+/* Think: hand to chin, head tilted, a bubble with dots */
+.bb-think .bb-chin,
+.bb-think .bb-bubble {
+  opacity: 1;
+}
+.bb-think .bb-arm-r {
+  opacity: 0;
+}
+.bb-think .bb-head {
+  transform: rotate(-7deg);
+}
+.bb-dot {
+  animation: bb-dot 1.2s ease-in-out infinite;
+}
+@keyframes bb-dot {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+/* Talk: a happy little bob */
+.bb-talk .bb-all {
+  animation: bb-bob 0.3s ease-in-out infinite alternate;
+}
+
+/* Sleep: slumps over slowly, slow breaths, z's drifting up, a drool drop */
+.bb-sleep .bb-all {
+  transform: rotate(7deg);
+}
+.bb-sleep .bb-breathe {
+  animation-duration: 3.6s;
+}
+.bb-sleep .bb-zs,
+.bb-sleep .bb-drool {
+  opacity: 1;
+}
+.bb-z {
+  opacity: 0;
+  animation: bb-z 2.4s ease-out infinite;
+}
+@keyframes bb-z {
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(3px, -6px);
+  }
+}
+.bb-drool {
+  transform-origin: 33.6px 38.4px;
+  animation: bb-drool 2.6s ease-in-out infinite;
+}
+@keyframes bb-drool {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+  }
+  60% {
+    transform: scaleY(1.15);
+  }
+}
+
 @keyframes forge-rise {
   from {
     opacity: 0;
@@ -180,8 +562,13 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .anim-rise,
   .anim-pop,
-  .anim-fade {
-    animation: none;
+  .anim-fade,
+  .bot-blink,
+  .bb * {
+    animation: none !important;
+  }
+  .bb-z {
+    opacity: 0.8;
   }
   .btn:active {
     transform: none;

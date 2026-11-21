@@ -35,7 +35,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("what an agent knows reaches every answer", () => {
   it("hands the agent its memories without it having to ask", async () => {
     const agent = makeAgent();
-    useMemory.getState().remember(agent.id, "The user's name is Ada");
+    useMemory.getState().remember({ agentId: agent.id }, "The user's name is Ada");
     const spy = mockStreamingFetch([textTurn("ok")]);
 
     await runAgentHeadless(agent, "what's my name?");
@@ -45,7 +45,7 @@ describe("what an agent knows reaches every answer", () => {
 
   it("never shows facts still waiting for approval", async () => {
     const agent = makeAgent();
-    useMemory.getState().propose(agent.id, "Unvetted claim", "Scout");
+    useMemory.getState().propose({ agentId: agent.id }, "Unvetted claim", "Scout");
     const spy = mockStreamingFetch([textTurn("ok")]);
 
     await runAgentHeadless(agent, "claim?");
@@ -104,7 +104,7 @@ describe("folding old brains into agents", () => {
     const b = makeAgent();
     useGaps.getState().updateAgent(a.id, { brainId: "br" } as any);
     useGaps.getState().updateAgent(b.id, { brainId: "br" } as any);
-    useMemory.getState().remember("brain:br", "Team prefers metric units");
+    useMemory.getState().remember({ agentId: "brain:br" }, "Team prefers metric units");
     localStorage.setItem(
       "forge.brains",
       JSON.stringify({

@@ -2,7 +2,7 @@
  * Owner slash-commands. Each command is one entry in COMMANDS; adding or
  * removing a command touches nothing else (update HELP to match).
  */
-import type { Agent, Channel } from "@/types/domain";
+import type { Channel } from "@/types/domain";
 import type { ChannelRef } from "../approval";
 import { invoke } from "../platform";
 import { errorMessage } from "../runError";
@@ -12,10 +12,11 @@ import { useSettings } from "@/stores/settings";
 import { settleWhere } from "./approvals";
 import { removeOwner } from "./pairing";
 import { abortChat } from "./runs";
-import { chatKeyOf, quiet, rt, sendText, type InboundMessage } from "./send";
+import { chatKeyOf, isPack, quiet, rt, sendText, type Host, type InboundMessage } from "./send";
 
 export const HELP = [
   "Just message me what you need — I'll do it and report back.",
+  "In a pack, start with @Name to pick who answers.",
   "",
   "/status — what I'm doing, and whether remote control is on",
   "/stop — stop the current task",
@@ -26,7 +27,8 @@ export const HELP = [
 ].join("\n");
 
 export interface CommandContext {
-  agent: Agent;
+  /** The agent or pack this bot fronts. */
+  host: Host;
   channel: Channel;
   ref: ChannelRef;
   msg: InboundMessage;
@@ -35,13 +37,17 @@ export interface CommandContext {
 
 type Command = (c: CommandContext) => void | Promise<void>;
 
-function remoteState({ agent, channel, chatKey }: CommandContext): string {
+function remoteState({ host, channel, chatKey }: CommandContext): string {
   const settings = useSettings.getState();
   const until = rt().trustUntil[chatKey] ?? 0;
   const busy = !!rt().busy[chatKey];
-  const runtime = (agent.runtime ?? settings.runtime) === "claude-code" ? "Claude Code" : "Claude API";
+  const runtime = (a: { runtime?: string }) =>
+    (a.runtime ?? settings.runtime) === "claude-code" ? "Claude Code" : "Claude API";
+  const who = isPack(host)
+    ? `${host.name} · ${host.agents.map((a) => `${a.name}${a.status === "paused" ? " (paused)" : ""}`).join(", ")}`
+    : `${host.name} · ${runtime(host)} · ${host.model}`;
   return [
-    `${agent.name} · ${runtime} · ${agent.model}`,
+    who,
     busy ? "Working on a task (/stop to cancel)" : "Idle",
     channel.remoteControl ? "Remote control: on — machine actions ask you first" : "Remote control: off — chat only",
     until > Date.now() ? `Trust window: until ${new Date(until).toLocaleTimeString()}` : "Trust window: off",
@@ -49,7 +55,10 @@ function remoteState({ agent, channel, chatKey }: CommandContext): string {
   ].join("\n");
 }
 
-const help: Command = ({ agent, ref }) => quiet(sendText(ref, `${agent.name} — ${agent.role}\n\n${HELP}`));
+const help: Command = ({ host, ref }) =>
+  quiet(
+    sendText(ref, `${host.name} — ${isPack(host) ? host.agents.map((a) => a.name).join(", ") : host.role}\n\n${HELP}`),
+  );
 
 const COMMANDS: Record<string, Command> = {
   start: help,
@@ -59,22 +68,24 @@ const COMMANDS: Record<string, Command> = {
     settleWhere((r) => chatKeyOf(r) === chatKey, "no");
     if (!abortChat(chatKey)) quiet(sendText(ref, "Nothing is running."));
   },
-  new: ({ agent, ref, msg, chatKey }) => {
-    useConversations.getState().newConversation(agent.id, { kind: ref.kind, key: chatKey, from: msg.from });
+  new: ({ host, ref, msg, chatKey }) => {
+    const origin = { kind: ref.kind, key: chatKey, from: msg.from };
+    if (isPack(host)) useConversations.getState().newConversation("", origin, host.id);
+    else useConversations.getState().newConversation(host.id, origin);
     quiet(sendText(ref, "Started a fresh conversation."));
   },
   lock: ({ ref, chatKey }) => {
     rt().setTrust(chatKey, null);
     quiet(sendText(ref, "🔒 Locked — every action asks you first again."));
   },
-  unpair: ({ agent, channel, ref, msg }) => {
-    removeOwner(agent.id, channel, msg.sender_id);
+  unpair: ({ host, channel, ref, msg }) => {
+    removeOwner(host.id, channel, msg.sender_id);
     rt().log(ref.key, "security", `${msg.from} unpaired`);
     quiet(sendText(ref, "Disconnected. Pair again from Forge any time."));
   },
   screenshot: async ({ channel, ref }) => {
     if (!channel.remoteControl) {
-      quiet(sendText(ref, "Remote control is off for this agent — turn it on in Forge → Remote."));
+      quiet(sendText(ref, "Remote control is off for this bot — turn it on in Forge → Remote."));
       return;
     }
     // An owner asking for it directly is the approval.

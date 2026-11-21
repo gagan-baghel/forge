@@ -5,8 +5,10 @@ import { nanoid } from "nanoid";
 
 export interface MemoryNote {
   id: string;
-  /** The agent this memory belongs to. */
+  /** The agent this memory belongs to. Empty for a pack memory. */
   agentId: string;
+  /** Set for a pack memory: shared by every agent in that pack. */
+  gapId?: string;
   text: string;
   createdAt: number;
   /** Learning queue: pending notes wait for approval and are never recalled. */
@@ -15,16 +17,24 @@ export interface MemoryNote {
   proposedBy?: string;
 }
 
+/** Whose memory: one agent's, or a pack's (shared by its agents). */
+export type MemoryOwner = { agentId: string } | { gapId: string };
+
+const ownerFields = (o: MemoryOwner) => ("gapId" in o ? { agentId: "", gapId: o.gapId } : { agentId: o.agentId });
+
 interface MemoryStore {
   notes: MemoryNote[];
-  remember: (agentId: string, text: string) => MemoryNote;
+  remember: (owner: MemoryOwner, text: string) => MemoryNote;
   /** Queue a fact for review instead of saving it outright. */
-  propose: (agentId: string, text: string, proposedBy?: string) => MemoryNote;
+  propose: (owner: MemoryOwner, text: string, proposedBy?: string) => MemoryNote;
   approve: (id: string) => void;
   /** Reject = drop. Alias kept for review-UI readability. */
   reject: (id: string) => void;
-  recall: (agentId: string, query: string, limit?: number) => MemoryNote[];
+  /** The agent's own memories and its pack's, most relevant first. */
+  recall: (agentId: string, query: string, limit?: number, gapId?: string) => MemoryNote[];
   forAgent: (agentId: string) => MemoryNote[];
+  forPack: (gapId: string) => MemoryNote[];
+  clearPack: (gapId: string) => void;
   pendingFor: (agentId: string) => MemoryNote[];
   remove: (id: string) => void;
   clearAgent: (agentId: string) => void;
@@ -34,15 +44,15 @@ export const useMemory = create<MemoryStore>()(
   persist(
     (set, get) => ({
       notes: [],
-      remember: (agentId, text) => {
-        const note: MemoryNote = { id: nanoid(8), agentId, text: text.trim(), createdAt: Date.now() };
+      remember: (owner, text) => {
+        const note: MemoryNote = { id: nanoid(8), ...ownerFields(owner), text: text.trim(), createdAt: Date.now() };
         set((s) => ({ notes: [note, ...s.notes] }));
         return note;
       },
-      propose: (agentId, text, proposedBy) => {
+      propose: (owner, text, proposedBy) => {
         const note: MemoryNote = {
           id: nanoid(8),
-          agentId,
+          ...ownerFields(owner),
           text: text.trim(),
           createdAt: Date.now(),
           status: "pending",
@@ -56,10 +66,11 @@ export const useMemory = create<MemoryStore>()(
           notes: s.notes.map((n) => (n.id === id ? { ...n, status: undefined } : n)),
         })),
       reject: (id) => get().remove(id),
-      recall: (agentId, query, limit = 5) => {
+      recall: (agentId, query, limit = 5, gapId) => {
         const q = query.toLowerCase().split(/\s+/).filter(Boolean);
+        const mine = (n: MemoryNote) => (n.agentId ? n.agentId === agentId : !!gapId && n.gapId === gapId);
         return get()
-          .notes.filter((n) => n.agentId === agentId && n.status !== "pending")
+          .notes.filter((n) => mine(n) && n.status !== "pending")
           .map((n) => {
             const t = n.text.toLowerCase();
             const score = q.reduce((a, w) => a + (t.includes(w) ? 1 : 0), 0);
@@ -70,6 +81,8 @@ export const useMemory = create<MemoryStore>()(
           .map((x) => x.n);
       },
       forAgent: (agentId) => get().notes.filter((n) => n.agentId === agentId),
+      forPack: (gapId) => get().notes.filter((n) => !n.agentId && n.gapId === gapId),
+      clearPack: (gapId) => set((s) => ({ notes: s.notes.filter((n) => n.agentId || n.gapId !== gapId) })),
       pendingFor: (agentId) => get().notes.filter((n) => n.agentId === agentId && n.status === "pending"),
       remove: (id) => set((s) => ({ notes: s.notes.filter((n) => n.id !== id) })),
       clearAgent: (agentId) => set((s) => ({ notes: s.notes.filter((n) => n.agentId !== agentId) })),

@@ -22,6 +22,7 @@ export const BACKUP_MAGIC = "forge.backup/v1";
 
 const SETTINGS_KEY = "forge.settings";
 const GAPS_KEY = "forge.gaps";
+const PUBLISHED_KEY = "forge.published";
 /** Fields that must never leave the device inside a backup file. */
 const SECRET_FIELDS = ["apiKey", "ccToken"] as const;
 
@@ -33,10 +34,14 @@ const isForgeKey = (k: string) => k.startsWith("forge.");
  * the packs — a bot token in a backup file is remote control of this Mac.
  */
 function stripSecrets(key: string, value: string): string {
-  if (key !== SETTINGS_KEY && key !== GAPS_KEY) return value;
+  if (key !== SETTINGS_KEY && key !== GAPS_KEY && key !== PUBLISHED_KEY) return value;
   try {
     const parsed = JSON.parse(value);
     if (key === SETTINGS_KEY && parsed?.state) for (const f of SECRET_FIELDS) delete parsed.state[f];
+    // Published listings are whole packs too, so they carry the same secrets.
+    if (key === PUBLISHED_KEY && Array.isArray(parsed?.state?.listings)) {
+      parsed.state.listings = parsed.state.listings.map((l: { gap: Gap }) => ({ ...l, gap: stripGapSecrets(l.gap) }));
+    }
     if (key === GAPS_KEY && Array.isArray(parsed?.state?.gaps)) {
       parsed.state.gaps = parsed.state.gaps.map((g: Gap) => ({
         ...stripGapSecrets(g),
@@ -53,22 +58,27 @@ function stripSecrets(key: string, value: string): string {
 
 type ChannelSecrets = Pick<import("@/types/domain").Channel, "token" | "config" | "owners" | "remoteControl">;
 
-/** This device's channel and connector secrets, by agent and entry id. */
+/** This device's channel and connector secrets, by owner (agent or pack) and entry id. */
 function deviceSecrets(store: Storage): Map<string, ChannelSecrets | string[] | undefined> {
   const out = new Map<string, ChannelSecrets | string[] | undefined>();
   try {
     const gaps: Gap[] = JSON.parse(store.getItem(GAPS_KEY) ?? "null")?.state?.gaps ?? [];
-    for (const g of gaps)
+    const keep = (ownerId: string, channels: Gap["channels"] = []) => {
+      for (const c of channels)
+        out.set(`${ownerId}/ch/${c.id}`, {
+          token: c.token,
+          config: c.config,
+          owners: c.owners,
+          remoteControl: c.remoteControl,
+        });
+    };
+    for (const g of gaps) {
+      keep(g.id, g.channels);
       for (const a of g.agents) {
-        for (const c of a.channels)
-          out.set(`${a.id}/ch/${c.id}`, {
-            token: c.token,
-            config: c.config,
-            owners: c.owners,
-            remoteControl: c.remoteControl,
-          });
+        keep(a.id, a.channels);
         for (const c of a.connectors) if (c.scopes) out.set(`${a.id}/co/${c.id}`, c.scopes);
       }
+    }
   } catch {
     // Nothing worth keeping from a corrupt blob.
   }
@@ -162,7 +172,9 @@ export function applyBackup(raw: unknown, store: Storage = localStorage): void {
   if (secrets.size > 0) {
     try {
       const parsed = JSON.parse(store.getItem(GAPS_KEY) ?? "null");
-      for (const g of parsed?.state?.gaps ?? [])
+      for (const g of parsed?.state?.gaps ?? []) {
+        if (g.channels)
+          g.channels = g.channels.map((c: Stored) => ({ ...c, ...(secrets.get(`${g.id}/ch/${c.id}`) as object) }));
         for (const a of g.agents ?? []) {
           a.channels = (a.channels ?? []).map((c: Stored) => ({
             ...c,
@@ -173,6 +185,7 @@ export function applyBackup(raw: unknown, store: Storage = localStorage): void {
             return scopes ? { ...c, scopes, status: "connected" } : c;
           });
         }
+      }
       if (parsed) store.setItem(GAPS_KEY, JSON.stringify(parsed));
     } catch {
       // Unreadable restored blob: leave it.

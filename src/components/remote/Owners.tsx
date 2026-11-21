@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNow } from "@/hooks/useNow";
-import type { Agent, Channel } from "@/types/domain";
+import type { Channel } from "@/types/domain";
 import { Button } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useDialog } from "@/hooks/useDialog";
@@ -10,17 +10,17 @@ import { relativeTime } from "@/lib/format";
 
 /** Paired phones, and pairing a new one. */
 export function Owners({
-  agent,
+  host,
   channel,
   running,
   bot,
 }: {
-  agent: Agent;
+  host: { id: string };
   channel: Channel;
   running: boolean;
   bot: string;
 }) {
-  const key = channelKey(agent.id, channel.id);
+  const key = channelKey(host.id, channel.id);
   const pairing = useChannelRuntime((s) => s.pairing[key]);
   const { confirm } = useDialog();
   const owners = channel.owners ?? [];
@@ -28,16 +28,16 @@ export function Owners({
   const now = useNow(1000, !!pairing);
   const expired = !!pairing && pairing.expiresAt < now;
   useEffect(() => {
-    if (expired) cancelPairing(agent, channel);
-  }, [expired, agent, channel]);
+    if (expired) cancelPairing(host, channel);
+  }, [expired, host, channel]);
 
   const unpair = async (id: string, name: string) => {
     const ok = await confirm({
       title: `Unpair ${name}?`,
-      body: "Their messages stop reaching this agent. They can pair again with a new code.",
+      body: "Their messages stop reaching this bot. They can pair again with a new code.",
       confirmLabel: "Unpair",
     });
-    if (ok) removeOwner(agent.id, channel, id);
+    if (ok) removeOwner(host.id, channel, id);
   };
 
   const left = pairing ? Math.max(0, Math.ceil((pairing.expiresAt - now) / 1000)) : 0;
@@ -53,7 +53,7 @@ export function Owners({
             icon="plus"
             className="h-7 px-2"
             disabled={!running}
-            onClick={() => startPairing(agent, channel)}
+            onClick={() => startPairing(host, channel)}
           >
             Pair a phone
           </Button>
@@ -66,7 +66,7 @@ export function Owners({
             <div className="min-w-0 text-[13px] text-ink-2">
               From your phone, send this to <strong className="font-medium text-ink">{pairTarget}</strong>:
             </div>
-            <button className="text-xs text-ink-3 hover:text-ink" onClick={() => cancelPairing(agent, channel)}>
+            <button className="text-xs text-ink-3 hover:text-ink" onClick={() => cancelPairing(host, channel)}>
               Cancel
             </button>
           </div>

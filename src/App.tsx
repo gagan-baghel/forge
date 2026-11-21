@@ -16,6 +16,7 @@ import { OnboardingView } from "./views/Onboarding";
 // The agent page carries the chat and its Markdown renderer; Settings carries
 // the backup and runtime tooling. Neither is needed to paint the first screen.
 const AgentDetailView = lazy(() => import("./views/AgentDetail").then((m) => ({ default: m.AgentDetailView })));
+const PackChatView = lazy(() => import("./views/PackChat").then((m) => ({ default: m.PackChatView })));
 const SettingsView = lazy(() => import("./views/Settings").then((m) => ({ default: m.SettingsView })));
 const MarketplaceView = lazy(() => import("./views/Marketplace").then((m) => ({ default: m.MarketplaceView })));
 const ArchitectView = lazy(() => import("./views/Architect").then((m) => ({ default: m.ArchitectView })));
@@ -102,6 +103,7 @@ export function App() {
             <Route path="/gaps/:id" element={lazyRoute(<GapEditorView />)} />
             <Route path="/agents" element={<AgentsView />} />
             <Route path="/agents/:id" element={<AgentDetailView />} />
+            <Route path="/agents/pack/:id" element={<PackChatView />} />
             {/* Brains were folded into agents (lib/foldBrains). */}
             <Route path="/brains/*" element={<Navigate to="/agents" replace />} />
             <Route path="/memory" element={lazyRoute(<MemoryView />)} />

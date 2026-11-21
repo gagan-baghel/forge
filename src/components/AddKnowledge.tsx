@@ -3,20 +3,32 @@ import clsx from "clsx";
 import { Button, Field, Modal } from "./ui";
 import { Icon } from "./Icon";
 import { useGaps } from "@/stores/gaps";
-import { useMemory } from "@/stores/memory";
+import { useMemory, type MemoryOwner } from "@/stores/memory";
 import { extractText, KNOWLEDGE_ACCEPT, ExtractError } from "@/lib/extractText";
 
-/** Which agent gets the item: fixed when opened from an agent, picked otherwise. */
-function AgentPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+/**
+ * Who gets the item, encoded as `pack:<id>` (shared by every agent in the
+ * pack) or `agent:<id>` (that agent only). Fixed when opened from a pack or an
+ * agent; picked otherwise.
+ */
+type Target = string;
+const parseTarget = (t: Target): MemoryOwner | undefined =>
+  t.startsWith("pack:") ? { gapId: t.slice(5) } : t.startsWith("agent:") ? { agentId: t.slice(6) } : undefined;
+
+function TargetPicker({ value, onChange }: { value: Target; onChange: (t: Target) => void }) {
   const gaps = useGaps((s) => s.gaps);
   return (
-    <Field label="Agent">
+    <Field
+      label="Who it's for"
+      hint="Pack items are shared by every agent in the pack; agent items stay with that agent."
+    >
       <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
         {gaps.map((g) => (
           <optgroup key={g.id} label={g.name}>
+            <option value={`pack:${g.id}`}>Whole pack — shared with all {g.agents.length} agents</option>
             {g.agents.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name} — {a.role}
+              <option key={a.id} value={`agent:${a.id}`}>
+                {a.name} only — {a.role}
               </option>
             ))}
           </optgroup>
@@ -26,9 +38,10 @@ function AgentPicker({ value, onChange }: { value: string; onChange: (id: string
   );
 }
 
-function useFirstAgentId(fixed?: string) {
-  const first = useGaps((s) => s.gaps.flatMap((g) => g.agents)[0]?.id ?? "");
-  return fixed ?? first;
+function useInitialTarget(agentId?: string, gapId?: string): Target {
+  const first = useGaps((s) => s.gaps[0]?.id ?? "");
+  if (agentId) return `agent:${agentId}`;
+  return `pack:${gapId ?? first}`;
 }
 
 /* ------------------------------- Documents ------------------------------- */
@@ -37,22 +50,36 @@ function useFirstAgentId(fixed?: string) {
  * Add documents to an agent: drop or pick files (PDF, text, Markdown, CSV,
  * JSON…), or paste text. Everything is read locally.
  */
-export function AddDocumentButton({ agentId, label = "Add document" }: { agentId?: string; label?: string }) {
+export function AddDocumentButton({
+  agentId,
+  gapId,
+  label = "Add document",
+}: {
+  agentId?: string;
+  gapId?: string;
+  label?: string;
+}) {
   const [open, setOpen] = useState(false);
-  const hasAgents = useGaps((s) => s.gaps.some((g) => g.agents.length > 0));
+  const hasPacks = useGaps((s) => s.gaps.length > 0);
   return (
     <>
-      <Button variant="primary" icon="plus" disabled={!hasAgents} onClick={() => setOpen(true)}>
+      <Button variant="primary" icon="plus" disabled={!hasPacks} onClick={() => setOpen(true)}>
         {label}
       </Button>
-      {open && <AddDocumentDialog agentId={agentId} onClose={() => setOpen(false)} />}
+      {open && <AddDocumentDialog agentId={agentId} gapId={gapId} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-function AddDocumentDialog({ agentId, onClose }: { agentId?: string; onClose: () => void }) {
-  const addKnowledge = useGaps((s) => s.addKnowledge);
-  const [target, setTarget] = useState(useFirstAgentId(agentId));
+function AddDocumentDialog({ agentId, gapId, onClose }: { agentId?: string; gapId?: string; onClose: () => void }) {
+  const addAgentDoc = useGaps((s) => s.addKnowledge);
+  const addPackDoc = useGaps((s) => s.addPackKnowledge);
+  const [target, setTarget] = useState(useInitialTarget(agentId, gapId));
+  const addKnowledge = (t: Target, doc: Parameters<typeof addAgentDoc>[1]) => {
+    const o = parseTarget(t);
+    if (o && "gapId" in o) addPackDoc(o.gapId, doc);
+    else if (o) addAgentDoc(o.agentId, doc);
+  };
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [busy, setBusy] = useState(false);
@@ -86,7 +113,7 @@ function AddDocumentDialog({ agentId, onClose }: { agentId?: string; onClose: ()
   return (
     <Modal open onClose={onClose} title="Add document" width={560}>
       <div className="space-y-4">
-        {!agentId && <AgentPicker value={target} onChange={setTarget} />}
+        {!agentId && !gapId && <TargetPicker value={target} onChange={setTarget} />}
 
         <label
           onDragOver={(e) => {
@@ -162,33 +189,42 @@ function AddDocumentDialog({ agentId, onClose }: { agentId?: string; onClose: ()
 /* -------------------------------- Memories ------------------------------- */
 
 /** Write a memory by hand: a fact the agent should always keep in mind. */
-export function AddMemoryButton({ agentId, label = "Add memory" }: { agentId?: string; label?: string }) {
+export function AddMemoryButton({
+  agentId,
+  gapId,
+  label = "Add memory",
+}: {
+  agentId?: string;
+  gapId?: string;
+  label?: string;
+}) {
   const [open, setOpen] = useState(false);
-  const hasAgents = useGaps((s) => s.gaps.some((g) => g.agents.length > 0));
+  const hasPacks = useGaps((s) => s.gaps.length > 0);
   return (
     <>
-      <Button variant="primary" icon="plus" disabled={!hasAgents} onClick={() => setOpen(true)}>
+      <Button variant="primary" icon="plus" disabled={!hasPacks} onClick={() => setOpen(true)}>
         {label}
       </Button>
-      {open && <AddMemoryDialog agentId={agentId} onClose={() => setOpen(false)} />}
+      {open && <AddMemoryDialog agentId={agentId} gapId={gapId} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-function AddMemoryDialog({ agentId, onClose }: { agentId?: string; onClose: () => void }) {
+function AddMemoryDialog({ agentId, gapId, onClose }: { agentId?: string; gapId?: string; onClose: () => void }) {
   const remember = useMemory((s) => s.remember);
-  const [target, setTarget] = useState(useFirstAgentId(agentId));
+  const [target, setTarget] = useState(useInitialTarget(agentId, gapId));
   const [text, setText] = useState("");
   const save = () => {
-    if (!text.trim() || !target) return;
+    const owner = parseTarget(target);
+    if (!text.trim() || !owner) return;
     // Written by you, so it's kept as-is — no approval step.
-    remember(target, text);
+    remember(owner, text);
     onClose();
   };
   return (
     <Modal open onClose={onClose} title="Add memory">
       <div className="space-y-4">
-        {!agentId && <AgentPicker value={target} onChange={setTarget} />}
+        {!agentId && !gapId && <TargetPicker value={target} onChange={setTarget} />}
         <Field
           label="What should the agent remember?"
           hint="A short fact, preference or decision. The agent sees the relevant ones before every answer."

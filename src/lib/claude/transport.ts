@@ -177,7 +177,7 @@ export async function postStream(body: unknown, apiKey: string, signal?: AbortSi
         if (isAbort(e)) throw e;
         // Offline or DNS blip — worth another try.
         lastError = `Network error reaching Claude: ${(e as Error).message}`;
-        if (last) throw new Error(lastError);
+        if (last) throw new Error(lastError, { cause: e });
       }
       log.warn("request failed, retrying", { attempt, error: lastError });
       await sleep(backoffMs(attempt), signal);

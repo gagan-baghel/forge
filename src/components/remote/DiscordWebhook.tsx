@@ -1,16 +1,16 @@
 import { useState } from "react";
-import type { Agent, Channel } from "@/types/domain";
+import type { Channel } from "@/types/domain";
 import { Button, Field } from "@/components/ui";
 import { discordSend } from "@/lib/channelRuntime";
 import { isDesktop } from "@/lib/platform";
 import { errorMessage } from "@/lib/runError";
 
 export function DiscordWebhook({
-  agent,
+  host,
   channel,
   onSave,
 }: {
-  agent: Agent;
+  host: { name: string };
   channel: Channel;
   onSave: (url: string) => void;
 }) {
@@ -18,7 +18,7 @@ export function DiscordWebhook({
   const [note, setNote] = useState("");
   const test = async () => {
     try {
-      await discordSend(webhook, `✅ ${agent.name} is connected to this channel via Forge.`);
+      await discordSend(webhook, `✅ ${host.name} is connected to this channel via Forge.`);
       setNote("Sent a test message.");
     } catch (e) {
       setNote(`Failed: ${errorMessage(e)}`);

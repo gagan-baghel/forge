@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Avatar, Button, Card, EmptyState, StatusDot } from "@/components/ui";
+import { BotFace } from "@/components/BotFace";
+import { Button, Card, EmptyState, StatusDot } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { useDialog } from "@/hooks/useDialog";
 import { useGaps } from "@/stores/gaps";
@@ -29,7 +30,7 @@ export function AgentsSection({ gap }: { gap: Gap }) {
       <Card className="p-0">
         <ul className="divide-y divide-border">
           {gap.agents.map((a) => (
-            <AgentRow key={a.id} agent={a} tint={gap.color} />
+            <AgentRow key={a.id} agent={a} />
           ))}
         </ul>
       </Card>
@@ -40,14 +41,14 @@ export function AgentsSection({ gap }: { gap: Gap }) {
   );
 }
 
-function AgentRow({ agent, tint }: { agent: Agent; tint: string }) {
+function AgentRow({ agent }: { agent: Agent }) {
   const { confirm } = useDialog();
   const deleteAgent = useGaps((s) => s.deleteAgent);
   const model = MODELS.find((m) => m.id === agent.model)?.label ?? agent.model;
   return (
     <li className="flex items-center gap-3 px-4 py-3">
       <Link to={`/agents/${agent.id}`} className="group flex min-w-0 flex-1 items-center gap-3">
-        <Avatar name={agent.name} tint={tint} size={30} />
+        <BotFace name={agent.name} size={30} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[13.5px] font-medium group-hover:text-brand-2">{agent.name}</span>
           <span className="block truncate text-xs text-ink-3">

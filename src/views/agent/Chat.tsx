@@ -1,52 +1,111 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { BotFace } from "@/components/BotFace";
+import { BotBuddy, type BuddyMood } from "@/components/BotBuddy";
 import clsx from "clsx";
-import type { Agent, ToolCall } from "@/types/domain";
-import { useChat } from "@/hooks/useChat";
+import type { Agent, ChatMessage, ToolCall } from "@/types/domain";
+import { useChat, type ChatTarget } from "@/hooks/useChat";
+import { pickAgent } from "@/lib/pack";
 import { useConversations } from "@/stores/conversations";
 import { useSettings } from "@/stores/settings";
 import { Markdown } from "@/components/Markdown";
 import { Icon } from "@/components/Icon";
-import { Avatar, Button, Spinner } from "@/components/ui";
+import { Button, Spinner } from "@/components/ui";
 import { fmtUsd, fmtTokens, relativeTime } from "@/lib/format";
 import { describeStep, elapsed } from "@/lib/activity";
 import { useNow } from "@/hooks/useNow";
 
-export function Chat({ agent }: { agent: Agent }) {
-  const ensureConversation = useConversations((s) => s.ensureConversation);
+/**
+ * The chat thread, with one agent or with a whole pack. In a pack chat each
+ * reply carries its author, and the composer shows who will answer next.
+ */
+export function Chat(target: ChatTarget) {
+  const { gap } = target;
   const newConversation = useConversations((s) => s.newConversation);
+  const newPackConversation = useConversations((s) => s.newPackConversation);
   const conversations = useConversations((s) => s.conversations);
   const apiKey = useSettings((s) => s.apiKey);
   const defaultRuntime = useSettings((s) => s.runtime);
-  const runtime = agent.runtime ?? defaultRuntime;
-  const needsKey = runtime === "api" && !apiKey;
 
-  const [convId, setConvId] = useState(() => ensureConversation(agent.id));
+  const fresh = () => (gap ? newPackConversation(gap.id) : newConversation(target.agent.id));
+  // Open on the latest desk chat, without creating one: creating while the
+  // screen draws updates the store mid-render, and merely visiting left empty
+  // "New chat" entries behind. The first send creates it instead.
+  const [convId, setConvId] = useState(
+    () =>
+      useConversations
+        .getState()
+        .conversations.filter((c) => !c.origin && (gap ? c.gapId === gap.id : c.agentId === target.agent.id))
+        .sort((a, b) => b.updatedAt - a.updatedAt)[0]?.id ?? "",
+  );
   const conv = useConversations((s) => s.get(convId));
+  const ownerId = gap ? gap.id : target.agent.id;
   const agentConvs = useMemo(
-    () => conversations.filter((c) => c.agentId === agent.id).sort((a, b) => b.updatedAt - a.updatedAt),
-    [conversations, agent.id],
+    () =>
+      conversations
+        .filter((c) => (gap ? c.gapId === ownerId : c.agentId === ownerId))
+        .sort((a, b) => b.updatedAt - a.updatedAt),
+    [conversations, ownerId, gap],
   );
 
-  const { send, stop, streaming } = useChat(agent, convId);
+  const { send, stop, streaming } = useChat(target, convId);
   const [draft, setDraft] = useState("");
+  const messages = conv?.messages ?? [];
+  // Who answers the message being typed: the agent itself, or the pack's pick.
+  const agent: Agent | undefined = gap ? pickAgent(gap, messages, draft.trim()) : target.agent;
+  const author = (m: ChatMessage) => (m.agentId && gap ? gap.agents.find((a) => a.id === m.agentId) : agent);
+  const runtime = agent?.runtime ?? defaultRuntime;
+  const needsKey = runtime === "api" && !apiKey;
+  const title = gap ? gap.name : (agent?.name ?? "");
+
+  // The bots act out what's happening: the one replying thinks, then talks
+  // as text streams in; a teammate it's asking thinks too; paused ones sleep.
+  const pending = [...messages].reverse().find((m) => m.pending);
+  const replying = pending ? (author(pending) ?? agent) : undefined;
+  const team = gap ? gap.agents : agent ? [agent] : [];
+  const asked = new Set(
+    (pending?.toolCalls ?? [])
+      .filter((c) => c.name === "ask_teammate" && c.status === "running")
+      .map((c) => String((c.input as { teammate?: string } | undefined)?.teammate ?? "").toLowerCase()),
+  );
+  const moodOf = (a: Agent): BuddyMood => {
+    if (replying?.id === a.id) return pending?.content ? "talk" : "think";
+    if (asked.has(a.name.toLowerCase())) return "think";
+    return a.status === "paused" ? "sleep" : "play";
+  };
+  // Perched on the message box once the chat has started: whoever is working, else who replies next.
+  const perched = [
+    replying ?? agent,
+    ...team.filter((a) => a.id !== replying?.id && asked.has(a.name.toLowerCase())),
+  ].filter((a): a is Agent => !!a);
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   // Follow the newest message as it grows while streaming.
   const lastContent = conv?.messages[conv.messages.length - 1]?.content;
   const messageCount = conv?.messages.length;
+  // A new step (a tool, a teammate asked) grows the reply as surely as text does.
+  const lastSteps = conv?.messages[conv.messages.length - 1]?.toolCalls?.length;
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messageCount, lastContent]);
+  }, [messageCount, lastContent, lastSteps]);
 
+  // A reply still running in this chat — maybe started before you navigated
+  // away and back — must finish first, or two replies interleave in one thread.
+  const busy = streaming || !!pending;
+  // A pack with no agents has nobody to answer.
+  const nobody = !!gap && !agent;
   const submit = () => {
-    if (!draft.trim() || streaming) return;
-    void send(draft);
+    if (!draft.trim() || busy || nobody) return;
+    let into = convId;
+    if (!into) {
+      into = fresh();
+      setConvId(into);
+    }
+    void send(draft, into);
     setDraft("");
     if (taRef.current) taRef.current.style.height = "auto";
   };
 
-  const messages = conv?.messages ?? [];
   const totalTokens = messages.reduce((a, m) => a + (m.usage ? m.usage.inputTokens + m.usage.outputTokens : 0), 0);
   const totalCost = messages.reduce((a, m) => a + (m.usage?.costUsd ?? 0), 0);
 
@@ -55,7 +114,7 @@ export function Chat({ agent }: { agent: Agent }) {
       {/* Conversation list */}
       <div className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface/40 md:flex">
         <div className="p-3">
-          <Button variant="outline" icon="plus" className="w-full" onClick={() => setConvId(newConversation(agent.id))}>
+          <Button variant="outline" icon="plus" className="w-full" onClick={() => setConvId(fresh())}>
             New chat
           </Button>
         </div>
@@ -95,14 +154,34 @@ export function Chat({ agent }: { agent: Agent }) {
           ref={scrollRef}
           role="log"
           aria-live="polite"
-          aria-label={`Conversation with ${agent.name}`}
-          className="flex-1 overflow-y-auto px-6 py-6"
+          aria-label={`Conversation with ${title}`}
+          className={clsx("flex-1 overflow-y-auto px-6 pt-6", messages.length > 0 ? "pb-20" : "pb-6")}
         >
           {messages.length === 0 ? (
             <div className="mx-auto mt-16 flex max-w-sm flex-col items-center text-center">
-              <Avatar name={agent.name} size={40} />
-              <h3 className="mt-3 text-[15px] font-semibold">{agent.name}</h3>
-              <p className="mt-0.5 text-[13px] text-ink-3">{agent.role}</p>
+              <div className="flex items-end justify-center gap-2">
+                {team.slice(0, 4).map((a) => (
+                  <BotBuddy key={a.id} name={a.name} mood={moodOf(a)} size={gap ? 84 : 120} />
+                ))}
+              </div>
+              <h3 className="mt-3 text-[15px] font-semibold">{title}</h3>
+              {gap ? (
+                <>
+                  <ul className="mt-3 space-y-0.5 text-[13px] text-ink-2">
+                    {gap.agents.map((a) => (
+                      <li key={a.id}>
+                        {a.name} <span className="text-ink-3">· {a.role}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-3 text-xs text-ink-3">
+                    {agent ? `${agent.name} answers first and brings in teammates when needed.` : ""} Start a message
+                    with @name to pick who answers.
+                  </p>
+                </>
+              ) : (
+                <p className="mt-0.5 text-[13px] text-ink-3">{agent?.role}</p>
+              )}
               {conv?.origin && (
                 <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-ink-3">
                   <Icon name="phone" size={12} /> {conv.origin.kind === "telegram" ? "Telegram" : "Discord"} ·{" "}
@@ -131,8 +210,13 @@ export function Chat({ agent }: { agent: Agent }) {
                   </div>
                 ) : (
                   <div key={m.id} className="anim-rise flex gap-3">
-                    <Avatar name={agent.name} size={24} className="mt-0.5 rounded-md" />
+                    <BotFace name={author(m)?.name ?? title} size={26} className="mt-0.5" />
                     <div className="min-w-0 flex-1 text-[13px] leading-relaxed">
+                      {gap && (
+                        <div className="mb-0.5 text-xs font-medium text-ink-2">
+                          {author(m)?.name ?? "Removed agent"}
+                        </div>
+                      )}
                       {m.toolCalls && m.toolCalls.length > 0 && (
                         <div className="mb-2 overflow-hidden rounded-md border border-border">
                           {m.toolCalls.map((tc) => (
@@ -159,13 +243,27 @@ export function Chat({ agent }: { agent: Agent }) {
 
         {/* Composer */}
         <div className="px-6 pb-4">
-          <div className="mx-auto max-w-3xl">
-            <div className="flex items-end gap-2 rounded-lg border border-border bg-surface p-1.5 transition-colors focus-within:border-border-strong">
+          <div className="relative mx-auto max-w-3xl">
+            {messages.length > 0 && (
+              <div className="pointer-events-none absolute bottom-[calc(100%-6px)] right-3 flex items-end gap-1">
+                {perched.map((a) => (
+                  <BotBuddy key={a.id} name={a.name} mood={moodOf(a)} size={52} />
+                ))}
+              </div>
+            )}
+            <div className="relative flex items-end gap-2 rounded-lg border border-border bg-surface p-1.5 transition-colors focus-within:border-border-strong">
               <textarea
                 ref={taRef}
                 value={draft}
                 rows={1}
-                placeholder={`Message ${agent.name}…`}
+                placeholder={
+                  nobody
+                    ? "Add an agent to this pack first (Pack settings → Agents)"
+                    : gap
+                      ? `Message ${gap.name}… (@name to pick who replies)`
+                      : `Message ${title}…`
+                }
+                disabled={nobody}
                 className="max-h-40 flex-1 resize-none bg-transparent px-2 py-1.5 text-[13px] outline-none placeholder:text-ink-3"
                 onChange={(e) => {
                   setDraft(e.target.value);
@@ -187,7 +285,7 @@ export function Chat({ agent }: { agent: Agent }) {
                 <button
                   className="btn-primary h-8 w-8 px-0"
                   onClick={submit}
-                  disabled={!draft.trim()}
+                  disabled={!draft.trim() || busy || nobody}
                   title="Send"
                   aria-label="Send"
                 >
@@ -197,6 +295,7 @@ export function Chat({ agent }: { agent: Agent }) {
             </div>
             <div className="mt-1.5 flex justify-between px-1 text-[11px] text-ink-3">
               <span>
+                {gap && agent && <span className="text-ink-2">{agent.name} replies · </span>}
                 <kbd className="kbd">Enter</kbd> to send · <kbd className="kbd">Shift</kbd>+
                 <kbd className="kbd">Enter</kbd> for newline
               </span>
