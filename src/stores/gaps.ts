@@ -32,10 +32,14 @@ interface GapStore {
   removeSkill: (agentId: string, skillId: string) => void;
   addKnowledge: (agentId: string, doc: Omit<KnowledgeDoc, "id" | "addedAt">) => void;
   removeKnowledge: (agentId: string, docId: string) => void;
+  /** Pack documents: read by every agent in the pack. */
+  addPackKnowledge: (gapId: string, doc: Omit<KnowledgeDoc, "id" | "addedAt">) => void;
+  removePackKnowledge: (gapId: string, docId: string) => void;
   addConnector: (agentId: string, connector: Omit<Connector, "id">) => void;
   removeConnector: (agentId: string, connectorId: string) => void;
-  upsertChannel: (agentId: string, channel: Channel) => void;
-  removeChannel: (agentId: string, channelId: string) => void;
+  /** A phone bot on an agent or a pack (`hostId` is either's id). */
+  upsertChannel: (hostId: string, channel: Channel) => void;
+  removeChannel: (hostId: string, channelId: string) => void;
 
   // Selectors
   findGap: (id: string) => Gap | undefined;
@@ -81,7 +85,9 @@ export const useGaps = create<GapStore>()(
       deleteGap: (id) => set((s) => ({ gaps: s.gaps.filter((g) => g.id !== id) })),
 
       installListing: (listing) => {
-        const base = listing.gap as unknown as Gap;
+        // Listings published before they were scrubbed can still hold a bot
+        // token; installing must never start a second copy of someone's bot.
+        const base = stripSecrets(listing.gap as unknown as Gap);
         const id = nanoid(10);
         const gap: Gap = {
           ...base,
@@ -185,6 +191,17 @@ export const useGaps = create<GapStore>()(
         get().updateAgent(agentId, { knowledge: a.knowledge.filter((d) => d.id !== docId) });
       },
 
+      addPackKnowledge: (gapId, doc) => {
+        const g = get().findGap(gapId);
+        if (!g) return;
+        get().updateGap(gapId, { knowledge: [...(g.knowledge ?? []), { ...doc, id: nanoid(8), addedAt: now() }] });
+      },
+      removePackKnowledge: (gapId, docId) => {
+        const g = get().findGap(gapId);
+        if (!g) return;
+        get().updateGap(gapId, { knowledge: (g.knowledge ?? []).filter((d) => d.id !== docId) });
+      },
+
       addConnector: (agentId, connector) => {
         const a = get().findAgent(agentId)?.agent;
         if (!a) return;
@@ -196,18 +213,21 @@ export const useGaps = create<GapStore>()(
         get().updateAgent(agentId, { connectors: a.connectors.filter((c) => c.id !== connectorId) });
       },
 
-      upsertChannel: (agentId, channel) => {
-        const a = get().findAgent(agentId)?.agent;
-        if (!a) return;
-        const exists = a.channels.some((c) => c.id === channel.id);
-        get().updateAgent(agentId, {
-          channels: exists ? a.channels.map((c) => (c.id === channel.id ? channel : c)) : [...a.channels, channel],
-        });
+      upsertChannel: (hostId, channel) => {
+        const put = (list: Channel[]) =>
+          list.some((c) => c.id === channel.id)
+            ? list.map((c) => (c.id === channel.id ? channel : c))
+            : [...list, channel];
+        const a = get().findAgent(hostId)?.agent;
+        if (a) return get().updateAgent(hostId, { channels: put(a.channels) });
+        const g = get().findGap(hostId);
+        if (g) get().updateGap(hostId, { channels: put(g.channels ?? []) });
       },
-      removeChannel: (agentId, channelId) => {
-        const a = get().findAgent(agentId)?.agent;
-        if (!a) return;
-        get().updateAgent(agentId, { channels: a.channels.filter((c) => c.id !== channelId) });
+      removeChannel: (hostId, channelId) => {
+        const a = get().findAgent(hostId)?.agent;
+        if (a) return get().updateAgent(hostId, { channels: a.channels.filter((c) => c.id !== channelId) });
+        const g = get().findGap(hostId);
+        if (g) get().updateGap(hostId, { channels: (g.channels ?? []).filter((c) => c.id !== channelId) });
       },
 
       findGap: (id) => get().gaps.find((g) => g.id === id),

@@ -83,4 +83,5 @@ export const useChannelRuntime = create<ChannelRuntimeStore>((set) => ({
     set((s) => ({ activity: [{ at: Date.now(), key, kind, text }, ...s.activity].slice(0, ACTIVITY_CAP) })),
 }));
 
-export const channelKey = (agentId: string, channelId: string) => `${agentId}__${channelId}`;
+/** A bot's runtime key: its host (agent or pack) and the channel. */
+export const channelKey = (hostId: string, channelId: string) => `${hostId}__${channelId}`;

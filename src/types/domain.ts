@@ -250,6 +250,13 @@ export interface Gap {
   source: GapSource;
   installed: boolean;
   agents: Agent[];
+  /** Documents every agent in the pack reads, on top of its own. */
+  knowledge?: KnowledgeDoc[];
+  /**
+   * Phone bots for the whole pack: a message goes to the pack chat, so the
+   * right agent answers and `@Name` picks one. Agents can have their own too.
+   */
+  channels?: Channel[];
   /** MCP servers mounted for this pack's agents (Claude Code runtime). */
   mcpServers?: McpServer[];
   /** Environment variables injected into pack runs and MCP servers. */
@@ -291,6 +298,8 @@ export interface ChatMessage {
   /** Streaming flag for the in-flight assistant message. */
   pending?: boolean;
   error?: string;
+  /** Which agent wrote an assistant turn. Pack chats have several; unset = the conversation's agent. */
+  agentId?: ID;
 }
 
 /** Where a conversation came from, when it wasn't the in-app chat. */
@@ -303,7 +312,12 @@ export interface ConversationOrigin {
 
 export interface Conversation {
   id: ID;
+  /** The agent this chat is with. Empty for a pack chat. */
   agentId: ID;
+  /** Set for a pack chat: the whole pack is the other side, and replies come from its agents. */
+  gapId?: ID;
+  /** Pack chats: one Claude Code session per agent, since a session can't be shared. */
+  ccSessions?: Record<ID, string>;
   origin?: ConversationOrigin;
   title: string;
   messages: ChatMessage[];
@@ -334,6 +348,12 @@ export interface Run {
   runtime?: RuntimeKind;
   /** Set on failures, so the error mix is countable rather than free text. */
   errorKind?: ErrorKind;
+  /**
+   * One message in a pack chat: every run it caused (the agent that answered
+   * and any teammate it asked) shares this id, and Activity shows them as one
+   * pack entry. Unset for an agent run on its own.
+   */
+  group?: string;
   summary?: string;
 }
 

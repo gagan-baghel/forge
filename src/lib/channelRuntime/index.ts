@@ -20,10 +20,10 @@ import { useSettings } from "@/stores/settings";
 import { channelKey } from "@/stores/channelRuntime";
 import { remoteApprove, settleWhere } from "./approvals";
 import { handleInbound } from "./inbound";
-import { quiet, rt, type InboundMessage } from "./send";
+import { hostChannels, quiet, rt, type Host, type InboundMessage } from "./send";
 import { logger } from "../log";
 
-export { sendText, discordSend, type InboundMessage } from "./send";
+export { sendText, discordSend, isPack, hostChannels, type Host, type InboundMessage } from "./send";
 export { remoteApprove, answerApproval, TRUST_MS, REMOTE_APPROVAL_TIMEOUT_MS } from "./approvals";
 export { startPairing, cancelPairing, checkPairCode, removeOwner, PAIR_TTL_MS, MAX_PAIR_ATTEMPTS } from "./pairing";
 export { handleInbound } from "./inbound";
@@ -37,6 +37,7 @@ export async function initChannelListener(): Promise<void> {
   if (listening || !isDesktop()) return;
   listening = true;
   setRemoteApprover(remoteApprove);
+  useGaps.subscribe(stopOrphans);
   const { listen } = await import("@tauri-apps/api/event");
   await listen<InboundMessage>("channel://message", (e) => {
     // An inbound message must never take the listener down.
@@ -44,23 +45,40 @@ export async function initChannelListener(): Promise<void> {
   });
 }
 
+/**
+ * A bot whose agent or pack was deleted (or edited away) would keep polling
+ * in Rust: messages to it went nowhere and it could hold the Mac awake. Stop
+ * it, and drop anything it was waiting on.
+ */
+export function stopOrphans(): void {
+  const running = Object.entries(rt().running).filter(([, on]) => on);
+  if (running.length === 0) return;
+  const known = new Set<string>();
+  for (const g of useGaps.getState().gaps)
+    for (const host of [g, ...g.agents] as Host[])
+      for (const c of hostChannels(host)) known.add(channelKey(host.id, c.id));
+  const orphans = running.map(([key]) => key).filter((key) => !known.has(key));
+  for (const key of orphans) {
+    quiet(invoke("channel_stop", { channelId: key }));
+    settleWhere((ref) => ref.key === key, "no");
+    rt().setRunning(key, false);
+    rt().log(key, "system", "Stopped: its agent or pack was removed");
+  }
+  if (orphans.length) syncKeepAwake();
+}
+
 /** Keep the Mac awake while any remote-control bot is live (and the setting is on). */
 export function syncKeepAwake(): void {
   if (!isDesktop()) return;
   const running = rt().running;
-  const on =
-    useSettings.getState().keepAwake &&
-    useGaps
-      .getState()
-      .gaps.some((g) =>
-        g.agents.some((a) => a.channels.some((c) => c.remoteControl && running[channelKey(a.id, c.id)])),
-      );
+  const live = (h: Host) => hostChannels(h).some((c) => c.remoteControl && running[channelKey(h.id, c.id)]);
+  const on = useSettings.getState().keepAwake && useGaps.getState().gaps.some((g) => live(g) || g.agents.some(live));
   quiet(invoke("keep_awake", { on }));
 }
 
-/** Start a channel's bot poller. */
-export async function startChannel(agent: Agent, channel: Channel): Promise<void> {
-  const key = channelKey(agent.id, channel.id);
+/** Start a channel's bot poller. `host` is the agent or pack it fronts. */
+export async function startChannel(host: Host, channel: Channel): Promise<void> {
+  const key = channelKey(host.id, channel.id);
   try {
     await initChannelListener();
     const bot =
@@ -75,8 +93,8 @@ export async function startChannel(agent: Agent, channel: Channel): Promise<void
     rt().setRunning(key, true);
     rt().setError(key, "");
     rt().setBotName(key, bot.username);
-    rt().log(key, "system", `${agent.name} is live on ${channel.kind}${bot.username ? ` as @${bot.username}` : ""}`);
-    useGaps.getState().upsertChannel(agent.id, { ...channel, status: "active" });
+    rt().log(key, "system", `${host.name} is live on ${channel.kind}${bot.username ? ` as @${bot.username}` : ""}`);
+    useGaps.getState().upsertChannel(host.id, { ...channel, status: "active" });
   } catch (e) {
     logger("channels").warn("bot failed to start", { key, kind: channel.kind, error: e });
     rt().setError(key, errorMessage(e));
@@ -85,13 +103,13 @@ export async function startChannel(agent: Agent, channel: Channel): Promise<void
   syncKeepAwake();
 }
 
-export async function stopChannel(agent: Agent, channel: Channel): Promise<void> {
-  const key = channelKey(agent.id, channel.id);
+export async function stopChannel(host: Host, channel: Channel): Promise<void> {
+  const key = channelKey(host.id, channel.id);
   quiet(invoke("channel_stop", { channelId: key }));
   settleWhere((ref) => ref.key === key, "no");
   rt().setRunning(key, false);
-  rt().log(key, "system", `${agent.name} stopped on ${channel.kind}`);
-  useGaps.getState().upsertChannel(agent.id, { ...channel, status: "inactive" });
+  rt().log(key, "system", `${host.name} stopped on ${channel.kind}`);
+  useGaps.getState().upsertChannel(host.id, { ...channel, status: "inactive" });
   syncKeepAwake();
 }
 
@@ -103,26 +121,29 @@ export async function stopChannel(agent: Agent, channel: Channel): Promise<void>
 export async function resumeChannels(): Promise<void> {
   if (!isDesktop()) return;
   for (const gap of useGaps.getState().gaps)
-    for (const agent of gap.agents)
-      for (const channel of agent.channels)
+    for (const host of [gap, ...gap.agents] as Host[])
+      for (const channel of hostChannels(host))
         if (channel.status === "active" && channel.token && isBotKind(channel.kind)) {
-          await startChannel(agent, channel);
+          await startChannel(host, channel);
         }
 }
 
 /**
  * Where an agent's unattended work reports: the first paired owner on a live
- * remote-control channel. Schedules deliver results there and route their
- * approvals there, so a routine that needs a yes can get one from the phone.
+ * remote-control channel — the agent's own, else its pack's. Schedules
+ * deliver results there and route their approvals there, so a routine that
+ * needs a yes can get one from the phone.
  */
 export function ownerChannelRef(agent: Agent): ChannelRef | undefined {
   const running = rt().running;
-  for (const c of agent.channels) {
-    const key = channelKey(agent.id, c.id);
-    const owner = c.owners?.[0];
-    if (c.remoteControl && owner && c.token && running[key] && isBotKind(c.kind)) {
-      return { kind: c.kind, token: c.token, chatId: owner.chatId, key, remote: true };
+  const pack = useGaps.getState().findGap(agent.gapId);
+  for (const host of (pack ? [agent, pack] : [agent]) as Host[])
+    for (const c of hostChannels(host)) {
+      const key = channelKey(host.id, c.id);
+      const owner = c.owners?.[0];
+      if (c.remoteControl && owner && c.token && running[key] && isBotKind(c.kind)) {
+        return { kind: c.kind, token: c.token, chatId: owner.chatId, key, remote: true };
+      }
     }
-  }
   return undefined;
 }

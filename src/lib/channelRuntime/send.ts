@@ -1,4 +1,5 @@
 /** Outbound messages and the shared bits every channel module reads. */
+import type { Agent, Channel, Gap } from "@/types/domain";
 import type { ChannelRef } from "../approval";
 import { invoke } from "../platform";
 import { useChannelRuntime } from "@/stores/channelRuntime";
@@ -15,6 +16,11 @@ export interface InboundMessage {
 }
 
 export const rt = () => useChannelRuntime.getState();
+
+/** Who a phone bot belongs to: one agent, or a whole pack (whose messages go to the pack chat). */
+export type Host = Agent | Gap;
+export const isPack = (h: Host): h is Gap => "agents" in h;
+export const hostChannels = (h: Host): Channel[] => h.channels ?? [];
 export const chatKeyOf = (ref: Pick<ChannelRef, "key" | "chatId">) => `${ref.key}:${ref.chatId}`;
 
 const log = logger("channels");

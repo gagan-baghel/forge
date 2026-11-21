@@ -2,19 +2,20 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import clsx from "clsx";
 import { PageBody, PageHeader } from "@/components/Shell";
-import { Avatar, Badge, Button, Card, CardHeader, EmptyState, Field, Modal, Toggle } from "@/components/ui";
+import { Badge, Button, Card, CardHeader, EmptyState, Field, Modal, Toggle } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { ChannelCard, type ChannelKind } from "@/components/remote/ChannelCard";
 import { useGaps } from "@/stores/gaps";
 import { useSettings } from "@/stores/settings";
 import { useChannelRuntime, channelKey, type RemoteActivity } from "@/stores/channelRuntime";
-import { answerApproval, syncKeepAwake } from "@/lib/channelRuntime";
+import { answerApproval, hostChannels, isPack, syncKeepAwake, type Host } from "@/lib/channelRuntime";
 import { invoke, isDesktop } from "@/lib/platform";
 import { relativeTime } from "@/lib/format";
 
 /**
- * The phone side of Forge in one place: which agents are reachable, who is
- * paired, what is waiting for approval, and what happened.
+ * The phone side of Forge in one place: which packs and agents are reachable,
+ * who is paired, what is waiting for approval, and what happened. Packs and
+ * agents each get their own section; every bot is one row that opens on tap.
  */
 export function RemoteView() {
   const gaps = useGaps((s) => s.gaps);
@@ -24,8 +25,8 @@ export function RemoteView() {
   const keepAwake = useSettings((s) => s.keepAwake);
   const setKeepAwake = useSettings((s) => s.setKeepAwake);
   const [params, setParams] = useSearchParams();
-  // An agent page links here with ?agent=<id>: open that agent's phone setup.
-  const preselect = params.get("agent") ?? "";
+  // An agent page links here with ?agent=<id> (a pack with ?pack=<id>): open its phone setup.
+  const preselect = params.get("agent") ?? params.get("pack") ?? "";
   // Arriving with ?agent= opens the dialog; closing it clears the param.
   const [opened, setConnectOpen] = useState(false);
   const connectOpen = opened || !!preselect;
@@ -35,28 +36,31 @@ export function RemoteView() {
   };
 
   const agents = useMemo(() => gaps.flatMap((g) => g.agents), [gaps]);
+  const hosts = useMemo<Host[]>(() => [...gaps, ...agents], [gaps, agents]);
   const connections = useMemo(
     () =>
-      agents.flatMap((a) =>
-        a.channels
+      hosts.flatMap((h) =>
+        hostChannels(h)
           .filter((c) => (c.kind === "telegram" || c.kind === "discord") && c.token)
-          .map((c) => ({ agent: a, kind: c.kind as ChannelKind, key: channelKey(a.id, c.id), channel: c })),
+          .map((c) => ({ host: h, kind: c.kind as ChannelKind, key: channelKey(h.id, c.id), channel: c })),
       ),
-    [agents],
+    [hosts],
   );
+  const packBots = connections.filter((c) => isPack(c.host));
+  const agentBots = connections.filter((c) => !isPack(c.host));
   const live = connections.filter((c) => running[c.key]).length;
   const phones = connections.reduce((n, c) => n + (c.channel.owners?.length ?? 0), 0);
   const remoteOn = connections.filter((c) => c.channel.remoteControl).length;
-  const agentName = (key: string) => agents.find((a) => key.startsWith(`${a.id}__`))?.name ?? "Agent";
+  const agentName = (key: string) => hosts.find((h) => key.startsWith(`${h.id}__`))?.name ?? "Bot";
 
   return (
     <div>
       <PageHeader
         title="Remote"
-        subtitle="Message your agents from your phone — they work on this Mac and ask you before acting"
+        subtitle="Message a pack or an agent from your phone — they work on this Mac and ask you before acting"
         actions={
-          <Button variant="primary" icon="plus" onClick={() => setConnectOpen(true)} disabled={agents.length === 0}>
-            Connect an agent
+          <Button variant="primary" icon="plus" onClick={() => setConnectOpen(true)} disabled={gaps.length === 0}>
+            Connect
           </Button>
         }
       />
@@ -73,13 +77,13 @@ export function RemoteView() {
             icon="phone"
             label="Paired phones"
             value={`${phones}`}
-            sub={phones ? "only they can reach agents" : "pair one to start"}
+            sub={phones ? "only they can reach your bots" : "pair one to start"}
           />
           <Stat
             icon="shield"
             label="Remote control"
             value={`${remoteOn}`}
-            sub={remoteOn === 1 ? "agent may act on this Mac" : "agents may act on this Mac"}
+            sub={remoteOn === 1 ? "bot may act on this Mac" : "bots may act on this Mac"}
           />
           <Stat
             icon="lock"
@@ -126,23 +130,30 @@ export function RemoteView() {
               <Card>
                 <EmptyState
                   icon="phone"
-                  title="No agent is reachable from your phone yet"
-                  body="Connect an agent to a Telegram or Discord bot, pair your phone, and message it from anywhere."
+                  title="Nothing is reachable from your phone yet"
+                  body="Connect a pack or an agent to a Telegram or Discord bot, pair your phone, and message it from anywhere. A pack's bot reaches the whole team: the right agent answers, and @Name picks one."
                   action={
                     <Button
                       variant="primary"
                       icon="plus"
                       onClick={() => setConnectOpen(true)}
-                      disabled={agents.length === 0}
+                      disabled={gaps.length === 0}
                     >
-                      Connect an agent
+                      Connect
                     </Button>
                   }
                 />
                 <HowItWorks />
               </Card>
             ) : (
-              connections.map((c) => <ChannelCard key={c.key} agent={c.agent} kind={c.kind} showAgent />)
+              <>
+                <BotSection
+                  title="Packs"
+                  hint="The whole team on one bot: the right agent answers, @Name picks one."
+                  bots={packBots}
+                />
+                <BotSection title="Agents" hint="One agent on its own bot." bots={agentBots} />
+              </>
             )}
           </div>
 
@@ -295,6 +306,30 @@ function HowItWorks() {
   );
 }
 
+function BotSection({
+  title,
+  hint,
+  bots,
+}: {
+  title: string;
+  hint: string;
+  bots: { host: Host; kind: ChannelKind; key: string }[];
+}) {
+  if (bots.length === 0) return null;
+  return (
+    <section className="space-y-2">
+      <div className="flex items-baseline gap-2 px-1">
+        <h2 className="text-[13px] font-semibold">{title}</h2>
+        <span className="num text-[11px] text-ink-3">{bots.length}</span>
+        <span className="truncate text-xs text-ink-3">{hint}</span>
+      </div>
+      {bots.map((c) => (
+        <ChannelCard key={c.key} host={c.host} kind={c.kind} />
+      ))}
+    </section>
+  );
+}
+
 function ConnectModal({
   open,
   onClose,
@@ -302,25 +337,31 @@ function ConnectModal({
 }: {
   open: boolean;
   onClose: () => void;
+  /** A pack's or an agent's id to open on. */
   initialAgentId?: string;
 }) {
   const gaps = useGaps((s) => s.gaps);
-  const agents = gaps.flatMap((g) => g.agents);
+  const hosts: Host[] = [...gaps, ...gaps.flatMap((g) => g.agents)];
   // Keyed on initialAgentId by the parent, so a new preselect starts fresh.
-  const [agentId, setAgentId] = useState(initialAgentId);
+  const [hostId, setHostId] = useState(initialAgentId);
   const [kind, setKind] = useState<ChannelKind>("telegram");
-  const agent = agents.find((a) => a.id === (agentId || agents[0]?.id));
+  const host = hosts.find((h) => h.id === (hostId || gaps[0]?.id));
 
   return (
-    <Modal open={open} onClose={onClose} title="Connect an agent to your phone" width={620}>
+    <Modal open={open} onClose={onClose} title="Connect to your phone" width={620}>
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-          <Field label="Agent">
-            <select className="input" value={agent?.id ?? ""} onChange={(e) => setAgentId(e.target.value)}>
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name} — {a.role}
-                </option>
+          <Field label="Who it reaches">
+            <select className="input" value={host?.id ?? ""} onChange={(e) => setHostId(e.target.value)}>
+              {gaps.map((g) => (
+                <optgroup key={g.id} label={g.name}>
+                  <option value={g.id}>Whole pack — {g.agents.map((a) => a.name).join(", ") || "no agents yet"}</option>
+                  {g.agents.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} only — {a.role}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </Field>
@@ -341,15 +382,12 @@ function ConnectModal({
             </div>
           </Field>
         </div>
-        {agent && (
+        {host && (
           <>
-            <div className="flex items-center gap-2 text-xs text-ink-3">
-              <Avatar name={agent.name} size={20} /> {agent.name}'s {kind} bot
-              {agent.channels.some((c) => c.kind === kind && c.token) && (
-                <Badge tone="success">already connected</Badge>
-              )}
-            </div>
-            <ChannelCard key={`${agent.id}-${kind}`} agent={agent} kind={kind} />
+            {hostChannels(host).some((c) => c.kind === kind && c.token) && (
+              <Badge tone="success">already connected</Badge>
+            )}
+            <ChannelCard key={`${host.id}-${kind}`} host={host} kind={kind} open />
           </>
         )}
         <div className="flex justify-end">

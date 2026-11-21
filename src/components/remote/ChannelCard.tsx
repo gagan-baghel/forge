@@ -1,11 +1,13 @@
 import { useState } from "react";
-import type { Agent, Channel } from "@/types/domain";
+import clsx from "clsx";
+import type { Channel } from "@/types/domain";
 import { Badge, Button, StatusDot, Toggle } from "@/components/ui";
 import { Icon } from "@/components/Icon";
+import { BotFace, BotStack } from "@/components/BotFace";
 import { useDialog } from "@/hooks/useDialog";
 import { useGaps } from "@/stores/gaps";
 import { useChannelRuntime, channelKey } from "@/stores/channelRuntime";
-import { startChannel, stopChannel, syncKeepAwake } from "@/lib/channelRuntime";
+import { hostChannels, isPack, startChannel, stopChannel, syncKeepAwake, type Host } from "@/lib/channelRuntime";
 import { isDesktop } from "@/lib/platform";
 import { PROVIDER, type ChannelKind } from "./provider";
 import { CredentialsForm } from "./CredentialsForm";
@@ -16,13 +18,14 @@ import { SetupGuide } from "./SetupGuide";
 export type { ChannelKind } from "./provider";
 
 /**
- * One agent's bot on one provider: connect it, run it, pair phones with it,
- * and decide whether it may act on this Mac. Shared by the Remote hub and the
- * agent's Channels tab so both always show the same thing.
+ * One bot on one provider, for an agent or a whole pack: a single row that
+ * says what matters (live or not, paired phones, remote control) and opens
+ * on a tap to connect it, pair phones, and decide whether it may act on
+ * this Mac. A bot that isn't connected yet opens straight away.
  */
-export function ChannelCard({ agent, kind, showAgent }: { agent: Agent; kind: ChannelKind; showAgent?: boolean }) {
-  const channel = agent.channels.find((c) => c.kind === kind);
-  const key = channel ? channelKey(agent.id, channel.id) : "";
+export function ChannelCard({ host, kind, open: startOpen }: { host: Host; kind: ChannelKind; open?: boolean }) {
+  const channel = hostChannels(host).find((c) => c.kind === kind);
+  const key = channel ? channelKey(host.id, channel.id) : "";
   const running = useChannelRuntime((s) => (key ? !!s.running[key] : false));
   const error = useChannelRuntime((s) => (key ? s.lastError[key] : ""));
   const bot = useChannelRuntime((s) => (key ? s.botName[key] : ""));
@@ -34,9 +37,11 @@ export function ChannelCard({ agent, kind, showAgent }: { agent: Agent; kind: Ch
   const [editing, setEditing] = useState(!channel?.token);
   const [busy, setBusy] = useState(false);
   const desktop = isDesktop();
+  const pack = isPack(host);
 
   const connected = !!channel?.token;
   const owners = channel?.owners ?? [];
+  const [open, setOpen] = useState(startOpen ?? !connected);
 
   const save = async (patch: Partial<Channel>, start: boolean) => {
     const next: Channel = {
@@ -48,12 +53,12 @@ export function ChannelCard({ agent, kind, showAgent }: { agent: Agent; kind: Ch
       ...patch,
       config: { ...channel?.config, ...patch.config },
     };
-    upsertChannel(agent.id, next);
+    upsertChannel(host.id, next);
     setEditing(false);
     if (start && desktop) {
       setBusy(true);
-      if (running) await stopChannel(agent, next);
-      await startChannel(agent, next);
+      if (running) await stopChannel(host, next);
+      await startChannel(host, next);
       setBusy(false);
     }
   };
@@ -61,8 +66,8 @@ export function ChannelCard({ agent, kind, showAgent }: { agent: Agent; kind: Ch
   const toggleRun = async () => {
     if (!channel) return;
     setBusy(true);
-    if (running) await stopChannel(agent, channel);
-    else await startChannel(agent, channel);
+    if (running) await stopChannel(host, channel);
+    else await startChannel(host, channel);
     setBusy(false);
   };
 
@@ -70,30 +75,32 @@ export function ChannelCard({ agent, kind, showAgent }: { agent: Agent; kind: Ch
     if (!channel) return;
     if (on) {
       const ok = await confirm({
-        title: `Let ${agent.name} control this Mac from your phone?`,
+        title: `Let ${host.name} control this Mac from your phone?`,
         body:
-          "Paired phones can ask this agent to run commands, edit files, see the screen, click and type. " +
-          "Every action is sent to your phone for approval first — nothing runs until you tap Approve " +
-          "(or Allow 15 min). Only phones you pair can talk to it.",
+          `Paired phones can ask ${pack ? "this pack's agents" : "this agent"} to run commands, edit files, see the ` +
+          "screen, click and type. Every action is sent to your phone for approval first — nothing runs until you " +
+          "tap Approve (or Allow 15 min). Only phones you pair can talk to it.",
         confirmLabel: "Turn on",
         danger: false,
       });
       if (!ok) return;
     }
-    upsertChannel(agent.id, { ...channel, remoteControl: on });
+    upsertChannel(host.id, { ...channel, remoteControl: on });
     // Remote control is only as good as the agent's machine tools: make sure
-    // the Computer skill (shell, files, screen, keyboard) is on.
-    if (on) {
-      const computer = agent.skills.find((s) => s.kind === "computer");
+    // the Computer skill (shell, files, screen, keyboard) is on. A pack's
+    // agents keep the skills you gave them: which of them may touch the
+    // machine stays your call, on each agent.
+    if (on && !pack) {
+      const computer = host.skills.find((s) => s.kind === "computer");
       if (!computer) {
-        addSkill(agent.id, {
+        addSkill(host.id, {
           name: "Computer",
           description: "Run commands, edit files, see the screen, click and type — asks first",
           kind: "computer",
           enabled: true,
         });
       } else if (!computer.enabled) {
-        toggleSkill(agent.id, computer.id);
+        toggleSkill(host.id, computer.id);
       }
     }
     syncKeepAwake();
@@ -107,93 +114,117 @@ export function ChannelCard({ agent, kind, showAgent }: { agent: Agent; kind: Ch
       confirmLabel: "Disconnect",
     });
     if (!ok) return;
-    if (running) await stopChannel(agent, channel);
-    removeChannel(agent.id, channel.id);
+    if (running) await stopChannel(host, channel);
+    removeChannel(host.id, channel.id);
     setEditing(true);
   };
 
+  const withComputer = pack ? host.agents.filter((a) => a.skills.some((s) => s.kind === "computer" && s.enabled)) : [];
+
   return (
     <div className="card overflow-hidden">
-      <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <span className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-surface-2 text-ink-2">
-          <Icon name={PROVIDER[kind].icon} size={15} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-[13px] font-medium">
-            {showAgent ? (
-              <>
-                <span className="truncate">{agent.name}</span>
-                <span className="text-ink-3">·</span>
-                <span className="text-ink-2">{PROVIDER[kind].name}</span>
-              </>
-            ) : (
-              PROVIDER[kind].name
-            )}
-            {channel?.remoteControl && <Badge tone="brand">remote control</Badge>}
-          </div>
-          <div className="truncate text-xs text-ink-3">
-            {running ? (bot ? `Live as @${bot}` : "Live") : connected ? "Stopped" : "Not connected"}
-            {connected && ` · ${owners.length} paired ${owners.length === 1 ? "phone" : "phones"}`}
-          </div>
-        </div>
-        {connected && <StatusDot status={running ? "live" : "draft"} pulse={running} />}
-        <SetupGuide kind={kind} />
+      {/* The row: everything at a glance; tap to open */}
+      <div className="flex items-center gap-3 px-4 py-2.5">
+        <button
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        >
+          {pack ? <BotStack agents={host.agents} size={24} /> : <BotFace name={host.name} size={26} />}
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-2 text-[13px] font-medium">
+              <span className="truncate">{host.name}</span>
+              <span className="flex shrink-0 items-center gap-1 text-xs font-normal text-ink-3">
+                <Icon name={PROVIDER[kind].icon} size={12} />
+                {PROVIDER[kind].name}
+              </span>
+              {channel?.remoteControl && <Badge tone="brand">remote control</Badge>}
+            </span>
+            <span className="block truncate text-xs text-ink-3">
+              {running ? (bot ? `Live as @${bot}` : "Live") : connected ? "Stopped" : "Not connected"}
+              {connected && ` · ${owners.length} paired ${owners.length === 1 ? "phone" : "phones"}`}
+              {error && <span className="text-danger"> · needs attention</span>}
+            </span>
+          </span>
+          {connected && <StatusDot status={running ? "live" : "draft"} pulse={running} />}
+        </button>
         {connected && !editing && (
           <Button
             variant={running ? "outline" : "primary"}
             icon={running ? "pause" : "play"}
+            className="h-7 px-2.5 text-xs"
             disabled={!desktop || busy}
             onClick={toggleRun}
           >
             {running ? "Stop" : "Start"}
           </Button>
         )}
+        <button
+          onClick={() => setOpen(!open)}
+          aria-label={open ? "Hide details" : "Show details"}
+          className="btn-ghost h-7 w-7 shrink-0 px-0 text-ink-3"
+        >
+          <Icon name="chevron" size={14} className={clsx("transition-transform", open && "rotate-90")} />
+        </button>
       </div>
 
-      <div className="space-y-4 px-4 py-4">
-        {!desktop && (
-          <p className="rounded-md border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">
-            Bots run on your computer, so they need the desktop app.
-          </p>
-        )}
-        {error && (
-          <p className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p>
-        )}
+      {open && (
+        <div className="space-y-4 border-t border-border px-4 py-4">
+          <div className="flex justify-end">
+            <SetupGuide kind={kind} />
+          </div>
+          {!desktop && (
+            <p className="rounded-md border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">
+              Bots run on your computer, so they need the desktop app.
+            </p>
+          )}
+          {error && (
+            <p className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p>
+          )}
 
-        {editing || !connected ? (
-          <CredentialsForm
-            kind={kind}
-            channel={channel}
-            onCancel={connected ? () => setEditing(false) : undefined}
-            onSave={save}
-          />
-        ) : (
-          <>
-            <Toggle
-              checked={!!channel?.remoteControl}
-              onChange={setRemote}
-              label="Remote control"
-              description="Paired phones can have this agent act on this Mac — each action needs your approval on the phone."
+          {editing || !connected ? (
+            <CredentialsForm
+              kind={kind}
+              channel={channel}
+              onCancel={connected ? () => setEditing(false) : undefined}
+              onSave={save}
             />
-            <Owners agent={agent} channel={channel!} running={running} bot={bot} />
-            {kind === "discord" && (
-              <DiscordWebhook
-                agent={agent}
-                channel={channel!}
-                onSave={(webhook) => save({ config: { webhook } }, false)}
+          ) : (
+            <>
+              <Toggle
+                checked={!!channel?.remoteControl}
+                onChange={setRemote}
+                label="Remote control"
+                description={
+                  pack
+                    ? `Paired phones can have this pack's agents act on this Mac — each action needs your approval on the phone. ${
+                        withComputer.length
+                          ? `Able to: ${withComputer.map((a) => a.name).join(", ")} (they have the Computer skill).`
+                          : "None of its agents has the Computer skill yet — turn it on for the ones that should."
+                      }`
+                    : "Paired phones can have this agent act on this Mac — each action needs your approval on the phone."
+                }
               />
-            )}
-            <div className="flex items-center justify-between border-t border-border pt-3">
-              <button className="text-xs text-ink-3 hover:text-ink-2" onClick={() => setEditing(true)}>
-                Change token{kind === "discord" ? " or channel" : ""}
-              </button>
-              <button className="text-xs text-danger/80 hover:text-danger" onClick={disconnect}>
-                Disconnect
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+              <Owners host={host} channel={channel!} running={running} bot={bot} />
+              {kind === "discord" && (
+                <DiscordWebhook
+                  host={host}
+                  channel={channel!}
+                  onSave={(webhook) => save({ config: { webhook } }, false)}
+                />
+              )}
+              <div className="flex items-center justify-between border-t border-border pt-3">
+                <button className="text-xs text-ink-3 hover:text-ink-2" onClick={() => setEditing(true)}>
+                  Change token{kind === "discord" ? " or channel" : ""}
+                </button>
+                <button className="text-xs text-danger/80 hover:text-danger" onClick={disconnect}>
+                  Disconnect
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,12 +1,13 @@
 /** Turning an owner's message into a conversation turn, one task per chat. */
-import type { Agent } from "@/types/domain";
 import type { ChannelRef } from "../approval";
 import { invoke } from "../platform";
 import { errorMessage } from "../runError";
 import { runConversationTurn } from "../conversationTurn";
+import { runPackTurn } from "../pack";
 import { useConversations } from "@/stores/conversations";
+import { useGaps } from "@/stores/gaps";
 import { hasPendingFor } from "./approvals";
-import { chatKeyOf, quiet, rt, sendText, type InboundMessage } from "./send";
+import { chatKeyOf, isPack, quiet, rt, sendText, type Host, type InboundMessage } from "./send";
 
 /** "typing…" expires after ~5s on both providers; refresh just before. */
 const TYPING_REFRESH_MS = 4500;
@@ -49,11 +50,15 @@ function promptFor(msg: InboundMessage, paths: string[]): string {
   return (msg.text || "(no text — see the attached files)") + files;
 }
 
-async function runForChat(agent: Agent, ref: ChannelRef, msg: InboundMessage): Promise<void> {
+/** Paused: an agent that is, or a pack with agents that all are (an empty pack says so itself). */
+const paused = (host: Host) =>
+  isPack(host) ? host.agents.length > 0 && host.agents.every((a) => a.status === "paused") : host.status === "paused";
+
+async function runForChat(host: Host, ref: ChannelRef, msg: InboundMessage): Promise<void> {
   const chatKey = chatKeyOf(ref);
-  if (agent.status === "paused") {
-    quiet(sendText(ref, `${agent.name} is paused. Resume it in Forge to pick this up.`));
-    rt().log(ref.key, "system", `Ignored a message: ${agent.name} is paused`);
+  if (paused(host)) {
+    quiet(sendText(ref, `${host.name} is paused. Resume it in Forge to pick this up.`));
+    rt().log(ref.key, "system", `Ignored a message: ${host.name} is paused`);
     return;
   }
   const controller = new AbortController();
@@ -66,17 +71,19 @@ async function runForChat(agent: Agent, ref: ChannelRef, msg: InboundMessage): P
 
   try {
     const prompt = promptFor(msg, await fetchFiles(ref, msg.files));
-    const convId = useConversations
-      .getState()
-      .conversationFor(agent.id, { kind: ref.kind, key: chatKey, from: msg.from });
-
-    const result = await runConversationTurn(agent, convId, prompt, {
-      trigger: "channel",
+    const origin = { kind: ref.kind, key: chatKey, from: msg.from };
+    const opts = {
+      trigger: "channel" as const,
       signal: controller.signal,
       channel: ref,
       headless: true,
       summary: () => `${ref.kind}: ${msg.text.slice(0, 50)}`,
-    });
+    };
+    // A pack's bot talks to the pack chat: the right agent answers, `@Name`
+    // picks one, and teammates can help — the same as at the desk.
+    const result = isPack(host)
+      ? await runPackTurn(host, useConversations.getState().packConversationFor(host.id, origin), prompt, opts)
+      : await runConversationTurn(host, useConversations.getState().conversationFor(host.id, origin), prompt, opts);
     const reply = result.text || "Done.";
     await sendText(ref, reply);
     rt().log(ref.key, "out", reply.slice(0, LOG_PREVIEW_CHARS));
@@ -91,8 +98,11 @@ async function runForChat(agent: Agent, ref: ChannelRef, msg: InboundMessage): P
   }
 }
 
+const latest = (host: Host): Host =>
+  (isPack(host) ? useGaps.getState().findGap(host.id) : useGaps.getState().findAgent(host.id)?.agent) ?? host;
+
 /** One task at a time per chat; later messages wait their turn. */
-export function enqueue(agent: Agent, ref: ChannelRef, msg: InboundMessage): void {
+export function enqueue(host: Host, ref: ChannelRef, msg: InboundMessage): void {
   const chatKey = chatKeyOf(ref);
   if (rt().busy[chatKey]) {
     quiet(
@@ -105,7 +115,8 @@ export function enqueue(agent: Agent, ref: ChannelRef, msg: InboundMessage): voi
     );
   }
   const prev = queues.get(chatKey) ?? Promise.resolve();
-  const next = prev.then(() => runForChat(agent, ref, msg));
+  // Re-read the host when the task starts: a queued message should see edits made since.
+  const next = prev.then(() => runForChat(latest(host), ref, msg));
   queues.set(chatKey, next);
   void next.finally(() => {
     if (queues.get(chatKey) === next) queues.delete(chatKey);

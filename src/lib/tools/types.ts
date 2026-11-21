@@ -17,6 +17,10 @@ export interface ToolContext {
   turn?: TurnState;
   /** The turn's cancel signal: a Stop also ends a running command. */
   signal?: AbortSignal;
+  /** Nobody is necessarily at the machine (channel and schedule runs). */
+  headless?: boolean;
+  /** Part of a pack chat: memories are saved to the pack, not the agent. */
+  packChat?: boolean;
 }
 
 /** An image a tool hands back to the model (a screenshot, say). */

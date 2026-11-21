@@ -24,6 +24,8 @@ const log = logger("runs");
 export interface RunOptions {
   /** One-line log summary. Defaults to the head of the reply. */
   summary?: (result: AgentTurnResult) => string;
+  /** The pack-chat message this run belongs to; see Run.group. */
+  group?: string;
 }
 
 /**
@@ -45,6 +47,7 @@ export async function recordRun(
     // Recorded here so no call site can forget them.
     model: agent.model,
     runtime: agent.runtime ?? useSettings.getState().runtime,
+    ...(opts.group ? { group: opts.group } : {}),
   });
 
   const startedAt = Date.now();

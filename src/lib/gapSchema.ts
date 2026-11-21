@@ -194,6 +194,8 @@ export function normalizeGap(raw: unknown, opts: { allowNoAgents?: boolean } = {
     source: oneOf(g.source, ["local", "marketplace", "imported"] as const, "imported"),
     installed: g.installed !== false,
     agents: list(g.agents, `${field}.agents`, (a, f) => agent(a, f, id), MAX_AGENTS),
+    knowledge: g.knowledge == null ? undefined : list(g.knowledge, `${field}.knowledge`, knowledgeDoc),
+    channels: g.channels == null ? undefined : list(g.channels, `${field}.channels`, channel),
     mcpServers: g.mcpServers == null ? undefined : list(g.mcpServers, `${field}.mcpServers`, mcpServer),
     env: stringMap(g.env, `${field}.env`),
     createdAt: num(g.createdAt, now, 0),

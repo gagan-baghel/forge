@@ -15,6 +15,7 @@ import { runAgentTurn, type AgentTurnResult, type ToolEvent } from "./agentRun";
 import { errorMessage, isAbortError } from "./runError";
 import { recordRun } from "./runner";
 import type { ChannelRef } from "./approval";
+import type { ClientTool } from "./tools";
 
 export interface ConversationTurnOpts {
   trigger: Run["trigger"];
@@ -24,6 +25,11 @@ export interface ConversationTurnOpts {
   onTool?: (event: ToolEvent) => void;
   /** Log line for the run. Defaults to the head of the reply. */
   summary?: (result: AgentTurnResult) => string;
+  /** Pack chats: the team tool and roster for this turn. */
+  extraTools?: ClientTool[];
+  extraSystem?: string;
+  /** Pack chats: the message's run group (see Run.group); also routes saved memories to the pack. */
+  group?: string;
 }
 
 export async function runConversationTurn(
@@ -44,9 +50,12 @@ export async function runConversationTurn(
     content: "",
     createdAt: Date.now(),
     pending: true,
+    agentId: agent.id,
   });
 
   const conv = convs.get(conversationId);
+  // A pack chat holds one Claude Code session per agent; a session is one agent's.
+  const resumeSessionId = conv?.gapId ? conv.ccSessions?.[agent.id] : conv?.ccSessionId;
   const history = conv?.messages.filter((m) => m.id !== assistantId) ?? [];
   const current = () =>
     useConversations
@@ -77,14 +86,20 @@ export async function runConversationTurn(
           onText,
           onTool,
           signal: opts.signal,
-          resumeSessionId: conv?.ccSessionId,
+          resumeSessionId,
           channel: opts.channel,
           headless: opts.headless,
+          extraTools: opts.extraTools,
+          extraSystem: opts.extraSystem,
+          packChat: !!opts.group,
         }),
-      { summary: opts.summary },
+      { summary: opts.summary, group: opts.group },
     );
 
-    if (result.sessionId) useConversations.getState().setSessionId(conversationId, result.sessionId);
+    if (result.sessionId) {
+      if (conv?.gapId) useConversations.getState().setAgentSession(conversationId, agent.id, result.sessionId);
+      else useConversations.getState().setSessionId(conversationId, result.sessionId);
+    }
     // The CLI runtime's final text replaces an empty streamed buffer.
     if (!current()?.content && result.text) patch({ content: result.text });
     patch({

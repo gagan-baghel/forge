@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BotFace } from "@/components/BotFace";
 import { useNavigate } from "react-router-dom";
 import { nanoid } from "nanoid";
 import { PageBody, PageHeader } from "@/components/Shell";
@@ -213,7 +214,7 @@ export function ArchitectView() {
               {draft.agents.map((a, i) => (
                 <li key={i} className="px-5 py-3">
                   <div className="flex items-center gap-2.5">
-                    <Avatar name={a.name} size={24} className="rounded-md" />
+                    <BotFace name={a.name} size={24} />
                     <span className="text-[13px] font-medium">{a.name}</span>
                     <Badge>{a.role}</Badge>
                   </div>

@@ -71,6 +71,13 @@ export const UNTRUSTED_WARNING =
 
 let dialogApprover: DialogApprover | null = null;
 let remoteApprover: RemoteApprover | null = null;
+/**
+ * The dialog shows one prompt at a time, and a second one opened over it
+ * silently orphaned the first (it hung until its timeout). Prompts that arrive
+ * together — teammates working in parallel, a phone turn beside a desk turn —
+ * wait their turn instead.
+ */
+let dialogQueue: Promise<unknown> = Promise.resolve();
 
 export function setApprover(fn: DialogApprover | null): void {
   dialogApprover = fn;
@@ -85,14 +92,19 @@ export async function approve(req: ApprovalRequest): Promise<ApprovalResult> {
   if (req.channel?.remote && remoteApprover) {
     return remoteApprover({ ...req, channel: req.channel });
   }
-  if (!dialogApprover) return "denied";
+  const ask = dialogApprover;
+  if (!ask) return "denied";
   const warning = req.turn?.untrusted ? `\n\n${UNTRUSTED_WARNING}` : "";
-  return dialogApprover({
-    title: req.title,
-    body: req.body + warning,
-    confirmLabel: "Run",
-    cancelLabel: "Deny",
-    danger: true,
-    timeoutMs: APPROVAL_TIMEOUT_MS,
-  });
+  const answer = dialogQueue.then(() =>
+    ask({
+      title: req.title,
+      body: req.body + warning,
+      confirmLabel: "Run",
+      cancelLabel: "Deny",
+      danger: true,
+      timeoutMs: APPROVAL_TIMEOUT_MS,
+    }),
+  );
+  dialogQueue = answer.catch(() => undefined);
+  return answer;
 }

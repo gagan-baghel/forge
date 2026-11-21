@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BotFace } from "@/components/BotFace";
 import { useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { PageBody, PageHeader } from "@/components/Shell";
@@ -188,7 +189,7 @@ function PackBuilder() {
             <div key={i} className="space-y-3 rounded-lg border border-border p-4">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2 text-[13px] font-medium">
-                  <Avatar name={a.name || `Agent ${i + 1}`} size={22} className="rounded-md" />
+                  <BotFace name={a.name || `Agent ${i + 1}`} size={22} />
                   {a.name.trim() || `Agent ${i + 1}`}
                 </span>
                 {agents.length > 1 && (
@@ -273,7 +274,7 @@ function PackBuilder() {
           <ul className="divide-y divide-border rounded-lg border border-border">
             {validAgents.map((a, i) => (
               <li key={i} className="flex items-center gap-3 px-4 py-2.5">
-                <Avatar name={a.name} size={28} />
+                <BotFace name={a.name} size={28} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[13px] font-medium">{a.name}</div>
                   <div className="truncate text-xs text-ink-3">{a.role || "Assistant"}</div>

@@ -14,10 +14,12 @@ import { useRoutines } from "@/stores/routines";
 import { useGaps } from "@/stores/gaps";
 import { logger } from "./log";
 
-/** Deliver routine output to a Discord webhook if the agent has one. */
+const webhookOf = (channels: Agent["channels"] = []) => channels.find((c) => c.kind === "discord")?.config?.webhook;
+
+/** Deliver routine output to a Discord webhook: the agent's own, else its pack's. */
 async function deliverToDiscord(agent: Agent, text: string) {
   if (!isDesktop()) return;
-  const discord = agent.channels.find((c) => c.kind === "discord")?.config?.webhook;
+  const discord = webhookOf(agent.channels) ?? webhookOf(useGaps.getState().findGap(agent.gapId)?.channels);
   if (discord) {
     try {
       await discordSend(discord, text);

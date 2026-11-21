@@ -8,10 +8,17 @@ interface ConversationStore {
   conversations: Conversation[];
   /** Get (or lazily create) the active conversation id for an agent. */
   ensureConversation: (agentId: string) => string;
-  newConversation: (agentId: string, origin?: ConversationOrigin) => string;
+  newConversation: (agentId: string, origin?: ConversationOrigin, gapId?: string) => string;
   /** The live thread for a phone chat: its latest conversation, or a new one. */
   conversationFor: (agentId: string, origin: ConversationOrigin) => string;
   listForAgent: (agentId: string) => Conversation[];
+  /** A pack's live thread for a phone chat: its latest conversation, or a new one. */
+  packConversationFor: (gapId: string, origin: ConversationOrigin) => string;
+  /** Pack chats: the latest desk chat with a pack, or a new one. */
+  ensurePackConversation: (gapId: string) => string;
+  newPackConversation: (gapId: string) => string;
+  /** Remember an agent's Claude Code session inside a pack chat. */
+  setAgentSession: (convId: string, agentId: string, ccSessionId: string) => void;
   get: (id: string) => Conversation | undefined;
   appendMessage: (convId: string, msg: ChatMessage) => void;
   updateMessage: (convId: string, msgId: string, patch: Partial<ChatMessage>) => void;
@@ -32,11 +39,31 @@ export const useConversations = create<ConversationStore>()(
         return get().newConversation(agentId);
       },
 
-      newConversation: (agentId, origin) => {
+      ensurePackConversation: (gapId) =>
+        get().conversations.find((c) => c.gapId === gapId && !c.origin)?.id ?? get().newPackConversation(gapId),
+
+      newPackConversation: (gapId) => get().newConversation("", undefined, gapId),
+
+      packConversationFor: (gapId, origin) => {
+        const latest = get()
+          .conversations.filter((c) => c.gapId === gapId && c.origin?.key === origin.key)
+          .sort((a, b) => b.createdAt - a.createdAt)[0];
+        return latest?.id ?? get().newConversation("", origin, gapId);
+      },
+
+      setAgentSession: (convId, agentId, ccSessionId) =>
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === convId ? { ...c, ccSessions: { ...c.ccSessions, [agentId]: ccSessionId } } : c,
+          ),
+        })),
+
+      newConversation: (agentId, origin, gapId) => {
         const id = nanoid(10);
         const conv: Conversation = {
           id,
           agentId,
+          ...(gapId ? { gapId } : {}),
           ...(origin ? { origin } : {}),
           title: "New chat",
           messages: [],
@@ -101,6 +128,26 @@ export const useConversations = create<ConversationStore>()(
 
       remove: (convId) => set((s) => ({ conversations: s.conversations.filter((c) => c.id !== convId) })),
     }),
-    { name: "forge.conversations", storage: deferredStorage() },
+    {
+      name: "forge.conversations",
+      storage: deferredStorage(),
+      // A reply still "pending" when Forge last quit will never finish: say so,
+      // instead of a status line (and a thinking bot) that runs forever.
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        state.conversations = state.conversations.map((c) =>
+          c.messages.some((m) => m.pending)
+            ? {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.pending
+                    ? { ...m, pending: false, error: m.error ?? "Interrupted — Forge closed before this finished." }
+                    : m,
+                ),
+              }
+            : c,
+        );
+      },
+    },
   ),
 );

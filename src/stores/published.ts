@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { deferredStorage } from "@/lib/persistStorage";
 import type { Gap, MarketplaceListing } from "@/types/domain";
+import { stripSecrets } from "@/lib/gapfile";
 
 /**
  * GAPs the user has published. Local-first: "publishing" lists the GAP in your
@@ -20,7 +21,9 @@ export const usePublished = create<PublishedStore>()(
     (set, get) => ({
       listings: [],
       publish: (gap, meta) => {
-        const { installed: _i, source: _s, ...rest } = gap;
+        // A listing is a pack as you'd share it: no bot tokens, paired phones,
+        // connector tokens or env values — the same scrub as a .gap export.
+        const { installed: _i, source: _s, ...rest } = stripSecrets(gap);
         const listing: MarketplaceListing = {
           gap: { ...rest } as MarketplaceListing["gap"],
           featured: false,
