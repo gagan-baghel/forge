@@ -9,6 +9,18 @@ import type { Gap } from "@/types/domain";
 const catalog = marketplaceCatalog();
 const packs = catalog.map((l) => l.gap as unknown as Gap);
 const bySlug = (slug: string) => packs.find((p) => p.slug === slug)!;
+const NEW = [
+  "market-research-desk",
+  "content-studio",
+  "creator-studio",
+  "dev-crew",
+  "data-lab",
+  "product-studio",
+  "growth-team",
+  "sales-desk",
+  "study-room",
+  "job-hunt",
+];
 
 beforeEach(() => resetStores());
 
@@ -17,9 +29,8 @@ describe("Marketplace catalog", () => {
     for (const p of packs) expect(() => normalizeGap(JSON.parse(JSON.stringify(p)))).not.toThrow();
   });
 
-  it("has the packs people asked for: stocks, writing, coding, data, product", () => {
-    for (const slug of ["market-research-desk", "content-studio", "dev-crew", "data-lab", "product-studio"])
-      expect(bySlug(slug)).toBeDefined();
+  it("has the packs people asked for: stocks, writing, creators, coding, data, product, marketing, sales, learning, careers", () => {
+    for (const slug of NEW) expect(bySlug(slug)).toBeDefined();
   });
 
   it('never says "platform"', () => {
@@ -77,7 +88,7 @@ describe("Marketplace catalog", () => {
   });
 
   it("shows no made-up popularity for new packs", () => {
-    for (const slug of ["market-research-desk", "content-studio", "dev-crew", "data-lab", "product-studio"]) {
+    for (const slug of NEW) {
       const l = catalog.find((x) => x.gap.slug === slug)!;
       expect(l.installs).toBe(0);
       expect(l.rating).toBe(0);

@@ -59,8 +59,8 @@ export async function retrieveAsync(docs: KnowledgeDoc[], query: string, topK = 
   if (!qVec) return retrieve(docs, query, topK);
 
   const scored: { title: string; text: string; score: number }[] = [];
-  // ponytail: embeds every chunk (cached after first use), so the first question
-  // over a big PDF is slow; embed at add-time and persist vectors if that bites.
+  // Each chunk's vector is computed once, ever (saved on this device; see
+  // embeddings.ts), and documents are prepared when added (prepareDoc).
   for (const doc of docs) {
     for (const c of chunk(doc.content)) {
       const v = await embed(c);
@@ -78,6 +78,18 @@ export async function retrieveAsync(docs: KnowledgeDoc[], query: string, topK = 
     .join("\n\n");
 }
 
+/**
+ * Process a new document's passages now, in the background, so the first
+ * question about it doesn't wait. Vectors are saved, so this happens once per
+ * passage, not once per launch.
+ */
+export async function prepareDoc(content: string): Promise<void> {
+  for (const c of chunk(content)) {
+    if (!embeddingsAvailable()) return;
+    await embed(c);
+  }
+}
+
 /** Return a formatted context string of the most relevant chunks, or "". */
 export function retrieve(docs: KnowledgeDoc[], query: string, topK = 3): string {
   if (!docs.length) return "";
@@ -85,8 +97,6 @@ export function retrieve(docs: KnowledgeDoc[], query: string, topK = 3): string 
   if (qTokens.size === 0) return "";
 
   const scored: { title: string; text: string; score: number }[] = [];
-  // ponytail: embeds every chunk (cached after first use), so the first question
-  // over a big PDF is slow; embed at add-time and persist vectors if that bites.
   for (const doc of docs) {
     for (const c of chunk(doc.content)) {
       const tokens = tokenize(c);
