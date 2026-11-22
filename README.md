@@ -159,7 +159,13 @@ is edited in two places.
   environment, sharing (`.gap` file or share code) and a raw-JSON escape
   hatch. New packs come from the step-by-step builder or the **Architect**
   (describe a goal, Claude designs the pack); ready-made ones from the
-  **Marketplace**
+  **Marketplace**: *Market Research Desk* (stock research — news and
+  filings, valuation math, a bear case; research, not advice), *Content
+  Studio* (lead, researcher, writer, editor, SEO), *Dev Crew* (tech lead,
+  engineer, reviewer, tester), *Data Lab* and *Product Studio*. Each is a
+  team with a lead who answers first, agents with the skills, model and
+  reply length their job needs, and shared working standards in the pack's
+  knowledge
 - **Knowledge** — *Documents* agents read before answering (PDF, text,
   Markdown, CSV, JSON — read on this machine, matched with local semantic
   search) and *Memory*, the short facts kept across conversations. Each

@@ -5,6 +5,7 @@ import { Icon } from "./Icon";
 import { useGaps } from "@/stores/gaps";
 import { useMemory, type MemoryOwner } from "@/stores/memory";
 import { extractText, KNOWLEDGE_ACCEPT, ExtractError } from "@/lib/extractText";
+import { prepareDoc } from "@/lib/knowledge";
 
 /**
  * Who gets the item, encoded as `pack:<id>` (shared by every agent in the
@@ -76,6 +77,8 @@ function AddDocumentDialog({ agentId, gapId, onClose }: { agentId?: string; gapI
   const addPackDoc = useGaps((s) => s.addPackKnowledge);
   const [target, setTarget] = useState(useInitialTarget(agentId, gapId));
   const addKnowledge = (t: Target, doc: Parameters<typeof addAgentDoc>[1]) => {
+    // Read once, now: its passages are processed and saved in the background.
+    void prepareDoc(doc.content);
     const o = parseTarget(t);
     if (o && "gapId" in o) addPackDoc(o.gapId, doc);
     else if (o) addAgentDoc(o.agentId, doc);

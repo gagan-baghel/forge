@@ -10,6 +10,7 @@ import { useGaps } from "@/stores/gaps";
 import { usePublished } from "@/stores/published";
 import { fmtNumber } from "@/lib/format";
 import type { MarketplaceListing } from "@/types/domain";
+import { BotStack } from "@/components/BotFace";
 
 export function MarketplaceView() {
   const baseCatalog = useMemo(() => marketplaceCatalog(), []);
@@ -81,12 +82,16 @@ export function MarketplaceView() {
                         {l.featured && <Badge tone="brand">Featured</Badge>}
                       </div>
                       <div className="mt-0.5 flex items-center gap-3 text-[11px] tabular-nums text-ink-3">
-                        <span className="flex items-center gap-1">
-                          <Icon name="download" size={12} /> {fmtNumber(l.installs)}
-                        </span>
-                        <span>★ {l.rating}</span>
-                        <span className="flex items-center gap-1">
-                          <Icon name="agents" size={12} /> {l.gap.agents.length}
+                        {/* Only real numbers: a pack nobody has rated shows no stars. */}
+                        {l.installs > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Icon name="download" size={12} /> {fmtNumber(l.installs)}
+                          </span>
+                        )}
+                        {l.rating > 0 && <span>★ {l.rating}</span>}
+                        <span className="flex items-center gap-1.5" title={l.gap.agents.map((a) => a.name).join(", ")}>
+                          <BotStack agents={l.gap.agents} size={16} max={5} />
+                          {l.gap.agents.length} agent{l.gap.agents.length === 1 ? "" : "s"}
                         </span>
                       </div>
                     </div>
